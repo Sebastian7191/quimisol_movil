@@ -2,6 +2,8 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:quimisol_movil/core/theme/palette.dart';
 import 'package:quimisol_movil/features/pasajeros_features/homepage/pages/home_page_clientes.dart';
+import 'package:quimisol_movil/features/pasajeros_features/pedidos/pages/lista_pedidos.dart';
+import 'package:quimisol_movil/features/pasajeros_features/wishlist/pages/wishlist.dart';
 
 class Navbar extends StatefulWidget {
   const Navbar({super.key});
@@ -17,9 +19,8 @@ class _NavbarState extends State<Navbar> {
   Widget build(BuildContext context) {
     final pages = <Widget>[
       const HomeCliente(),
-      const Center(child: Text('Buscar')),
-      const Center(child: Text('Home Central')),
-      const Center(child: Text('Carrito')),
+      const WishlistPage(),
+      const MisPedidosPage(),
       const Center(child: Text('Perfil')),
     ];
 
@@ -49,8 +50,8 @@ class _BottomPillNavbarAnimated extends StatelessWidget {
   Widget build(BuildContext context) {
     final items = const <_NavItem>[
       _NavItem(icon: Icons.storefront_rounded, label: 'Principal'),
-      _NavItem(icon: Icons.search_rounded, label: 'Buscar'),
-      _NavItem(icon: Icons.shopping_cart_outlined, label: 'Carrito'),
+      _NavItem(icon: Icons.favorite_rounded, label: 'Deseados'),
+      _NavItem(icon: Icons.shopping_cart_outlined, label: 'Pedidos'),
       _NavItem(icon: Icons.person_outline_rounded, label: 'Perfil'),
     ];
 

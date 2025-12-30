@@ -1,16 +1,22 @@
 // lib/features/home/home_cliente.dart
 //
-// ✅ Cambios aplicados:
-// - Se quitaron emojis
-// - Categorías centradas (Wrap dentro de Center)
-// - Sección de categorías MÁS PEQUEÑA (menos categorías + pills más compactas)
-// - NO se tocó el tamaño del título "Productos populares"
+// ✅ HomePage (HomeCliente) COMPLETA
+// - Categorías sin emojis, centradas y más compactas
+// - Al tocar un producto navega a: detalle_producto.dart
+// - Incluye Hero tag para animación de imagen
+//
+// Requiere: palette.dart en quimisol_movil/core/theme/palette.dart
+// Requiere: detalle_producto.dart (lo haremos después)
 
 import 'package:flutter/material.dart';
 import 'package:flutter_modular/flutter_modular.dart';
+import 'package:quimisol_movil/features/pasajeros_features/carrito/pages/carrito.dart';
 
 import 'package:quimisol_movil/shared/services/auth_service.dart';
 import 'package:quimisol_movil/core/theme/palette.dart';
+
+// ✅ Import de la página de detalle
+import 'detalle_producto.dart';
 
 class HomeCliente extends StatefulWidget {
   const HomeCliente({super.key});
@@ -33,29 +39,30 @@ class _HomeClienteState extends State<HomeCliente> {
     _CatModel(label: 'Envases'),
   ];
 
-  final List<_ProductModel> products = const [
-    _ProductModel(
+  // ✅ Modelo público (para poder pasarlo a detalle_producto.dart)
+  final List<ProductModel> products = const [
+    ProductModel(
       name: 'Ichiraku Ramen',
       price: 15.00,
       rating: 4.5,
       imageUrl:
           'https://images.unsplash.com/photo-1604908554162-45f20aefc17a?auto=format&fit=crop&w=800&q=60',
     ),
-    _ProductModel(
+    ProductModel(
       name: 'Philadelphia roll',
       price: 9.50,
       rating: 4.8,
       imageUrl:
           'https://images.unsplash.com/photo-1563612116625-3012372fccce?auto=format&fit=crop&w=800&q=60',
     ),
-    _ProductModel(
+    ProductModel(
       name: 'Salmon sushi',
       price: 12.00,
       rating: 4.7,
       imageUrl:
           'https://images.unsplash.com/photo-1553621042-f6e147245754?auto=format&fit=crop&w=800&q=60',
     ),
-    _ProductModel(
+    ProductModel(
       name: 'Miso soup',
       price: 6.00,
       rating: 4.6,
@@ -105,7 +112,12 @@ class _HomeClienteState extends State<HomeCliente> {
             _PinkPedidosHeader(
               onLogout: _logout,
               onBell: () {},
-              onCart: () {},
+              onCart: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const CarritoPage()),
+                );
+              },
               onSearch: () {},
             ),
             SafeArea(
@@ -122,7 +134,7 @@ class _HomeClienteState extends State<HomeCliente> {
                           child: Text(
                             'Productos populares',
                             style: TextStyle(
-                              fontSize: 30, // ❌ NO se toca
+                              fontSize: 30, // ✅ NO tocado
                               fontWeight: FontWeight.w900,
                               color: Palette.ink,
                               letterSpacing: -0.5,
@@ -143,10 +155,9 @@ class _HomeClienteState extends State<HomeCliente> {
                       ],
                     ),
 
-                    // ✅ un poco más compacto arriba
                     const SizedBox(height: 12),
 
-                    // ✅ Categorías centradas y más compactas
+                    // ✅ Categorías centradas + compactas
                     Center(
                       child: Wrap(
                         alignment: WrapAlignment.center,
@@ -169,9 +180,9 @@ class _HomeClienteState extends State<HomeCliente> {
                       ),
                     ),
 
-                    // ✅ menos espacio antes del grid
                     const SizedBox(height: 12),
 
+                    // ✅ Productos: tocar -> DetalleProductoPage
                     GridView.builder(
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
@@ -183,7 +194,19 @@ class _HomeClienteState extends State<HomeCliente> {
                             mainAxisSpacing: 14,
                             childAspectRatio: 0.78,
                           ),
-                      itemBuilder: (_, i) => _ProductCard(product: products[i]),
+                      itemBuilder: (_, i) => InkWell(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  DetalleProductoPage(product: products[i]),
+                            ),
+                          );
+                        },
+                        borderRadius: BorderRadius.circular(24),
+                        child: _ProductCard(product: products[i]),
+                      ),
                     ),
                   ],
                 ),
@@ -203,13 +226,14 @@ class _CatModel {
   const _CatModel({required this.label});
 }
 
-class _ProductModel {
+// ✅ Público para que detalle_producto.dart lo use
+class ProductModel {
   final String name;
   final double price;
   final double rating;
   final String imageUrl;
 
-  const _ProductModel({
+  const ProductModel({
     required this.name,
     required this.price,
     required this.rating,
@@ -292,8 +316,8 @@ class _PinkPedidosHeaderState extends State<_PinkPedidosHeader> {
 
   @override
   Widget build(BuildContext context) {
-    final kPinkA = Palette.button;
-    final kPinkB = Palette.gradientEnd;
+    final kPinkA = Palette.button; // rosa
+    final kPinkB = Palette.gradientEnd; // rosa pastel
 
     return Container(
       width: double.infinity,
@@ -390,6 +414,8 @@ class _PinkPedidosHeaderState extends State<_PinkPedidosHeader> {
                 ],
               ),
               const SizedBox(height: 12),
+
+              // Search bar
               Container(
                 height: 48,
                 decoration: BoxDecoration(
@@ -429,7 +455,10 @@ class _PinkPedidosHeaderState extends State<_PinkPedidosHeader> {
                   ],
                 ),
               ),
+
               const SizedBox(height: 14),
+
+              // ✅ Carrusel banners
               SizedBox(
                 height: 170,
                 child: Stack(
@@ -641,7 +670,7 @@ class _CategoryPill extends StatelessWidget {
 
 class _ProductCard extends StatelessWidget {
   const _ProductCard({required this.product});
-  final _ProductModel product;
+  final ProductModel product;
 
   @override
   Widget build(BuildContext context) {
@@ -684,10 +713,13 @@ class _ProductCard extends StatelessWidget {
             Expanded(
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(16),
-                child: Image.network(
-                  product.imageUrl,
-                  fit: BoxFit.cover,
-                  width: double.infinity,
+                child: Hero(
+                  tag: 'product_${product.name}_${product.imageUrl}',
+                  child: Image.network(
+                    product.imageUrl,
+                    fit: BoxFit.cover,
+                    width: double.infinity,
+                  ),
                 ),
               ),
             ),
