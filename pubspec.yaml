@@ -34,6 +34,56 @@ dependencies:
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
+  flutter_modular: ^6.4.1
+  google_sign_in: ^6.3.0
+  firebase_auth: ^6.0.2
+  cloud_firestore: ^6.1.0
+  firebase_core: ^4.2.1
+  mapbox_maps_flutter: ^2.17.0
+   # 4.3 ─── TUS PAQUETES (puedes añadir o quitar) ───
+  shared_preferences: ^2.5.3        # almacenamiento local simple
+  path_provider: ^2.1.5             # rutas de carpetas del dispositivo
+  path: ^1.9.0
+  country_code_picker: ^3.3.0       # selector de prefijo telefónico
+
+
+
+  # 4.5 UI y mapas
+  google_fonts: ^6.2.1              # tipografías de Google
+
+  geolocator: ^14.0.2               # GPS / coordenadas
+  image_picker: ^1.1.2              # seleccionar imágenes del dispositivo
+
+  # 4.6 Utilidades varias
+  intl: ^0.20.2                     # formateo de fechas/números
+  flutter_dotenv: ^5.2.1            # variables de entorno (.env)
+  firebase_storage: ^13.0.1
+  firebase_database: ^12.0.3
+
+  http: ^1.5.0
+  flutter_launcher_icons: ^0.14.4
+
+  # verifica la conexion a internet
+  connectivity_plus: ^6.0.3
+
+  #calendario
+  table_calendar: ^3.0.9
+
+  # para imagenes
+  file_picker: ^8.0.0
+  flutter_map: ^8.2.2
+
+  # para descargar QR
+  gal: ^2.3.0
+  permission_handler: ^11.3.1
+  dio: ^5.7.0
+
+  # nunca lo sabremos
+  rxdart: ^0.27.7
+  provider: ^6.1.5+1
+  firebase_messaging: ^16.0.4
+  flutter_local_notifications: ^19.5.0
+  font_awesome_flutter: ^10.12.0
 
 dev_dependencies:
   flutter_test:
@@ -58,8 +108,8 @@ flutter:
   uses-material-design: true
 
   # To add assets to your application, add an assets section, like this:
-  # assets:
-  #   - images/a_dot_burr.jpeg
+  assets:
+    - assets/images/
   #   - images/a_dot_ham.jpeg
 
   # An image asset can refer to one or more resolution-specific "variants", see

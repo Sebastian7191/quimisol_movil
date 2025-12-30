@@ -1,4 +1,4 @@
-package com.example.quimisol_movil
+package com.quimisol.quimisol_movil
 
 import io.flutter.embedding.android.FlutterActivity
 
