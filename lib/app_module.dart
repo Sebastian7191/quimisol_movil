@@ -3,6 +3,7 @@ import 'package:flutter_modular/flutter_modular.dart';
 
 // === SERVICES ===
 import 'package:quimisol_movil/core/firebase/firebase_auth_service.dart';
+import 'package:quimisol_movil/features/conductores_features/navbar/pages/nav_bar_repartidores.dart';
 import 'package:quimisol_movil/shared/services/auth_service.dart';
 
 // === STORES ===
@@ -10,7 +11,6 @@ import 'package:quimisol_movil/shared/stores/user_store.dart';
 
 // === PAGES ===
 import 'package:quimisol_movil/features/auth/pages/login_screen.dart';
-import 'package:quimisol_movil/features/conductores_features/home_screen/pages/home_screen_conductor.dart';
 import 'package:quimisol_movil/features/pasajeros_features/navbar/pages/nav_bar_pasajeros.dart';
 import 'package:quimisol_movil/features/splash/pages/splashscreen.dart';
 
@@ -36,6 +36,6 @@ class AppModule extends Module {
     r.child('/home-pasajero', child: (_) => const Navbar());
 
     // 🚖 Home conductor
-    r.child('/home-conductor', child: (_) => const HomeScreenConductor());
+    r.child('/home-conductor', child: (_) => const NavBarRepartidores());
   }
 }

@@ -1,12 +1,18 @@
 // lib/features/pedidos/mis_pedidos_page.dart
 //
+// ✅ Funcional con Firestore (usuarios/{uid}/pedidos) realtime (ÍNDICE del usuario)
 // ✅ Fondo blanco
 // ✅ Cards rosadas
 // ✅ Textos MORADOS (Palette.primary)
-// ✅ Status: Entregado=verde (Palette.statsSuccess) | Cancelado=rojo (Palette.statsDanger) | En camino=naranja (Palette.statsWarning)
+// ✅ Status: Entregado=verde (Palette.statsSuccess) | Cancelado=rojo (Palette.statsDanger) | En camino/pendiente=naranja (Palette.statsWarning)
+// ✅ Lista: NO muestra imagen de producto (solo icono rosado de pedido con fondo blanco)
+// ✅ Tap: abre detalle_pedido.dart (DetallePedidoPage)
 
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:quimisol_movil/core/theme/palette.dart';
+import 'package:quimisol_movil/features/pasajeros_features/pedidos/pages/detalle_producto.dart';
 
 class MisPedidosPage extends StatefulWidget {
   const MisPedidosPage({super.key});
@@ -18,69 +24,77 @@ class MisPedidosPage extends StatefulWidget {
 class _MisPedidosPageState extends State<MisPedidosPage> {
   int _tab = 0;
 
-  final List<_PedidoModel> _pedidos = [
-    _PedidoModel(
-      id: 'ORD-3920',
-      total: 120.50,
-      dateText: '15 Oct, 2023 • 10:30 AM',
-      itemsCount: 3,
-      status: _PedidoStatus.enCamino,
-      thumbUrl:
-          'https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=300&q=60',
-    ),
-    _PedidoModel(
-      id: 'ORD-4400',
-      total: 45.00,
-      dateText: '12 Oct, 2023 • 02:15 PM',
-      itemsCount: 1,
-      status: _PedidoStatus.entregado,
-      thumbUrl:
-          'https://images.unsplash.com/photo-1518441902117-f0a96b4d29f5?auto=format&fit=crop&w=300&q=60',
-    ),
-    _PedidoModel(
-      id: 'ORD-4392',
-      total: 32.50,
-      dateText: '28 Sep, 2023 • 09:45 AM',
-      itemsCount: 2,
-      status: _PedidoStatus.entregado,
-      thumbUrl:
-          'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=300&q=60',
-    ),
-    _PedidoModel(
-      id: 'ORD-4100',
-      total: 65.00,
-      oldTotal: 85.00,
-      dateText: '20 Sep, 2023 • 06:10 PM',
-      itemsCount: 1,
-      status: _PedidoStatus.cancelado,
-      thumbUrl:
-          'https://images.unsplash.com/photo-1511499767150-a48a237f0083?auto=format&fit=crop&w=300&q=60',
-    ),
-  ];
+  final _auth = FirebaseAuth.instance;
+  final _fire = FirebaseFirestore.instance;
 
-  List<_PedidoModel> get _filtered {
-    if (_tab == 0) return _pedidos;
-    if (_tab == 1) {
-      return _pedidos.where((p) => p.status == _PedidoStatus.enCamino).toList();
+  String get _uid => _auth.currentUser?.uid ?? '';
+
+  /// ✅ Índice: SOLO pedidos del usuario logueado
+  CollectionReference<Map<String, dynamic>> get _pedidosRef =>
+      _fire.collection('usuarios').doc(_uid).collection('pedidos');
+
+  String _norm(String s) => s.trim().toLowerCase();
+
+  _PedidoStatus _mapStatus(String raw) {
+    final s = _norm(raw);
+
+    if (s == 'pendiente' || s == 'en proceso' || s == 'proceso') {
+      return _PedidoStatus.enProceso;
     }
-    if (_tab == 2) {
-      return _pedidos.where((p) => p.status == _PedidoStatus.entregado).toList();
+
+    if (s == 'en_camino' || s == 'en camino' || s == 'encamino') {
+      return _PedidoStatus.enCamino;
     }
-    return _pedidos.where((p) => p.status == _PedidoStatus.cancelado).toList();
+
+    if (s == 'entregado' || s == 'entregada') return _PedidoStatus.entregado;
+    if (s == 'cancelado' || s == 'cancelada') return _PedidoStatus.cancelado;
+
+    return _PedidoStatus.enProceso;
+  }
+
+  bool _passesTab(_PedidoStatus st) {
+    if (_tab == 0) return true;
+    if (_tab == 1) return st == _PedidoStatus.enProceso || st == _PedidoStatus.enCamino;
+    if (_tab == 2) return st == _PedidoStatus.entregado;
+    return st == _PedidoStatus.cancelado;
+  }
+
+  String _formatDate(dynamic createdAt) {
+    try {
+      if (createdAt is Timestamp) {
+        final d = createdAt.toDate();
+        final dd = d.day.toString().padLeft(2, '0');
+        final mm = d.month.toString().padLeft(2, '0');
+        final yyyy = d.year.toString();
+        final hh = d.hour.toString().padLeft(2, '0');
+        final mi = d.minute.toString().padLeft(2, '0');
+        return '$dd/$mm/$yyyy • $hh:$mi';
+      }
+    } catch (_) {}
+    return '—';
+  }
+
+  int _itemsCount(dynamic items, dynamic itemsCount) {
+    if (itemsCount is num) return itemsCount.toInt();
+    if (items is List) return items.length;
+    return 0;
+  }
+
+  double _asDouble(dynamic v) {
+    if (v is num) return v.toDouble();
+    return double.tryParse((v ?? '').toString()) ?? 0.0;
   }
 
   @override
   Widget build(BuildContext context) {
     final primary = Palette.button; // rosa
-    final purpleText = Palette.primary; // morado textos
+    final purpleText = Palette.primary; // morado
     final ink = Palette.ink;
-
     final bg = Palette.fieldBg; // blanco
 
     // Cards rosadas
     final cardA = Palette.button.withOpacity(0.92);
     final cardB = Palette.gradientEnd.withOpacity(0.90);
-
     final chipBg = Palette.button.withOpacity(0.10);
 
     return Scaffold(
@@ -125,8 +139,11 @@ class _MisPedidosPageState extends State<MisPedidosPage> {
                           ),
                         ],
                       ),
-                      child: Icon(Icons.search_rounded,
-                          color: purpleText.withOpacity(0.90), size: 20),
+                      child: Icon(
+                        Icons.search_rounded,
+                        color: purpleText.withOpacity(0.90),
+                        size: 20,
+                      ),
                     ),
                   ),
                 ],
@@ -183,25 +200,130 @@ class _MisPedidosPageState extends State<MisPedidosPage> {
 
             const SizedBox(height: 12),
 
-            // Lista
             Expanded(
-              child: ListView.builder(
-                padding: const EdgeInsets.fromLTRB(16, 4, 16, 18),
-                itemCount: _filtered.length,
-                itemBuilder: (_, i) {
-                  final p = _filtered[i];
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 14),
-                    child: _PedidoCard(
-                      pedido: p,
-                      cardA: cardA,
-                      cardB: cardB,
-                      purpleText: purpleText,
-                      onTap: () {},
+              child: _uid.isEmpty
+                  ? Center(
+                      child: Text(
+                        'Inicia sesión para ver tus pedidos.',
+                        style: TextStyle(
+                          color: purpleText.withOpacity(0.75),
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    )
+                  : StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                      /// ✅ SOLO DEL USUARIO (porque es subcolección del usuario)
+                      stream: _pedidosRef.orderBy('createdAt', descending: true).snapshots(),
+                      builder: (context, snap) {
+                        if (snap.connectionState == ConnectionState.waiting) {
+                          return const Center(
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          );
+                        }
+
+                        if (snap.hasError) {
+                          return Center(
+                            child: Padding(
+                              padding: const EdgeInsets.all(18),
+                              child: Text(
+                                'Ocurrió un error al cargar pedidos.\n${snap.error}',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  color: purpleText.withOpacity(0.75),
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ),
+                          );
+                        }
+
+                        final docs = snap.data?.docs ?? [];
+
+                        final all = docs.map((d) {
+                          final data = d.data();
+
+                          final rawStatus = (data['estado'] ?? 'pendiente').toString();
+                          final st = _mapStatus(rawStatus);
+
+                          /// ✅ en el índice guardamos total FINAL (si lo sigues como te dejé)
+                          final total = _asDouble(data['total']);
+
+                          final createdAt = data['createdAt'];
+                          final dateText = _formatDate(createdAt);
+
+                          final items = data['items'];
+                          final itemsCount = _itemsCount(items, data['conteoItems']);
+
+                          /// ✅ codigo, si no existe, mostramos el id
+                          final code = (data['codigo'] ?? d.id).toString();
+
+                          return _PedidoModel(
+                            id: d.id, // ✅ ESTE id ES EL pedidoId real
+                            code: code,
+                            total: total,
+                            dateText: dateText,
+                            itemsCount: itemsCount,
+                            status: st,
+                          );
+                        }).toList();
+
+                        final filtered = all.where((p) => _passesTab(p.status)).toList();
+
+                        if (filtered.isEmpty) {
+                          return Center(
+                            child: Padding(
+                              padding: const EdgeInsets.all(18),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.receipt_long_rounded,
+                                    size: 54,
+                                    color: purpleText.withOpacity(0.25),
+                                  ),
+                                  const SizedBox(height: 10),
+                                  Text(
+                                    'No hay pedidos aquí.',
+                                    style: TextStyle(
+                                      color: purpleText.withOpacity(0.75),
+                                      fontWeight: FontWeight.w900,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        }
+
+                        return ListView.builder(
+                          padding: const EdgeInsets.fromLTRB(16, 4, 16, 18),
+                          itemCount: filtered.length,
+                          itemBuilder: (_, i) {
+                            final p = filtered[i];
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 14),
+                              child: _PedidoCard(
+                                pedido: p,
+                                cardA: cardA,
+                                cardB: cardB,
+                                purpleText: purpleText,
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => DetallePedidoPage(
+                                        pedidoId: p.id, // ✅ /pedidos/{pedidoId}
+                                        pedidoCode: p.code,
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                            );
+                          },
+                        );
+                      },
                     ),
-                  );
-                },
-              ),
             ),
           ],
         ),
@@ -301,28 +423,36 @@ class _PedidoCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                // Thumb
+                // ✅ Icono de pedido: fondo blanco + icono rosado
                 Container(
                   height: 46,
                   width: 46,
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.20),
+                    color: Palette.white,
                     borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: purpleText.withOpacity(0.14)),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.06),
+                        blurRadius: 12,
+                        offset: const Offset(0, 8),
+                      ),
+                    ],
                   ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(14),
-                    child: Image.network(pedido.thumbUrl, fit: BoxFit.cover),
+                  child: Icon(
+                    Icons.receipt_long_rounded,
+                    color: Palette.button, // rosado
+                    size: 26,
                   ),
                 ),
                 const SizedBox(width: 12),
 
-                // Info (texto morado)
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Pedido #${pedido.id}',
+                        'Pedido #${pedido.code}',
                         style: TextStyle(
                           color: purpleText,
                           fontWeight: FontWeight.w900,
@@ -342,34 +472,16 @@ class _PedidoCard extends StatelessWidget {
                   ),
                 ),
 
-                // Total + items (texto morado)
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          '\$${pedido.total.toStringAsFixed(2)}',
-                          style: TextStyle(
-                            color: purpleText,
-                            fontWeight: FontWeight.w900,
-                            fontSize: 13.5,
-                          ),
-                        ),
-                        if (pedido.oldTotal != null) ...[
-                          const SizedBox(width: 8),
-                          Text(
-                            '\$${pedido.oldTotal!.toStringAsFixed(2)}',
-                            style: TextStyle(
-                              color: purpleText.withOpacity(0.65),
-                              fontWeight: FontWeight.w800,
-                              decoration: TextDecoration.lineThrough,
-                              fontSize: 11.5,
-                            ),
-                          ),
-                        ],
-                      ],
+                    Text(
+                      'Bs. ${pedido.total.toStringAsFixed(2)}',
+                      style: TextStyle(
+                        color: purpleText,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 13.5,
+                      ),
                     ),
                     const SizedBox(height: 4),
                     Text(
@@ -384,18 +496,15 @@ class _PedidoCard extends StatelessWidget {
                 ),
               ],
             ),
-
             const SizedBox(height: 10),
             Divider(color: Colors.white.withOpacity(0.35), height: 1),
             const SizedBox(height: 10),
-
-            // Status + action
             Row(
               children: [
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
                   decoration: BoxDecoration(
-                    color: status.bg, // ✅ verde/rojo/naranja desde Palette
+                    color: status.bg,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Row(
@@ -423,8 +532,7 @@ class _PedidoCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 6),
-                Icon(Icons.chevron_right_rounded,
-                    color: purpleText.withOpacity(0.85)),
+                Icon(Icons.chevron_right_rounded, color: purpleText.withOpacity(0.85)),
               ],
             ),
           ],
@@ -452,50 +560,55 @@ class _StatusMeta {
 
 _StatusMeta _statusMeta(_PedidoStatus status) {
   switch (status) {
+    case _PedidoStatus.enProceso:
+      return _StatusMeta(
+        label: 'Pendiente',
+        actionText: 'Ver detalles',
+        icon: Icons.timelapse_rounded,
+        bg: Palette.statsWarning,
+      );
     case _PedidoStatus.enCamino:
       return _StatusMeta(
         label: 'En Camino',
         actionText: 'Ver seguimiento',
         icon: Icons.local_shipping_outlined,
-        bg: Palette.statsWarning, // ✅ naranja
+        bg: Palette.statsWarning,
       );
     case _PedidoStatus.entregado:
       return _StatusMeta(
         label: 'Entregado',
         actionText: 'Ver detalles',
         icon: Icons.check_circle_outline_rounded,
-        bg: Palette.statsSuccess, // ✅ verde
+        bg: Palette.statsSuccess,
       );
     case _PedidoStatus.cancelado:
       return _StatusMeta(
         label: 'Cancelado',
         actionText: 'Ver resumen',
         icon: Icons.cancel_outlined,
-        bg: Palette.statsDanger, // ✅ rojo
+        bg: Palette.statsDanger,
       );
   }
 }
 
 /* ---------------- Model ---------------- */
 
-enum _PedidoStatus { enCamino, entregado, cancelado }
+enum _PedidoStatus { enProceso, enCamino, entregado, cancelado }
 
 class _PedidoModel {
-  final String id;
+  final String id; // ✅ pedidoId real
+  final String code;
   final double total;
-  final double? oldTotal;
   final String dateText;
   final int itemsCount;
   final _PedidoStatus status;
-  final String thumbUrl;
 
   const _PedidoModel({
     required this.id,
+    required this.code,
     required this.total,
-    this.oldTotal,
     required this.dateText,
     required this.itemsCount,
     required this.status,
-    required this.thumbUrl,
   });
 }

@@ -40,6 +40,8 @@ dependencies:
   cloud_firestore: ^6.1.0
   firebase_core: ^4.2.1
   mapbox_maps_flutter: ^2.17.0
+  latlong2: ^0.9.0
+
    # 4.3 ─── TUS PAQUETES (puedes añadir o quitar) ───
   shared_preferences: ^2.5.3        # almacenamiento local simple
   path_provider: ^2.1.5             # rutas de carpetas del dispositivo
@@ -51,6 +53,7 @@ dependencies:
   # 4.5 UI y mapas
   google_fonts: ^6.2.1              # tipografías de Google
 
+  firebase_database: ^12.1.1
   geolocator: ^14.0.2               # GPS / coordenadas
   image_picker: ^1.1.2              # seleccionar imágenes del dispositivo
 
@@ -58,7 +61,6 @@ dependencies:
   intl: ^0.20.2                     # formateo de fechas/números
   flutter_dotenv: ^5.2.1            # variables de entorno (.env)
   firebase_storage: ^13.0.1
-  firebase_database: ^12.0.3
 
   http: ^1.5.0
   flutter_launcher_icons: ^0.14.4

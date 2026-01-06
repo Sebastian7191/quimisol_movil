@@ -1,26 +1,26 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:quimisol_movil/core/theme/palette.dart';
-import 'package:quimisol_movil/features/pasajeros_features/homepage/pages/home_page_clientes.dart';
+import 'package:quimisol_movil/features/conductores_features/home_screen/pages/home_screen_repartidor.dart';
 import 'package:quimisol_movil/features/pasajeros_features/pedidos/pages/lista_pedidos.dart';
 import 'package:quimisol_movil/features/pasajeros_features/perfil/pages/perfil.dart';
 import 'package:quimisol_movil/features/pasajeros_features/wishlist/pages/wishlist.dart';
 
 
-class Navbar extends StatefulWidget {
-  const Navbar({super.key});
+class NavBarRepartidores extends StatefulWidget {
+  const NavBarRepartidores({super.key});
 
   @override
-  State<Navbar> createState() => _NavbarState();
+  State<NavBarRepartidores> createState() => _NavbarRepartidoresState();
 }
 
-class _NavbarState extends State<Navbar> {
+class _NavbarRepartidoresState extends State<NavBarRepartidores> {
   int _currentIndex = 0;
 
   @override
   Widget build(BuildContext context) {
     final pages = <Widget>[
-      const HomeCliente(),
+      const HomeScreenConductor(),
       const WishlistPage(),
       const MisPedidosPage(),
       const PerfilPage(), // ✅ AQUI

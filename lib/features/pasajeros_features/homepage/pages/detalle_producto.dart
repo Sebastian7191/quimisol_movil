@@ -1,15 +1,23 @@
 // lib/features/home/detalle_producto.dart
 //
-// ✅ Layout como tu captura:
-// - Rosa arriba
-// - Blanco abajo
-// - Rosa “tapa” un poco al blanco (superposición suave)
-// - Imagen un poquito MÁS GRANDE y un poco MÁS ABAJO
-// - La imagen NO se sale del área rosa
+// ✅ Nuevo layout pedido:
+// - El ROSADO (gradiente) siempre por encima
+// - Quitamos el panel blanco "positioned" abajo (el que se tapaba)
+// - La info va debajo del rosado (panel blanco normal)
+// - Add to Cart + stepper fijo pegado abajo (bottomNavigationBar)
+// - SOLO descripción / reseñas es scroll (Expanded + SingleChildScrollView)
+//
+// ✅ BOTÓN FUNCIONA:
+// - Agrega al carrito con la cantidad (qty)
+// - Luego navega a CarritoPage
 
 import 'package:flutter/material.dart';
 import 'package:quimisol_movil/core/theme/palette.dart';
 import 'package:quimisol_movil/features/pasajeros_features/homepage/pages/home_page_clientes.dart';
+
+// ✅ carrito
+import 'package:quimisol_movil/features/pasajeros_features/carrito/pages/carrito.dart';
+import 'package:quimisol_movil/features/pasajeros_features/carrito/pages/carrito_store.dart';
 
 class DetalleProductoPage extends StatefulWidget {
   const DetalleProductoPage({super.key, required this.product});
@@ -24,6 +32,42 @@ class _DetalleProductoPageState extends State<DetalleProductoPage> {
   int qty = 1;
   int tab = 0;
 
+  bool _adding = false;
+
+  Future<void> _addToCartAndGo() async {
+    if (_adding) return;
+
+    final p = widget.product;
+
+    setState(() => _adding = true);
+
+    try {
+      // ✅ agrega con cantidad seleccionada
+      await CartStore.I.addProductWithQty(
+        productId: p.id,
+        name: p.name,
+        price: p.price,
+        imageUrl: p.imageUrl,
+        qty: qty,
+      );
+
+      if (!mounted) return;
+
+      // ✅ navega al carrito
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const CarritoPage()),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No se pudo agregar al carrito: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _adding = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final p = widget.product;
@@ -31,20 +75,149 @@ class _DetalleProductoPageState extends State<DetalleProductoPage> {
     final kPinkA = Palette.button;
     final kPinkB = Palette.gradientEnd;
 
-    // ✅ Rosa un poco más “abajo” para tapar un poquito la parte blanca
+    // ✅ Alto del header rosado (igual que antes)
     const double pinkHeight = 490;
 
     return Scaffold(
       backgroundColor: Palette.fieldBg,
-      body: Stack(
+
+      // ✅ Botón fijo abajo
+      bottomNavigationBar: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(18, 10, 18, 14),
+          child: Row(
+            children: [
+              _QtyStepper(
+                qty: qty,
+                onMinus: () {
+                  if (qty > 1) setState(() => qty--);
+                },
+                onPlus: () => setState(() => qty++),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: SizedBox(
+                  height: 52,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Palette.button,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(28),
+                      ),
+                    ),
+                    onPressed: _adding ? null : _addToCartAndGo,
+                    child: _adding
+                        ? const SizedBox(
+                            height: 18,
+                            width: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.4,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Text(
+                            'Añadir al carrito',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w900,
+                              fontSize: 15,
+                            ),
+                          ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+
+      body: Column(
         children: [
-          // 1) Panel blanco abajo (debajo)
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
+          // ✅ ROSADO ARRIBA (siempre por encima)
+          SizedBox(
+            height: pinkHeight,
+            width: double.infinity,
+            child: Stack(
+              children: [
+                // Fondo rosado
+                Positioned.fill(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [kPinkA, kPinkB],
+                      ),
+                      borderRadius: const BorderRadius.only(
+                        bottomLeft: Radius.circular(46),
+                        bottomRight: Radius.circular(46),
+                      ),
+                    ),
+                  ),
+                ),
+
+                // Top bar
+                SafeArea(
+                  bottom: false,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(18, 10, 18, 8),
+                    child: Row(
+                      children: [
+                        _TopCircleButton(
+                          icon: Icons.arrow_back_ios_new_rounded,
+                          onTap: () => Navigator.pop(context),
+                        ),
+                        const Spacer(),
+                        _TopCircleButton(
+                          icon: Icons.more_vert_rounded,
+                          onTap: () {},
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                // Imagen (dentro del rosado)
+                Align(
+                  alignment: Alignment.topCenter,
+                  child: Padding(
+                    padding: const EdgeInsets.only(top: 78),
+                    child: Hero(
+                      tag: 'product_${p.id}', // ✅ consistente con la card
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(34),
+                        child: SizedBox(
+                          height: 295,
+                          width: 315,
+                          child: Image.network(
+                            p.imageUrl,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => Container(
+                              color: Colors.white.withOpacity(0.22),
+                              child: const Center(
+                                child: Icon(
+                                  Icons.image_outlined,
+                                  color: Colors.white,
+                                  size: 42,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // ✅ INFO DEBAJO (panel blanco normal, YA NO se tapa)
+          Expanded(
             child: Container(
-              padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
+              width: double.infinity,
               decoration: BoxDecoration(
                 color: Palette.white,
                 borderRadius: const BorderRadius.only(
@@ -53,236 +226,164 @@ class _DetalleProductoPageState extends State<DetalleProductoPage> {
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.08),
-                    blurRadius: 26,
-                    offset: const Offset(0, -10),
+                    color: Colors.black.withOpacity(0.06),
+                    blurRadius: 22,
+                    offset: const Offset(0, -8),
                   ),
                 ],
               ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Título + precio
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          p.name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 26,
-                            fontWeight: FontWeight.w900,
-                            color: Palette.ink,
-                            letterSpacing: -0.4,
-                          ),
-                        ),
-                      ),
-                      Text(
-                        'Bs. ${p.price.toStringAsFixed(2)}',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w900,
-                          color: Palette.button,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      'Producto',
-                      style: TextStyle(
-                        color: Palette.ink.withOpacity(0.45),
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  // Tabs
-                  Container(
-                    height: 44,
-                    padding: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                      color: Palette.fieldBg,
-                      borderRadius: BorderRadius.circular(24),
-                    ),
-                    child: Row(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(18, 18, 18, 10),
+                child: Column(
+                  children: [
+                    // ✅ HEADER FIJO: título + precio
+                    Row(
                       children: [
                         Expanded(
-                          child: _TabChip(
-                            active: tab == 0,
-                            text: 'Details',
-                            onTap: () => setState(() => tab = 0),
+                          child: Text(
+                            p.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 26,
+                              fontWeight: FontWeight.w900,
+                              color: Palette.ink,
+                              letterSpacing: -0.4,
+                            ),
                           ),
                         ),
-                        Expanded(
-                          child: _TabChip(
-                            active: tab == 1,
-                            text: 'Reviews',
-                            onTap: () => setState(() => tab = 1),
+                        Text(
+                          'Bs. ${p.price.toStringAsFixed(2)}',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w900,
+                            color: Palette.button,
                           ),
                         ),
                       ],
                     ),
-                  ),
+                    const SizedBox(height: 4),
 
-                  const SizedBox(height: 14),
-
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      tab == 0 ? 'Detalles' : 'Reseñas',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w900,
-                        color: Palette.ink,
-                        fontSize: 14,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text.rich(
-                      TextSpan(
-                        style: TextStyle(
-                          color: Palette.ink.withOpacity(0.55),
-                          fontWeight: FontWeight.w600,
-                          height: 1.35,
-                        ),
-                        children: [
-                          TextSpan(
-                            text: tab == 0
-                                ? 'Un producto ideal para tu compra. Calidad garantizada y entrega rápida. Perfecto para el uso diario y compatible con diferentes necesidades. '
-                                : '⭐ ${p.rating.toStringAsFixed(1)} de valoración promedio. Los usuarios destacan la calidad, el empaque y el tiempo de entrega. ',
-                          ),
-                          TextSpan(
-                            text: 'See more.',
+                    // “Producto” + chip stock
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            'Producto',
                             style: TextStyle(
-                              color: Palette.button,
-                              fontWeight: FontWeight.w900,
+                              color: Palette.ink.withOpacity(0.45),
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                        if (p.stock > 0)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 7,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Palette.statsSuccess.withOpacity(0.15),
+                              borderRadius: BorderRadius.circular(999),
+                              border: Border.all(
+                                color: Palette.statsSuccess.withOpacity(0.25),
+                              ),
+                            ),
+                            child: Text(
+                              'Stock: ${p.stock}',
+                              style: TextStyle(
+                                color: Palette.statsSuccess.withOpacity(0.95),
+                                fontWeight: FontWeight.w900,
+                                fontSize: 12.5,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    // ✅ TABS FIJOS
+                    Container(
+                      height: 44,
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: Palette.fieldBg,
+                        borderRadius: BorderRadius.circular(24),
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: _TabChip(
+                              active: tab == 0,
+                              text: 'Detalles',
+                              onTap: () => setState(() => tab = 0),
+                            ),
+                          ),
+                          Expanded(
+                            child: _TabChip(
+                              active: tab == 1,
+                              text: 'Reseñas',
+                              onTap: () => setState(() => tab = 1),
                             ),
                           ),
                         ],
                       ),
                     ),
-                  ),
 
-                  const SizedBox(height: 18),
+                    const SizedBox(height: 14),
 
-                  // Stepper + Add to cart
-                  Row(
-                    children: [
-                      _QtyStepper(
-                        qty: qty,
-                        onMinus: () {
-                          if (qty > 1) setState(() => qty--);
-                        },
-                        onPlus: () => setState(() => qty++),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        tab == 0 ? 'Detalles' : 'Reseñas',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w900,
+                          color: Palette.ink,
+                          fontSize: 14,
+                        ),
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: SizedBox(
-                          height: 52,
-                          child: ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Palette.button,
-                              elevation: 0,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(28),
-                              ),
-                            ),
-                            onPressed: () {},
-                            child: const Text(
-                              'Add to Cart',
+                    ),
+                    const SizedBox(height: 10),
+
+                    // ✅ SOLO ESTA PARTE SCROLLEA
+                    Expanded(
+                      child: SingleChildScrollView(
+                        physics: const BouncingScrollPhysics(),
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text.rich(
+                            TextSpan(
                               style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w900,
-                                fontSize: 15,
+                                color: Palette.ink.withOpacity(0.55),
+                                fontWeight: FontWeight.w600,
+                                height: 1.35,
                               ),
+                              children: [
+                                TextSpan(
+                                  text: tab == 0
+                                      ? (p.description.trim().isNotEmpty
+                                          ? '${p.description.trim()} '
+                                          : 'Sin descripción. ')
+                                      : '⭐ ${p.rating.toStringAsFixed(1)} de valoración promedio. '
+                                          'Los usuarios destacan la calidad, el empaque y el tiempo de entrega. ',
+                                ),
+                                TextSpan(
+                                  text: 'Ver más',
+                                  style: TextStyle(
+                                    color: Palette.button,
+                                    fontWeight: FontWeight.w900,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ),
                       ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          // 2) Fondo rosa arriba (encima)
-          Positioned(
-            left: 0,
-            right: 0,
-            top: 0,
-            child: Container(
-              height: pinkHeight,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [kPinkA, kPinkB],
-                ),
-                borderRadius: const BorderRadius.only(
-                  bottomLeft: Radius.circular(46),
-                  bottomRight: Radius.circular(46),
-                ),
-              ),
-            ),
-          ),
-
-          // 3) Contenido encima
-          SafeArea(
-            bottom: false,
-            child: Column(
-              children: [
-                // Top bar
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(18, 10, 18, 8),
-                  child: Row(
-                    children: [
-                      _TopCircleButton(
-                        icon: Icons.arrow_back_ios_new_rounded,
-                        onTap: () => Navigator.pop(context),
-                      ),
-                      const Spacer(),
-                      _TopCircleButton(
-                        icon: Icons.more_vert_rounded,
-                        onTap: () {},
-                      ),
-                    ],
-                  ),
-                ),
-
-                // ✅ Imagen: un poco MÁS ABAJO y un poco MÁS GRANDE
-                Padding(
-                  padding: const EdgeInsets.only(top: 22),
-                  child: Hero(
-                    tag: 'product_${p.name}_${p.imageUrl}',
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(34),
-                      child: SizedBox(
-                        height: 295,
-                        width: 315,
-                        child: Image.network(
-                          p.imageUrl,
-                          fit: BoxFit.cover,
-                        ),
-                      ),
                     ),
-                  ),
+                  ],
                 ),
-
-                // ✅ Ajuste fino para que el layout quede como tu captura
-                const SizedBox(height: 165),
-
-                const Spacer(),
-              ],
+              ),
             ),
           ),
         ],

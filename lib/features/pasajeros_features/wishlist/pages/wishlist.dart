@@ -1,11 +1,9 @@
-// lib/features/wishlist/wishlist_page.dart
-//
-// ✅ Wishlist estilo mock (cards, chips, botón “Mover al carrito”)
-// ✅ Fondo BLANCO (como pediste)
-// ✅ Color principal: Palette.button (rosa)
-
 import 'package:flutter/material.dart';
 import 'package:quimisol_movil/core/theme/palette.dart';
+import 'package:quimisol_movil/features/pasajeros_features/carrito/pages/carrito.dart';
+import 'package:quimisol_movil/features/pasajeros_features/carrito/pages/carrito_store.dart';
+
+import 'wishlist_store.dart';
 
 class WishlistPage extends StatefulWidget {
   const WishlistPage({super.key});
@@ -15,53 +13,39 @@ class WishlistPage extends StatefulWidget {
 }
 
 class _WishlistPageState extends State<WishlistPage> {
-  int _filter = 0; // 0 Todo, 1 Ofertas, 2 Recientes, 3 Precio
+  int _filter = 0; // 0 Todo, 1 Disponibles, 2 Recientes, 3 Precio
 
-  final List<_WishItem> _items = [
-    _WishItem(
-      name: 'Sony WH-1000XM4 Noise Canceling',
-      price: 248.00,
-      rating: 4.8,
-      reviewsText: '(2.4k)',
-      imageUrl:
-          'https://images.unsplash.com/photo-1518441902117-f0a96b4d29f5?auto=format&fit=crop&w=900&q=60',
-      isOffer: true,
-    ),
-    _WishItem(
-      name: 'Nike Air Zoom Pegasus 38',
-      price: 120.00,
-      rating: 4.9,
-      reviewsText: '(856)',
-      imageUrl:
-          'https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=900&q=60',
-      isOffer: false,
-    ),
-    _WishItem(
-      name: 'Apple Watch Series 7 GPS',
-      price: 399.00,
-      rating: 4.7,
-      reviewsText: '(1.2k)',
-      imageUrl:
-          'https://images.unsplash.com/photo-1516574187841-cb9cc2ca948b?auto=format&fit=crop&w=900&q=60',
-      isOffer: false,
-    ),
-    _WishItem(
-      name: 'Mochila Herschel Supply Co.',
-      price: 65.00,
-      rating: 4.5,
-      reviewsText: '(320)',
-      imageUrl:
-          'https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=900&q=60',
-      isOffer: false,
-      soldOut: true,
-    ),
-  ];
+  final WishlistStore _store = WishlistStore.I;
+  final CartStore _cart = CartStore.I;
 
-  List<_WishItem> get _filtered {
-    final list = List<_WishItem>.from(_items);
+  @override
+  void initState() {
+    super.initState();
 
-    if (_filter == 1) return list.where((e) => e.isOffer && !e.soldOut).toList();
-    if (_filter == 2) return list.take(3).toList(); // demo
+    // Por si entras directo a wishlist
+    _store.bind();
+    _cart.bind();
+
+    _store.addListener(_onChanged);
+  }
+
+  void _onChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    _store.removeListener(_onChanged);
+    super.dispose();
+  }
+
+  List<WishItem> get _items => _store.items;
+
+  List<WishItem> get _filtered {
+    final list = List<WishItem>.from(_items);
+
+    if (_filter == 1) return list.where((e) => e.stock > 0).toList();
+    if (_filter == 2) return list.take(20).toList(); // recientes
     if (_filter == 3) {
       list.sort((a, b) => a.price.compareTo(b.price));
       return list;
@@ -71,23 +55,25 @@ class _WishlistPageState extends State<WishlistPage> {
   }
 
   void _removeAt(int index) {
-    setState(() {
-      final item = _filtered[index];
-      _items.removeWhere((e) => e.name == item.name && e.imageUrl == item.imageUrl);
-    });
+    final item = _filtered[index];
+    _store.remove(item.id);
+  }
+
+  Future<void> _moveToCart(WishItem item) async {
+    await _cart.addFromWishlist(item);
+    // ❌ no navegación automática
   }
 
   @override
   Widget build(BuildContext context) {
-    final primary = Palette.button; // rosa
+    final primary = Palette.button;
     final ink = Palette.ink;
 
-    // ✅ Fondo blanco
     final bg = Palette.fieldBg;
-
-    // Cards claras (pero con el mismo feeling del mock)
     final cardBg = Palette.white;
     final chipBg = ink.withOpacity(0.06);
+
+    final total = _items.length;
 
     return Scaffold(
       backgroundColor: bg,
@@ -114,7 +100,14 @@ class _WishlistPageState extends State<WishlistPage> {
                   ),
                   const Spacer(),
                   InkWell(
-                    onTap: () {},
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const CarritoPage(),
+                        ),
+                      );
+                    },
                     borderRadius: BorderRadius.circular(14),
                     child: Container(
                       height: 38,
@@ -131,8 +124,11 @@ class _WishlistPageState extends State<WishlistPage> {
                           ),
                         ],
                       ),
-                      child: Icon(Icons.shopping_cart_outlined,
-                          color: ink.withOpacity(0.75), size: 20),
+                      child: Icon(
+                        Icons.shopping_cart_outlined,
+                        color: ink.withOpacity(0.75),
+                        size: 20,
+                      ),
                     ),
                   ),
                 ],
@@ -145,7 +141,7 @@ class _WishlistPageState extends State<WishlistPage> {
               child: Row(
                 children: [
                   Text(
-                    '${_items.length} artículos guardados',
+                    '$total artículos guardados',
                     style: TextStyle(
                       color: ink.withOpacity(0.55),
                       fontWeight: FontWeight.w700,
@@ -173,7 +169,7 @@ class _WishlistPageState extends State<WishlistPage> {
                   ),
                   const SizedBox(width: 10),
                   _FilterChipX(
-                    text: 'Ofertas',
+                    text: 'Disponibles',
                     active: _filter == 1,
                     primary: primary,
                     chipBg: chipBg,
@@ -206,24 +202,35 @@ class _WishlistPageState extends State<WishlistPage> {
 
             // Lista
             Expanded(
-              child: ListView.builder(
-                padding: const EdgeInsets.fromLTRB(16, 6, 16, 18),
-                itemCount: _filtered.length,
-                itemBuilder: (_, i) {
-                  final it = _filtered[i];
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 14),
-                    child: _WishCard(
-                      item: it,
-                      primary: primary,
-                      cardBg: cardBg,
-                      ink: ink,
-                      onRemove: () => _removeAt(i),
-                      onMoveToCart: it.soldOut ? null : () {},
+              child: _filtered.isEmpty
+                  ? Center(
+                      child: Text(
+                        'No tienes productos en tu lista de deseos.',
+                        style: TextStyle(
+                          color: ink.withOpacity(0.55),
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    )
+                  : ListView.builder(
+                      padding: const EdgeInsets.fromLTRB(16, 6, 16, 18),
+                      itemCount: _filtered.length,
+                      itemBuilder: (_, i) {
+                        final it = _filtered[i];
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 14),
+                          child: _WishCard(
+                            item: it,
+                            primary: primary,
+                            cardBg: cardBg,
+                            ink: ink,
+                            onRemove: () => _removeAt(i),
+                            onMoveToCart:
+                                it.stock <= 0 ? null : () => _moveToCart(it),
+                          ),
+                        );
+                      },
                     ),
-                  );
-                },
-              ),
             ),
           ],
         ),
@@ -287,7 +294,7 @@ class _WishCard extends StatelessWidget {
     required this.onMoveToCart,
   });
 
-  final _WishItem item;
+  final WishItem item;
   final Color primary;
   final Color cardBg;
   final Color ink;
@@ -296,23 +303,17 @@ class _WishCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final soldOut = item.stock <= 0;
+
     return Container(
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: cardBg,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: ink.withOpacity(0.06)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 20,
-            offset: const Offset(0, 12),
-          ),
-        ],
       ),
-      padding: const EdgeInsets.all(12),
       child: Column(
         children: [
-          // Imagen + delete + tag agotado
           Stack(
             children: [
               ClipRRect(
@@ -325,55 +326,18 @@ class _WishCard extends StatelessWidget {
                   ),
                 ),
               ),
-
-              // delete
               Positioned(
                 top: 8,
                 right: 8,
                 child: InkWell(
                   onTap: onRemove,
-                  borderRadius: BorderRadius.circular(12),
-                  child: Container(
-                    height: 34,
-                    width: 34,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.85),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: ink.withOpacity(0.08)),
-                    ),
-                    child: Icon(Icons.delete_outline_rounded,
-                        color: ink.withOpacity(0.70), size: 18),
-                  ),
+                  child: Icon(Icons.delete_outline_rounded,
+                      color: ink.withOpacity(0.70)),
                 ),
               ),
-
-              // Agotado
-              if (item.soldOut)
-                Positioned(
-                  top: 8,
-                  left: 8,
-                  child: Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: ink.withOpacity(0.75),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Text(
-                      'Agotado',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w900,
-                        fontSize: 11.5,
-                      ),
-                    ),
-                  ),
-                ),
             ],
           ),
-
           const SizedBox(height: 10),
-
           Align(
             alignment: Alignment.centerLeft,
             child: Text(
@@ -383,80 +347,41 @@ class _WishCard extends StatelessWidget {
               style: TextStyle(
                 color: ink,
                 fontWeight: FontWeight.w900,
-                fontSize: 14,
               ),
             ),
           ),
-
           const SizedBox(height: 6),
-
-          Align(
-            alignment: Alignment.centerLeft,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.star_rounded, size: 16, color: Color(0xFFFFB300)),
-                const SizedBox(width: 4),
-                Text(
-                  '${item.rating.toStringAsFixed(1)} ${item.reviewsText}',
-                  style: TextStyle(
-                    color: ink.withOpacity(0.55),
-                    fontWeight: FontWeight.w800,
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 6),
-
           Align(
             alignment: Alignment.centerLeft,
             child: Text(
-              '\$${item.price.toStringAsFixed(2)}',
+              'Bs. ${item.price.toStringAsFixed(2)}',
               style: TextStyle(
-                color: item.soldOut ? ink.withOpacity(0.35) : primary,
+                color: soldOut ? ink.withOpacity(0.35) : primary,
                 fontWeight: FontWeight.w900,
                 fontSize: 16,
               ),
             ),
           ),
-
           const SizedBox(height: 10),
-
           SizedBox(
             height: 44,
             width: double.infinity,
             child: ElevatedButton(
+              onPressed: onMoveToCart,
               style: ElevatedButton.styleFrom(
-                backgroundColor: item.soldOut ? ink.withOpacity(0.10) : primary,
+                backgroundColor:
+                    soldOut ? ink.withOpacity(0.10) : primary,
                 elevation: 0,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(14),
                 ),
               ),
-              onPressed: onMoveToCart,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    item.soldOut
-                        ? Icons.notifications_none_rounded
-                        : Icons.shopping_cart_outlined,
-                    color: item.soldOut ? ink.withOpacity(0.70) : Colors.white,
-                    size: 18,
-                  ),
-                  const SizedBox(width: 10),
-                  Text(
-                    item.soldOut ? 'Avisarme' : 'Mover al carrito',
-                    style: TextStyle(
-                      color: item.soldOut ? ink.withOpacity(0.75) : Colors.white,
-                      fontWeight: FontWeight.w900,
-                      fontSize: 13.5,
-                    ),
-                  ),
-                ],
+              child: Text(
+                soldOut ? 'Agotado' : 'Mover al carrito',
+                style: TextStyle(
+                  color: soldOut ? ink.withOpacity(0.75) : Colors.white,
+                  fontWeight: FontWeight.w900,
+                ),
               ),
             ),
           ),
@@ -464,26 +389,4 @@ class _WishCard extends StatelessWidget {
       ),
     );
   }
-}
-
-/* ---------------- Model ---------------- */
-
-class _WishItem {
-  final String name;
-  final double price;
-  final double rating;
-  final String reviewsText;
-  final String imageUrl;
-  final bool isOffer;
-  final bool soldOut;
-
-  const _WishItem({
-    required this.name,
-    required this.price,
-    required this.rating,
-    required this.reviewsText,
-    required this.imageUrl,
-    required this.isOffer,
-    this.soldOut = false,
-  });
 }

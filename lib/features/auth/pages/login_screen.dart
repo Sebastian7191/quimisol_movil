@@ -94,7 +94,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
     if (role == 'cliente') {
       Modular.to.navigate('/home-pasajero');
-    } else if (role == 'conductor' || role == 'trabajador') {
+    } else if (role == 'conductor' || role == 'repartidor') {
       Modular.to.navigate('/home-conductor');
     } else {
       Modular.to.navigate('/home-pasajero');
