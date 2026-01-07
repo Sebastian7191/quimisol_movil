@@ -15,7 +15,6 @@ class HomeScreenConductor extends StatefulWidget {
 }
 
 class _HomeScreenConductorState extends State<HomeScreenConductor> {
-  int _currentIndex = 0;
   bool _isOnline = false;
 
   late final AuthService _authService;
@@ -57,29 +56,16 @@ class _HomeScreenConductorState extends State<HomeScreenConductor> {
     }
   }
 
-  String _titleForTab(int i) {
-    switch (i) {
-      case 0:
-        return 'Viajes';
-      case 1:
-        return 'Rendimiento';
-      case 2:
-        return 'Billetera';
-      default:
-        return 'Conductor';
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Palette.fieldBg,
 
-      // ✅ APPBAR OK
+      // 🔥 APPBAR LIMPIO
       appBar: AppBar(
         elevation: 0,
-        centerTitle: true,
         backgroundColor: Colors.transparent,
+        centerTitle: true,
         flexibleSpace: Container(
           decoration: BoxDecoration(
             gradient: LinearGradient(
@@ -94,73 +80,104 @@ class _HomeScreenConductorState extends State<HomeScreenConductor> {
           icon: Icon(Icons.logout_rounded, color: Palette.ink),
           onPressed: _logout,
         ),
-        title: Column(
-          children: [
-            Text(
-              _titleForTab(_currentIndex),
-              style: TextStyle(
-                color: Palette.ink,
-                fontWeight: FontWeight.w900,
-                fontSize: 14,
-              ),
-            ),
-            const SizedBox(height: 6),
-            _StatusSwitch(isOnline: _isOnline, onChanged: _toggleOnline),
-          ],
+
+        // ✅ SOLO EL SWITCH
+        title: _StatusSwitch(
+          isOnline: _isOnline,
+          onChanged: _toggleOnline,
         ),
       ),
 
-      // ✅ ESTO ES LO QUE FALTABA
-      body: IndexedStack(
-        index: _currentIndex,
-        children: const [
-          RepartidorViajesPage(), // 0 → VIAJES
-          Center(child: Text('Rendimiento')),
-          Center(child: Text('Billetera')),
-        ],
-      ),
+      // ✅ SOLO VIAJES (SIN TABS NI TEXTO)
+      body: const RepartidorViajesPage(),
     );
   }
 }
 
+/// =======================================================
+/// 🔥 SWITCH BONITO (MINIMAL + PRO)
+// =======================================================
 class _StatusSwitch extends StatelessWidget {
   final bool isOnline;
   final ValueChanged<bool> onChanged;
 
-  const _StatusSwitch({required this.isOnline, required this.onChanged});
+  const _StatusSwitch({
+    required this.isOnline,
+    required this.onChanged,
+  });
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () => onChanged(!isOnline),
       child: Container(
-        width: 170,
-        height: 32,
-        padding: const EdgeInsets.all(3),
+        width: 190,
+        height: 36,
+        padding: const EdgeInsets.all(4),
         decoration: BoxDecoration(
           color: Palette.fieldBg,
           borderRadius: BorderRadius.circular(999),
-          border: Border.all(color: Palette.primary.withOpacity(0.18)),
+          border: Border.all(
+            color: Palette.primary.withOpacity(0.2),
+          ),
         ),
         child: Stack(
           children: [
+            // Fondo animado
             AnimatedAlign(
-              duration: const Duration(milliseconds: 220),
-              alignment: isOnline
-                  ? Alignment.centerRight
-                  : Alignment.centerLeft,
+              duration: const Duration(milliseconds: 260),
+              curve: Curves.easeOutCubic,
+              alignment:
+                  isOnline ? Alignment.centerRight : Alignment.centerLeft,
               child: Container(
-                width: 82,
+                width: 92,
                 decoration: BoxDecoration(
-                  color: isOnline ? Palette.statsSuccess : Palette.statsDanger,
+                  color: isOnline
+                      ? Palette.statsSuccess
+                      : Palette.statsDanger,
                   borderRadius: BorderRadius.circular(999),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.18),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
                 ),
               ),
             ),
-            const Row(
+
+            // Textos
+            Row(
               children: [
-                Expanded(child: Center(child: Text('Ocupado'))),
-                Expanded(child: Center(child: Text('Activo'))),
+                Expanded(
+                  child: Center(
+                    child: Text(
+                      'Ocupado',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 12,
+                        color: !isOnline
+                            ? Colors.white
+                            : Palette.ink.withOpacity(0.6),
+                      ),
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: Center(
+                    child: Text(
+                      'Activo',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 12,
+                        color: isOnline
+                            ? Colors.white
+                            : Palette.ink.withOpacity(0.6),
+                      ),
+                    ),
+                  ),
+                ),
               ],
             ),
           ],
