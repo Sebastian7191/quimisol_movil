@@ -9,20 +9,16 @@ class FirebaseAuthService implements AuthService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
   // ──────────────────────────────────────────────
-  //  LOGIN ESTADO
+  //  ESTADO DE LOGIN
   // ──────────────────────────────────────────────
   @override
-  Future<bool> isLoggedIn() async {
-    return _auth.currentUser != null;
-  }
+  Future<bool> isLoggedIn() async => _auth.currentUser != null;
 
   @override
-  Future<String?> getUserId() async {
-    return _auth.currentUser?.uid;
-  }
+  Future<String?> getUserId() async => _auth.currentUser?.uid;
 
   // ──────────────────────────────────────────────
-  //  OBTENER ROL DEL USUARIO
+  //  OBTENER ROL
   // ──────────────────────────────────────────────
   @override
   Future<String?> getUserRole() async {
@@ -31,62 +27,64 @@ class FirebaseAuthService implements AuthService {
 
     try {
       final doc = await _db.collection('usuarios').doc(uid).get();
-
       if (!doc.exists) return null;
-
       return doc.data()?['role'] as String?;
-    } catch (e) {
+    } catch (_) {
       return null;
     }
   }
 
   // ──────────────────────────────────────────────
-  //  LOGIN CON EMAIL
+  //  LOGIN EMAIL
   // ──────────────────────────────────────────────
   @override
   Future<void> signInWithEmail(String email, String password) async {
     try {
-      await _auth.signInWithEmailAndPassword(email: email, password: password);
+      await _auth.signInWithEmailAndPassword(
+        email: email.trim(),
+        password: password,
+      );
     } on FirebaseAuthException catch (e) {
       throw Exception(_firebaseError(e));
     }
   }
 
   // ──────────────────────────────────────────────
-  //  REGISTRO CON EMAIL
+  //  REGISTRO EMAIL (SIN NOMBRE)
   // ──────────────────────────────────────────────
   @override
   Future<void> registerWithEmail(String email, String password) async {
     try {
       final cred = await _auth.createUserWithEmailAndPassword(
-        email: email,
+        email: email.trim(),
         password: password,
       );
 
-      // Crear el documento del usuario en Firestore
+      // ✅ Manual: NO guardamos name aquí
       await _db.collection('usuarios').doc(cred.user!.uid).set({
-        'email': email,
-        'role': 'cliente', // valor por defecto
+        'email': email.trim(),
+        'role': 'cliente',
+        'profile_completed': false,
         'created_at': FieldValue.serverTimestamp(),
-      });
+      }, SetOptions(merge: true));
     } on FirebaseAuthException catch (e) {
       throw Exception(_firebaseError(e));
     }
   }
 
   // ──────────────────────────────────────────────
-  //  LOGIN CON GOOGLE
+  //  LOGIN GOOGLE (RETORNA isNewUser + name + photo)
   // ──────────────────────────────────────────────
   @override
-  Future<void> signInWithGoogle() async {
+  Future<GoogleLoginResult> signInWithGoogle() async {
     try {
-      final GoogleSignIn google = GoogleSignIn();
+      final google = GoogleSignIn();
       final GoogleSignInAccount? googleUser = await google.signIn();
+      if (googleUser == null) {
+        return const GoogleLoginResult(isNewUser: false);
+      }
 
-      if (googleUser == null) return; // cancelado por el usuario
-
-      final GoogleSignInAuthentication googleAuth =
-          await googleUser.authentication;
+      final googleAuth = await googleUser.authentication;
 
       final credential = GoogleAuthProvider.credential(
         accessToken: googleAuth.accessToken,
@@ -94,23 +92,31 @@ class FirebaseAuthService implements AuthService {
       );
 
       final userCred = await _auth.signInWithCredential(credential);
+      final uid = userCred.user!.uid;
 
-      // Verificar si ya tiene documento en Firestore
-      final userDoc = await _db
-          .collection('usuarios')
-          .doc(userCred.user!.uid)
-          .get();
+      final ref = _db.collection('usuarios').doc(uid);
+      final doc = await ref.get();
 
-      if (!userDoc.exists) {
-        // Crear usuario nuevo
-        await _db.collection('usuarios').doc(userCred.user!.uid).set({
-          'email': userCred.user!.email,
+      final bool isProfileCompleted =
+          doc.exists && doc.data()?['profile_completed'] == true;
+
+      // 👇 SI NO EXISTE O NO COMPLETÓ PERFIL → false
+      await ref.set({
+        'email': userCred.user!.email,
+        'role': 'cliente',
+        'profile_completed': isProfileCompleted ? true : false,
+        if (userCred.user!.displayName != null)
           'name': userCred.user!.displayName,
-          'photo': userCred.user!.photoURL,
-          'role': 'cliente', // por defecto
-          'created_at': FieldValue.serverTimestamp(),
-        });
-      }
+        if (userCred.user!.photoURL != null) 'photo': userCred.user!.photoURL,
+        if (!doc.exists) 'created_at': FieldValue.serverTimestamp(),
+        'updated_at': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      return GoogleLoginResult(
+        isNewUser: !isProfileCompleted,
+        name: userCred.user!.displayName,
+        photoUrl: userCred.user!.photoURL,
+      );
     } on FirebaseAuthException catch (e) {
       throw Exception(_firebaseError(e));
     }
@@ -126,7 +132,7 @@ class FirebaseAuthService implements AuthService {
   }
 
   // ──────────────────────────────────────────────
-  //  MANEJO DE ERRORES DE FIREBASE
+  //  ERRORES LEGIBLES
   // ──────────────────────────────────────────────
   String _firebaseError(FirebaseAuthException e) {
     switch (e.code) {

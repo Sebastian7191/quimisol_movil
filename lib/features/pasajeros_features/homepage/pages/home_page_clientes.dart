@@ -1,19 +1,25 @@
 // lib/features/home/home_cliente.dart
 //
 // ✅ HomePage (HomeCliente) COMPLETA + FILTRO POR DEPARTAMENTO
+// ✅ Categorías desde Firestore (collection: categorias)
 // ✅ Wishlist (Like) con animación SUAVE (sin flash) + sincronizado con WishlistPage
+// ✅ Mostrar DESCUENTO en card (precio final + precio tachado + badge + texto)
+// ✅ La imagen NO se achica por el descuento (AspectRatio fijo)
+// ✅ Banners desde Firestore (collection: banners) SOLO estado ACTIVO
+// ✅ FIX: ya NO parpadea al tocar categorías (streams cacheados)
 
+import 'dart:math' as math;
+
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_modular/flutter_modular.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+
+import 'package:quimisol_movil/core/theme/palette.dart';
 import 'package:quimisol_movil/features/pasajeros_features/carrito/pages/carrito.dart';
 import 'package:quimisol_movil/features/pasajeros_features/wishlist/pages/wishlist_store.dart';
-
 import 'package:quimisol_movil/shared/services/auth_service.dart';
-import 'package:quimisol_movil/core/theme/palette.dart';
 
-// ✅ Import de la página de detalle
 import 'detalle_producto.dart';
 
 class HomeCliente extends StatefulWidget {
@@ -26,47 +32,131 @@ class HomeCliente extends StatefulWidget {
 class _HomeClienteState extends State<HomeCliente> {
   late final AuthService _authService;
 
-  int _selectedCategory = 0;
-
-  // ✅ Departamento seleccionado (para filtrar productos)
+  // ✅ Departamento seleccionado
   String _selectedDepto = 'Todos';
 
-  // ✅ Categorías reducidas (más compacto visualmente)
-  final List<_CatModel> categories = const [
-    _CatModel(label: 'Botella'),
-    _CatModel(label: 'Tapa'),
-    _CatModel(label: 'Limpieza'),
-    _CatModel(label: 'Químicos'),
-    _CatModel(label: 'Envases'),
-  ];
+  // ✅ Categoría seleccionada (id)
+  String _selectedCategoriaId = 'Todos';
 
-  // ✅ Wishlist store (ChangeNotifier)
+  // ✅ Streams cacheados (evita parpadeo)
+  late final Stream<QuerySnapshot<Map<String, dynamic>>> _almacenes$;
+  late final Stream<QuerySnapshot<Map<String, dynamic>>> _productos$;
+  late final Stream<QuerySnapshot<Map<String, dynamic>>> _categorias$;
+
+  // ✅ Wishlist store
   final WishlistStore _wishlist = WishlistStore.I;
 
   @override
   void initState() {
     super.initState();
     _authService = Modular.get<AuthService>();
-
     _wishlist.bind();
+
+    _almacenes$ = FirebaseFirestore.instance
+        .collection('almacenes')
+        .snapshots();
+    _productos$ = FirebaseFirestore.instance
+        .collection('productos')
+        .snapshots();
+
+    // 🔧 Ajusta si tu colección se llama distinto
+    _categorias$ = FirebaseFirestore.instance
+        .collection('categorias')
+        // si tu campo no es 'nombre', cambia esto o quita orderBy
+        .orderBy('nombre')
+        .snapshots();
   }
 
   Future<void> _logout() async {
     final ok = await showDialog<bool>(
       context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Cerrar sesión'),
-        content: const Text('¿Seguro que quieres salir?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancelar'),
+      barrierDismissible: false,
+      builder: (_) => Dialog(
+        backgroundColor: Palette.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(22, 22, 22, 18),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                height: 56,
+                width: 56,
+                decoration: BoxDecoration(
+                  color: Palette.card,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.logout_rounded,
+                  color: Palette.primary,
+                  size: 28,
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Cerrar sesión',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                  color: Palette.ink,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                '¿Estás seguro que deseas salir de tu cuenta?',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Palette.ink.withOpacity(0.7),
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 22),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.pop(context, false),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Palette.primary,
+                        side: BorderSide(
+                          color: Palette.primary.withOpacity(0.4),
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
+                      child: const Text(
+                        'Cancelar',
+                        style: TextStyle(fontWeight: FontWeight.w800),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.pop(context, true),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Palette.button,
+                        foregroundColor: Palette.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
+                      child: const Text(
+                        'Salir',
+                        style: TextStyle(fontWeight: FontWeight.w900),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Salir'),
-          ),
-        ],
+        ),
       ),
     );
 
@@ -74,16 +164,6 @@ class _HomeClienteState extends State<HomeCliente> {
 
     await _authService.logout();
     Modular.to.navigate('/login');
-  }
-
-  // ✅ Stream almacenes
-  Stream<QuerySnapshot<Map<String, dynamic>>> _almacenesStream() {
-    return FirebaseFirestore.instance.collection('almacenes').snapshots();
-  }
-
-  // ✅ Stream productos
-  Stream<QuerySnapshot<Map<String, dynamic>>> _productosStream() {
-    return FirebaseFirestore.instance.collection('productos').snapshots();
   }
 
   void _openDeptoPicker(List<String> deptos) async {
@@ -101,12 +181,19 @@ class _HomeClienteState extends State<HomeCliente> {
     setState(() => _selectedDepto = chosen);
   }
 
+  String _s(dynamic v) => (v ?? '').toString().trim();
+
+  double _toDouble(dynamic v) {
+    if (v is num) return v.toDouble();
+    return double.tryParse(v?.toString() ?? '') ?? 0.0;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Palette.fieldBg,
       body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-        stream: _almacenesStream(),
+        stream: _almacenes$,
         builder: (context, almacenesSnap) {
           if (almacenesSnap.hasError) {
             return Center(
@@ -129,7 +216,7 @@ class _HomeClienteState extends State<HomeCliente> {
 
           for (final d in almacenesDocs) {
             final data = d.data();
-            final dep = (data['departamento'] ?? '').toString().trim();
+            final dep = _s(data['departamento']);
             if (dep.isNotEmpty) deptosSet.add(dep);
             almacenDeptoById[d.id] = dep;
           }
@@ -162,6 +249,7 @@ class _HomeClienteState extends State<HomeCliente> {
                   },
                   onSearch: () {},
                 ),
+
                 SafeArea(
                   top: false,
                   bottom: false,
@@ -198,32 +286,70 @@ class _HomeClienteState extends State<HomeCliente> {
                         ),
                         const SizedBox(height: 12),
 
-                        Center(
-                          child: Wrap(
-                            alignment: WrapAlignment.center,
-                            runAlignment: WrapAlignment.center,
-                            spacing: 8,
-                            runSpacing: 8,
-                            children: List.generate(categories.length, (index) {
-                              final cat = categories[index];
-                              final selected = index == _selectedCategory;
+                        // ✅ CATEGORÍAS DESDE FIRESTORE
+                        StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                          stream: _categorias$,
+                          builder: (context, catSnap) {
+                            if (catSnap.connectionState ==
+                                ConnectionState.waiting) {
+                              // no loader grande para no “flash”
+                              return const SizedBox(height: 42);
+                            }
 
-                              return GestureDetector(
-                                onTap: () =>
-                                    setState(() => _selectedCategory = index),
-                                child: _CategoryPill(
-                                  label: cat.label,
-                                  selected: selected,
-                                ),
-                              );
-                            }),
-                          ),
+                            final docs = catSnap.data?.docs ?? [];
+
+                            final categorias = <CategoryModel>[
+                              const CategoryModel(id: 'Todos', nombre: 'Todos'),
+                              ...docs.map((d) {
+                                final data = d.data();
+                                // 🔧 Ajusta campos si tu doc usa otros nombres
+                                final nombre = _s(data['nombre']);
+                                return CategoryModel(
+                                  id: d.id,
+                                  nombre: nombre.isEmpty ? 'Categoría' : nombre,
+                                );
+                              }),
+                            ];
+
+                            // si la seleccion ya no existe
+                            final exists = categorias.any(
+                              (c) => c.id == _selectedCategoriaId,
+                            );
+                            if (!exists) _selectedCategoriaId = 'Todos';
+
+                            return Center(
+                              child: Wrap(
+                                alignment: WrapAlignment.center,
+                                runAlignment: WrapAlignment.center,
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: List.generate(categorias.length, (
+                                  index,
+                                ) {
+                                  final cat = categorias[index];
+                                  final selected =
+                                      cat.id == _selectedCategoriaId;
+
+                                  return GestureDetector(
+                                    onTap: () => setState(
+                                      () => _selectedCategoriaId = cat.id,
+                                    ),
+                                    child: _CategoryPill(
+                                      label: cat.nombre,
+                                      selected: selected,
+                                    ),
+                                  );
+                                }),
+                              ),
+                            );
+                          },
                         ),
 
                         const SizedBox(height: 12),
 
+                        // ✅ PRODUCTOS
                         StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                          stream: _productosStream(),
+                          stream: _productos$,
                           builder: (context, productosSnap) {
                             if (productosSnap.hasError) {
                               return Padding(
@@ -250,45 +376,30 @@ class _HomeClienteState extends State<HomeCliente> {
                             final allProducts = prodDocs.map((p) {
                               final data = p.data();
 
-                              final nombre =
-                                  (data['nombre'] ?? data['name'] ?? '')
-                                      .toString();
+                              final nombre = _s(data['nombre'] ?? data['name']);
+                              final description = _s(
+                                data['description'] ?? data['descripcion'],
+                              );
+                              final imagenUrl = _s(
+                                data['imagenUrl'] ?? data['imageUrl'],
+                              );
 
-                              final description =
-                                  (data['description'] ??
-                                          data['descripcion'] ??
-                                          '')
-                                      .toString();
+                              final precio = _toDouble(data['precio']);
+                              final rating = _toDouble(data['rating']);
 
-                              final precioRaw = data['precio'];
-                              final precio = (precioRaw is num)
-                                  ? precioRaw.toDouble()
-                                  : double.tryParse(
-                                          precioRaw?.toString() ?? '',
-                                        ) ??
-                                        0.0;
-
-                              final imagenUrl =
-                                  (data['imagenUrl'] ?? data['imageUrl'] ?? '')
-                                      .toString();
-
-                              final ratingRaw = data['rating'];
-                              final rating = (ratingRaw is num)
-                                  ? ratingRaw.toDouble()
-                                  : double.tryParse(
-                                          ratingRaw?.toString() ?? '',
-                                        ) ??
-                                        0.0;
-
-                              final almacenId = (data['almacenId'] ?? '')
-                                  .toString()
-                                  .trim();
+                              final almacenId = _s(data['almacenId']);
 
                               final stockRaw = data['stock'];
                               final stock = (stockRaw is num)
                                   ? stockRaw.toInt()
                                   : int.tryParse(stockRaw?.toString() ?? '') ??
                                         0;
+
+                              // ✅ categoría guardada en producto
+                              final categoriaId = _s(data['categoriaId']);
+                              final categoriaNombre = _s(
+                                data['categoriaNombre'],
+                              );
 
                               return ProductModel(
                                 id: p.id,
@@ -299,9 +410,12 @@ class _HomeClienteState extends State<HomeCliente> {
                                 imageUrl: imagenUrl,
                                 almacenId: almacenId,
                                 stock: stock,
+                                categoriaId: categoriaId,
+                                categoriaNombre: categoriaNombre,
                               );
                             }).toList();
 
+                            // filtro por depto
                             final filteredByDepto = (_selectedDepto == 'Todos')
                                 ? allProducts
                                 : allProducts.where((prod) {
@@ -310,7 +424,22 @@ class _HomeClienteState extends State<HomeCliente> {
                                     return dep == _selectedDepto;
                                   }).toList();
 
-                            if (filteredByDepto.isEmpty) {
+                            // filtro por categoría
+                            final filtered = (_selectedCategoriaId == 'Todos')
+                                ? filteredByDepto
+                                : filteredByDepto.where((p) {
+                                    // match por id (ideal)
+                                    if (p.categoriaId.isNotEmpty &&
+                                        p.categoriaId == _selectedCategoriaId) {
+                                      return true;
+                                    }
+                                    // fallback por nombre (por si tus productos guardan solo el nombre)
+                                    return p.categoriaNombre.isNotEmpty &&
+                                        p.categoriaNombre.toLowerCase() ==
+                                            _selectedCategoriaId.toLowerCase();
+                                  }).toList();
+
+                            if (filtered.isEmpty) {
                               return Padding(
                                 padding: const EdgeInsets.only(top: 12),
                                 child: Container(
@@ -325,8 +454,8 @@ class _HomeClienteState extends State<HomeCliente> {
                                   ),
                                   child: Text(
                                     _selectedDepto == 'Todos'
-                                        ? 'No hay productos registrados aún.'
-                                        : 'No hay productos para "$_selectedDepto".',
+                                        ? 'No hay productos para esta categoría.'
+                                        : 'No hay productos para "$_selectedDepto" en esta categoría.',
                                     style: TextStyle(
                                       color: Palette.ink.withOpacity(0.75),
                                       fontWeight: FontWeight.w700,
@@ -339,16 +468,20 @@ class _HomeClienteState extends State<HomeCliente> {
                             return GridView.builder(
                               shrinkWrap: true,
                               physics: const NeverScrollableScrollPhysics(),
-                              itemCount: filteredByDepto.length,
+                              itemCount: filtered.length,
                               gridDelegate:
                                   const SliverGridDelegateWithFixedCrossAxisCount(
                                     crossAxisCount: 2,
                                     crossAxisSpacing: 14,
                                     mainAxisSpacing: 14,
-                                    childAspectRatio: 0.78,
+
+                                    // ✅ Más alto (tú lo controlas aquí)
+                                    // 0.60 = más alto
+                                    // 0.65 = menos alto
+                                    childAspectRatio: 0.60,
                                   ),
                               itemBuilder: (_, i) {
-                                final prod = filteredByDepto[i];
+                                final prod = filtered[i];
                                 return InkWell(
                                   onTap: () {
                                     Navigator.push(
@@ -362,8 +495,7 @@ class _HomeClienteState extends State<HomeCliente> {
                                   borderRadius: BorderRadius.circular(24),
                                   child: _ProductCard(
                                     product: prod,
-                                    wishlist:
-                                        _wishlist, // ✅ pasa store para escuchar SOLO el like
+                                    wishlist: _wishlist,
                                   ),
                                 );
                               },
@@ -385,9 +517,10 @@ class _HomeClienteState extends State<HomeCliente> {
 
 /* ---------------- MODELS ---------------- */
 
-class _CatModel {
-  final String label;
-  const _CatModel({required this.label});
+class CategoryModel {
+  final String id;
+  final String nombre;
+  const CategoryModel({required this.id, required this.nombre});
 }
 
 class ProductModel {
@@ -402,6 +535,9 @@ class ProductModel {
   final String almacenId;
   final int stock;
 
+  final String categoriaId;
+  final String categoriaNombre;
+
   const ProductModel({
     required this.id,
     required this.name,
@@ -411,20 +547,22 @@ class ProductModel {
     required this.imageUrl,
     required this.almacenId,
     required this.stock,
+    this.categoriaId = '',
+    this.categoriaNombre = '',
   });
 }
 
 class _BannerModel {
   final String title;
   final String subtitle;
-  final String buttonText;
+  final String buttonText; // se mantiene igual visualmente
   final String imageUrl;
 
   const _BannerModel({
     required this.title,
     required this.subtitle,
-    required this.buttonText,
     required this.imageUrl,
+    this.buttonText = 'Ver más',
   });
 }
 
@@ -458,34 +596,18 @@ class _PinkPedidosHeaderState extends State<_PinkPedidosHeader> {
   late final PageController _pageController;
   int _page = 0;
 
-  final List<_BannerModel> _banners = const [
-    _BannerModel(
-      title: 'New Collection',
-      subtitle: 'Discount 50% for\nthe first transaction',
-      buttonText: 'Shop Now',
-      imageUrl:
-          'https://images.unsplash.com/photo-1549187774-b4e9b0445b41?auto=format&fit=crop&w=900&q=60',
-    ),
-    _BannerModel(
-      title: 'Productos nuevos',
-      subtitle: 'Ahorra hoy en\nseleccionados',
-      buttonText: 'Ver más',
-      imageUrl:
-          'https://images.unsplash.com/photo-1582582429415-6a54a44b31b3?auto=format&fit=crop&w=900&q=60',
-    ),
-    _BannerModel(
-      title: 'Super ofertas',
-      subtitle: 'Hasta 30% en\nlimpieza y envases',
-      buttonText: 'Comprar',
-      imageUrl:
-          'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?auto=format&fit=crop&w=900&q=60',
-    ),
-  ];
+  // ✅ stream cacheado para no “flash”
+  late final Stream<QuerySnapshot<Map<String, dynamic>>> _banners$;
 
   @override
   void initState() {
     super.initState();
     _pageController = PageController(viewportFraction: 1.0);
+
+    _banners$ = FirebaseFirestore.instance
+        .collection('banners')
+        .where('estado', isEqualTo: 'ACTIVO')
+        .snapshots();
   }
 
   @override
@@ -493,6 +615,8 @@ class _PinkPedidosHeaderState extends State<_PinkPedidosHeader> {
     _pageController.dispose();
     super.dispose();
   }
+
+  String _s(dynamic v) => (v ?? '').toString().trim();
 
   @override
   Widget build(BuildContext context) {
@@ -584,7 +708,7 @@ class _PinkPedidosHeaderState extends State<_PinkPedidosHeader> {
                               .snapshots(),
                           builder: (context, snap) {
                             final photoUrl =
-                                snap.data?.data()?['photoUrl'] as String?;
+                                snap.data?.data()?['photo'] as String?;
 
                             return Container(
                               height: 36,
@@ -617,6 +741,8 @@ class _PinkPedidosHeaderState extends State<_PinkPedidosHeader> {
                 ],
               ),
               const SizedBox(height: 12),
+
+              // buscador (igual)
               Container(
                 height: 48,
                 decoration: BoxDecoration(
@@ -656,36 +782,92 @@ class _PinkPedidosHeaderState extends State<_PinkPedidosHeader> {
                   ],
                 ),
               ),
+
               const SizedBox(height: 14),
+
+              // ✅ Carrusel: MISMO DISEÑO, datos desde Firestore
               SizedBox(
                 height: 170,
-                child: Stack(
-                  children: [
-                    PageView.builder(
-                      controller: _pageController,
-                      itemCount: _banners.length,
-                      onPageChanged: (i) => setState(() => _page = i),
-                      itemBuilder: (_, i) => _FurnitureBannerCard(
-                        banner: _banners[i],
-                        onTap: () {},
-                      ),
-                    ),
-                    Positioned(
-                      bottom: 12,
-                      left: 0,
-                      right: 0,
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: List.generate(_banners.length, (i) {
-                          final active = i == _page;
-                          return Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 3),
-                            child: _Dot(active: active),
+                child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                  stream: _banners$,
+                  builder: (context, snap) {
+                    if (snap.connectionState == ConnectionState.waiting) {
+                      // no “flash” fuerte
+                      return const SizedBox.shrink();
+                    }
+
+                    if (snap.hasError) {
+                      return Center(
+                        child: Text(
+                          'Error cargando banners: ${snap.error}',
+                          style: const TextStyle(color: Colors.white),
+                        ),
+                      );
+                    }
+
+                    final docs = snap.data?.docs ?? [];
+
+                    final banners = docs
+                        .map((d) {
+                          final data = d.data();
+                          final title = _s(data['titulo']);
+                          final subtitle = _s(data['subtitulo']);
+                          final image = _s(data['imagen']);
+                          return _BannerModel(
+                            title: title.isEmpty ? 'New Collection' : title,
+                            subtitle: subtitle.isEmpty
+                                ? 'Discount 50% for\nthe first transaction'
+                                : subtitle,
+                            imageUrl: image,
+                            buttonText: 'Ver más',
                           );
-                        }),
-                      ),
-                    ),
-                  ],
+                        })
+                        .where((b) => b.imageUrl.isNotEmpty)
+                        .toList();
+
+                    if (banners.isEmpty) return const SizedBox.shrink();
+
+                    if (_page >= banners.length) {
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        if (!mounted) return;
+                        setState(() => _page = 0);
+                        try {
+                          _pageController.jumpToPage(0);
+                        } catch (_) {}
+                      });
+                    }
+
+                    return Stack(
+                      children: [
+                        PageView.builder(
+                          controller: _pageController,
+                          itemCount: banners.length,
+                          onPageChanged: (i) => setState(() => _page = i),
+                          itemBuilder: (_, i) => _FurnitureBannerCard(
+                            banner: banners[i],
+                            onTap: () {},
+                          ),
+                        ),
+                        Positioned(
+                          bottom: 12,
+                          left: 0,
+                          right: 0,
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: List.generate(banners.length, (i) {
+                              final active = i == _page;
+                              return Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 3,
+                                ),
+                                child: _Dot(active: active),
+                              );
+                            }),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
                 ),
               ),
             ],
@@ -948,7 +1130,7 @@ class _ProductCardState extends State<_ProductCard>
     super.initState();
     _ctrl = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 380), // ✅ más corto = más nítido
+      duration: const Duration(milliseconds: 380),
     );
   }
 
@@ -959,9 +1141,22 @@ class _ProductCardState extends State<_ProductCard>
   }
 
   void _tapLike(bool isLiked) {
-    // Si va a quedar "like", animamos pop+burst; si es unlike, hacemos solo un "shrink" suave
     if (!isLiked) _ctrl.forward(from: 0);
     widget.wishlist.toggle(widget.product);
+  }
+
+  Stream<DocumentSnapshot<Map<String, dynamic>>> _descuentoStream(String id) {
+    return FirebaseFirestore.instance
+        .collection('productos')
+        .doc(id)
+        .collection('descuentos')
+        .doc('activo')
+        .snapshots();
+  }
+
+  double _toDouble(dynamic v) {
+    if (v is num) return v.toDouble();
+    return double.tryParse(v?.toString() ?? '') ?? 0.0;
   }
 
   @override
@@ -969,118 +1164,231 @@ class _ProductCardState extends State<_ProductCard>
     final product = widget.product;
     final hasImg = product.imageUrl.trim().isNotEmpty;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: Palette.white,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 18,
-            offset: const Offset(0, 12),
+    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+      stream: _descuentoStream(product.id),
+      builder: (context, snap) {
+        final d = snap.data?.data();
+        final activo = (d?['activo'] == true);
+
+        final tipo = (d?['tipo'] ?? 'PORCENTAJE').toString().trim();
+        final valor = _toDouble(d?['valor']);
+
+        final hasDescuento = activo && valor > 0;
+
+        final base = product.price;
+        double finalPrice = base;
+        String badge = '';
+        String line = '';
+
+        if (hasDescuento) {
+          if (tipo == 'PORCENTAJE') {
+            final pct = valor.clamp(0.0, 100.0);
+            finalPrice = base * (1 - (pct / 100));
+            finalPrice = math.max(0, finalPrice);
+
+            final pctTxt = (pct % 1 == 0)
+                ? pct.toStringAsFixed(0)
+                : pct.toStringAsFixed(1);
+
+            badge = '-$pctTxt%';
+            line = 'DESCUENTO $badge';
+          } else {
+            finalPrice = math.max(0, base - valor);
+
+            final vTxt = (valor % 1 == 0)
+                ? valor.toStringAsFixed(0)
+                : valor.toStringAsFixed(2);
+
+            badge = '-Bs $vTxt';
+            line = 'DESCUENTO $badge';
+          }
+        }
+
+        return Container(
+          decoration: BoxDecoration(
+            color: Palette.white,
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 18,
+                offset: const Offset(0, 12),
+              ),
+            ],
           ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // ✅ Like arriba derecha (escucha SOLO al store, sin setState global)
-            Row(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Spacer(),
-                AnimatedBuilder(
-                  animation: widget.wishlist,
-                  builder: (_, __) {
-                    final liked = widget.wishlist.contains(product.id);
-                    return _LikeButtonSmooth(
-                      controller: _ctrl,
-                      liked: liked,
-                      onTap: () => _tapLike(liked),
-                    );
-                  },
+                // Like arriba derecha
+                Row(
+                  children: [
+                    const Spacer(),
+                    AnimatedBuilder(
+                      animation: widget.wishlist,
+                      builder: (_, __) {
+                        final liked = widget.wishlist.contains(product.id);
+                        return _LikeButtonSmooth(
+                          controller: _ctrl,
+                          liked: liked,
+                          onTap: () => _tapLike(liked),
+                        );
+                      },
+                    ),
+                  ],
                 ),
-              ],
-            ),
 
-            const SizedBox(height: 6),
+                const SizedBox(height: 6),
 
-            Expanded(
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(16),
-                child: Hero(
-                  tag: 'product_${product.id}',
-                  child: hasImg
-                      ? Image.network(
-                          product.imageUrl,
-                          fit: BoxFit.cover,
-                          width: double.infinity,
-                          errorBuilder: (_, __, ___) => const _NoImage(),
-                        )
-                      : const _NoImage(),
+                // ✅ Imagen con altura fija (no se achica por descuento)
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: AspectRatio(
+                    // ✅ controla “alto” visual de la imagen aquí
+                    aspectRatio: 16 / 10,
+                    child: Stack(
+                      children: [
+                        Positioned.fill(
+                          child: Hero(
+                            tag: 'product_${product.id}',
+                            child: hasImg
+                                ? Image.network(
+                                    product.imageUrl,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, __, ___) =>
+                                        const _NoImage(),
+                                  )
+                                : const _NoImage(),
+                          ),
+                        ),
+                        if (hasDescuento)
+                          Positioned(
+                            left: 10,
+                            top: 10,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 6,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.red,
+                                borderRadius: BorderRadius.circular(12),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.12),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 6),
+                                  ),
+                                ],
+                              ),
+                              child: Text(
+                                badge,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w900,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
                 ),
-              ),
-            ),
 
-            const SizedBox(height: 10),
+                const SizedBox(height: 10),
 
-            Text(
-              product.name.isEmpty ? 'Producto' : product.name,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w900,
-                color: Palette.ink,
-              ),
-            ),
-
-            const SizedBox(height: 6),
-
-            Row(
-              children: [
                 Text(
-                  'Bs. ${product.price.toStringAsFixed(2)}',
+                  product.name.isEmpty ? 'Producto' : product.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 14,
+                    fontSize: 15,
                     fontWeight: FontWeight.w900,
                     color: Palette.ink,
                   ),
                 ),
-                const Spacer(),
-                const Icon(
-                  Icons.star_rounded,
-                  size: 18,
-                  color: Color(0xFFFFB300),
+
+                const SizedBox(height: 6),
+
+                Row(
+                  children: [
+                    Expanded(
+                      child: Wrap(
+                        spacing: 10,
+                        runSpacing: 2,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          Text(
+                            'Bs. ${(hasDescuento ? finalPrice : base).toStringAsFixed(2)}',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w900,
+                              color: Palette.ink,
+                            ),
+                          ),
+                          if (hasDescuento)
+                            Text(
+                              'Bs. ${base.toStringAsFixed(2)}',
+                              style: TextStyle(
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w800,
+                                color: Palette.ink.withOpacity(0.40),
+                                decoration: TextDecoration.lineThrough,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    const Icon(
+                      Icons.star_rounded,
+                      size: 18,
+                      color: Color(0xFFFFB300),
+                    ),
+                    const SizedBox(width: 2),
+                    Text(
+                      product.rating <= 0
+                          ? '0.0'
+                          : product.rating.toStringAsFixed(1),
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                        color: Palette.ink.withOpacity(0.65),
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 2),
+
+                if (hasDescuento) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                    line,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Colors.red,
+                      fontWeight: FontWeight.w900,
+                      fontSize: 12.5,
+                    ),
+                  ),
+                ],
+
+                const SizedBox(height: 6),
+
                 Text(
-                  product.rating <= 0
-                      ? '0.0'
-                      : product.rating.toStringAsFixed(1),
+                  'Stock: ${product.stock}',
                   style: TextStyle(
-                    fontSize: 13,
+                    fontSize: 12.5,
                     fontWeight: FontWeight.w800,
-                    color: Palette.ink.withOpacity(0.65),
+                    color: Palette.ink.withOpacity(0.55),
                   ),
                 ),
               ],
             ),
-
-            const SizedBox(height: 6),
-
-            Text(
-              'Stock: ${product.stock}',
-              style: TextStyle(
-                fontSize: 12.5,
-                fontWeight: FontWeight.w800,
-                color: Palette.ink.withOpacity(0.55),
-              ),
-            ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 }
@@ -1129,7 +1437,6 @@ class _LikeButtonSmooth extends StatelessWidget {
         child: Stack(
           alignment: Alignment.center,
           children: [
-            // Burst discreto (solo cuando haces like)
             AnimatedBuilder(
               animation: controller,
               builder: (_, __) => Opacity(
@@ -1144,7 +1451,6 @@ class _LikeButtonSmooth extends StatelessWidget {
                 ),
               ),
             ),
-
             ScaleTransition(
               scale: pop,
               child: AnimatedSwitcher(
