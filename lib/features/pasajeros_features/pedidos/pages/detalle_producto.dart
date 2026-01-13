@@ -6,8 +6,11 @@
 //    - si 0 => "Gratis"
 //    - si >0 => "Bs. X.XX"
 // ✅ Total final = subtotal productos + costo_envio (si el campo "total" no viene o viene 0, se calcula igual)
-// ✅ fecha_entrega (o fecha_envio si lo usas así):
-//    - si es null => muestra "En revisión" (PERO SOLO EN LA FECHA, NO CAMBIA EL ESTADO)
+// ✅ ENTREGA:
+//    - si fecha_entrega != null => muestra fecha_entrega (con hora)
+//    - si fecha_entrega == null y fecha_envio != null => muestra fecha_envio (con hora)
+//    - si ambos null => "En revisión" (PERO SOLO EN LA FECHA, NO CAMBIA EL ESTADO)
+// ✅ Muestra repartidorNombre en el Resumen (si no hay => "Asignando…")
 // ✅ Fondo blanco, textos morados, cards rosadas
 // ✅ Abajo: Seguimiento con iconos (Pendiente, Aceptado, En curso, Completado)
 // ✅ Retrasado y Cancelado: ocultos por ahora (listos para activar cuando corresponda)
@@ -66,6 +69,35 @@ class _DetallePedidoPageState extends State<DetallePedidoPage> {
       }
     } catch (_) {}
     return '—';
+  }
+
+  String _repartidorNombreFromData(Map<String, dynamic> data) {
+    dynamic v;
+
+    // claves más comunes
+    if (data.containsKey('repartidorNombre')) v = data['repartidorNombre'];
+    if ((v == null || _asString(v).trim().isEmpty) &&
+        data.containsKey('nombreRepartidor')) {
+      v = data['nombreRepartidor'];
+    }
+    if ((v == null || _asString(v).trim().isEmpty) &&
+        data.containsKey('repartidor_name')) {
+      v = data['repartidor_name'];
+    }
+    if ((v == null || _asString(v).trim().isEmpty) &&
+        data.containsKey('repartidorName')) {
+      v = data['repartidorName'];
+    }
+
+    // por si guardas un objeto repartidor { nombre: ... }
+    if ((v == null || _asString(v).trim().isEmpty) && data['repartidor'] is Map) {
+      final m = Map<String, dynamic>.from(data['repartidor']);
+      v = m['nombre'] ?? m['name'];
+    }
+
+    final s = _asString(v).trim();
+    if (s.isEmpty || s.toLowerCase() == 'null') return '';
+    return s;
   }
 
   String _itemName(Map<String, dynamic> it) {
@@ -233,7 +265,6 @@ class _DetallePedidoPageState extends State<DetallePedidoPage> {
             ),
 
             Expanded(
-              // ✅ Ya no depende del /uid para leer el pedido, pero si quieres puedes mostrar aviso si no hay sesión.
               child: !_isLoggedIn()
                   ? Center(
                       child: Text(
@@ -285,15 +316,18 @@ class _DetallePedidoPageState extends State<DetallePedidoPage> {
                         final step = _stepFromRaw(estadoRaw);
                         final badge = _badgeFromStep(step);
 
-                        // ✅ fecha: si es null => "En revisión" (SIN TOCAR ESTADO)
-                        // soporta ambos nombres por si acaso
-                        final fechaEntregaRaw = data.containsKey('fecha_entrega')
-                            ? data['fecha_entrega']
-                            : data['fecha_envio'];
+                        // ✅ Repartidor
+                        final repartidorNombre = _repartidorNombreFromData(data);
 
-                        final fechaEntregaText = (fechaEntregaRaw == null)
-                            ? 'En revisión'
-                            : _formatTimestamp(fechaEntregaRaw);
+                        // ✅ ENTREGA: si fecha_entrega es null, mostrar fecha_envio (con hora)
+                        final entregaRaw = data['fecha_entrega']; // puede ser null
+                        final envioRaw = data['fecha_envio']; // puede ser null también
+
+                        final entregaText = (entregaRaw != null)
+                            ? _formatTimestamp(entregaRaw)
+                            : (envioRaw != null)
+                                ? _formatTimestamp(envioRaw)
+                                : 'En revisión';
 
                         // ✅ costo_envio (admite "costo_envio" o "costoEnvio")
                         final costoEnvio = _asDouble(
@@ -319,10 +353,12 @@ class _DetallePedidoPageState extends State<DetallePedidoPage> {
 
                         // total productos (si viene total>0 lo respetamos, si no calculamos)
                         final totalDoc = _asDouble(data['total']);
-                        final totalProductos = totalDoc > 0 ? totalDoc : productsSubtotal;
+                        final totalProductos =
+                            totalDoc > 0 ? totalDoc : productsSubtotal;
 
                         // total final = productos + envío
-                        final totalFinal = totalProductos + (costoEnvio > 0 ? costoEnvio : 0);
+                        final totalFinal =
+                            totalProductos + (costoEnvio > 0 ? costoEnvio : 0);
 
                         // especiales listos pero ocultos
                         final showSpecial = false;
@@ -340,7 +376,9 @@ class _DetallePedidoPageState extends State<DetallePedidoPage> {
                                     decoration: BoxDecoration(
                                       color: Palette.card,
                                       borderRadius: BorderRadius.circular(18),
-                                      border: Border.all(color: Colors.white.withOpacity(0.65)),
+                                      border: Border.all(
+                                        color: Colors.white.withOpacity(0.65),
+                                      ),
                                       boxShadow: [
                                         BoxShadow(
                                           color: Colors.black.withOpacity(0.06),
@@ -361,7 +399,8 @@ class _DetallePedidoPageState extends State<DetallePedidoPage> {
                                               ),
                                               decoration: BoxDecoration(
                                                 color: badge.bg,
-                                                borderRadius: BorderRadius.circular(12),
+                                                borderRadius:
+                                                    BorderRadius.circular(12),
                                               ),
                                               child: Row(
                                                 children: [
@@ -394,22 +433,40 @@ class _DetallePedidoPageState extends State<DetallePedidoPage> {
                                         ),
                                         const SizedBox(height: 12),
 
-                                        // ✅ FECHA (aquí va “En revisión” si es null)
+                                        // ✅ REPARTIDOR
                                         _ResumenRow(
-                                          label: 'Entrega',
-                                          value: fechaEntregaText,
-                                          valueColor: (fechaEntregaRaw == null)
+                                          label: 'Repartidor',
+                                          value: repartidorNombre.isEmpty
+                                              ? 'Asignando…'
+                                              : repartidorNombre,
+                                          valueColor: repartidorNombre.isEmpty
                                               ? Palette.statsWarning
                                               : purple,
                                         ),
 
                                         const SizedBox(height: 10),
-                                        Divider(color: purple.withOpacity(0.12), height: 1),
+
+                                        // ✅ ENTREGA
+                                        _ResumenRow(
+                                          label: 'Entrega',
+                                          value: entregaText,
+                                          valueColor:
+                                              (entregaRaw == null && envioRaw == null)
+                                                  ? Palette.statsWarning
+                                                  : purple,
+                                        ),
+
+                                        const SizedBox(height: 10),
+                                        Divider(
+                                          color: purple.withOpacity(0.12),
+                                          height: 1,
+                                        ),
                                         const SizedBox(height: 10),
 
                                         _ResumenRow(
                                           label: 'Productos',
-                                          value: 'Bs. ${totalProductos.toStringAsFixed(2)}',
+                                          value:
+                                              'Bs. ${totalProductos.toStringAsFixed(2)}',
                                         ),
                                         const SizedBox(height: 8),
                                         _ResumenRow(
@@ -417,15 +474,20 @@ class _DetallePedidoPageState extends State<DetallePedidoPage> {
                                           value: costoEnvio <= 0
                                               ? 'Gratis'
                                               : 'Bs. ${costoEnvio.toStringAsFixed(2)}',
-                                          valueColor:
-                                              costoEnvio <= 0 ? Palette.statsSuccess : purple,
+                                          valueColor: costoEnvio <= 0
+                                              ? Palette.statsSuccess
+                                              : purple,
                                         ),
                                         const SizedBox(height: 10),
-                                        Divider(color: purple.withOpacity(0.12), height: 1),
+                                        Divider(
+                                          color: purple.withOpacity(0.12),
+                                          height: 1,
+                                        ),
                                         const SizedBox(height: 10),
                                         _ResumenRow(
                                           label: 'Total',
-                                          value: 'Bs. ${totalFinal.toStringAsFixed(2)}',
+                                          value:
+                                              'Bs. ${totalFinal.toStringAsFixed(2)}',
                                           strong: true,
                                         ),
                                       ],

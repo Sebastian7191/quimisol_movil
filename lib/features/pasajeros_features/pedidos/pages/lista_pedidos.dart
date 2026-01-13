@@ -1,10 +1,14 @@
 // lib/features/pedidos/mis_pedidos_page.dart
 //
-// ✅ Funcional con Firestore (usuarios/{uid}/pedidos) realtime (ÍNDICE del usuario)
+// ✅ Funcional con Firestore (RAÍZ /pedidos filtrado por uid) realtime
 // ✅ Fondo blanco
 // ✅ Cards rosadas
 // ✅ Textos MORADOS (Palette.primary)
-// ✅ Status: Entregado=verde (Palette.statsSuccess) | Cancelado=rojo (Palette.statsDanger) | En camino/pendiente=naranja (Palette.statsWarning)
+// ✅ Tabs: Todos | Pendiente | Aceptado | En camino | Completado | Cancelado
+// ✅ Status colors:
+//    - Pendiente/Aceptado/En camino => naranja (Palette.statsWarning)
+//    - Completado => verde (Palette.statsSuccess)
+//    - Cancelado => rojo (Palette.statsDanger)
 // ✅ Lista: NO muestra imagen de producto (solo icono rosado de pedido con fondo blanco)
 // ✅ Tap: abre detalle_pedido.dart (DetallePedidoPage)
 
@@ -29,33 +33,70 @@ class _MisPedidosPageState extends State<MisPedidosPage> {
 
   String get _uid => _auth.currentUser?.uid ?? '';
 
-  /// ✅ Índice: SOLO pedidos del usuario logueado
-  CollectionReference<Map<String, dynamic>> get _pedidosRef =>
-      _fire.collection('usuarios').doc(_uid).collection('pedidos');
+  /// ✅ Lista desde /pedidos (raíz) filtrado por uid del usuario
+  Query<Map<String, dynamic>> get _pedidosQuery => _fire
+      .collection('pedidos')
+      .where('uid', isEqualTo: _uid)
+      .orderBy('createdAt', descending: true);
 
-  String _norm(String s) => s.trim().toLowerCase();
+  String _norm(String s) => s
+      .trim()
+      .toLowerCase()
+      .replaceAll('_', ' ')
+      .replaceAll(RegExp(r'\s+'), ' ');
 
   _PedidoStatus _mapStatus(String raw) {
     final s = _norm(raw);
 
+    // Pendiente
     if (s == 'pendiente' || s == 'en proceso' || s == 'proceso') {
-      return _PedidoStatus.enProceso;
+      return _PedidoStatus.pendiente;
     }
 
-    if (s == 'en_camino' || s == 'en camino' || s == 'encamino') {
+    // Aceptado
+    if (s == 'aceptado' || s == 'aceptada') {
+      return _PedidoStatus.aceptado;
+    }
+
+    // En camino (incluye variantes)
+    if (s == 'en camino' ||
+        s == 'encamino' ||
+        s == 'en curso' ||
+        s == 'encurso') {
       return _PedidoStatus.enCamino;
     }
 
-    if (s == 'entregado' || s == 'entregada') return _PedidoStatus.entregado;
+    // Completado (incluye entregado)
+    if (s == 'completado' ||
+        s == 'completada' ||
+        s == 'entregado' ||
+        s == 'entregada') {
+      return _PedidoStatus.completado;
+    }
+
+    // Cancelado
     if (s == 'cancelado' || s == 'cancelada') return _PedidoStatus.cancelado;
 
-    return _PedidoStatus.enProceso;
+    return _PedidoStatus.pendiente;
   }
 
   bool _passesTab(_PedidoStatus st) {
+    // 0: Todos
     if (_tab == 0) return true;
-    if (_tab == 1) return st == _PedidoStatus.enProceso || st == _PedidoStatus.enCamino;
-    if (_tab == 2) return st == _PedidoStatus.entregado;
+
+    // 1: Pendiente
+    if (_tab == 1) return st == _PedidoStatus.pendiente;
+
+    // 2: Aceptado
+    if (_tab == 2) return st == _PedidoStatus.aceptado;
+
+    // 3: En camino
+    if (_tab == 3) return st == _PedidoStatus.enCamino;
+
+    // 4: Completado
+    if (_tab == 4) return st == _PedidoStatus.completado;
+
+    // 5: Cancelado
     return st == _PedidoStatus.cancelado;
   }
 
@@ -169,7 +210,7 @@ class _MisPedidosPageState extends State<MisPedidosPage> {
                   ),
                   const SizedBox(width: 10),
                   _ChipTab(
-                    text: 'En Proceso',
+                    text: 'Pendiente',
                     active: _tab == 1,
                     primary: primary,
                     bg: chipBg,
@@ -178,7 +219,7 @@ class _MisPedidosPageState extends State<MisPedidosPage> {
                   ),
                   const SizedBox(width: 10),
                   _ChipTab(
-                    text: 'Entregado',
+                    text: 'Aceptado',
                     active: _tab == 2,
                     primary: primary,
                     bg: chipBg,
@@ -187,12 +228,30 @@ class _MisPedidosPageState extends State<MisPedidosPage> {
                   ),
                   const SizedBox(width: 10),
                   _ChipTab(
-                    text: 'Cancelado',
+                    text: 'En camino',
                     active: _tab == 3,
                     primary: primary,
                     bg: chipBg,
                     textColor: purpleText,
                     onTap: () => setState(() => _tab = 3),
+                  ),
+                  const SizedBox(width: 10),
+                  _ChipTab(
+                    text: 'Completado',
+                    active: _tab == 4,
+                    primary: primary,
+                    bg: chipBg,
+                    textColor: purpleText,
+                    onTap: () => setState(() => _tab = 4),
+                  ),
+                  const SizedBox(width: 10),
+                  _ChipTab(
+                    text: 'Cancelado',
+                    active: _tab == 5,
+                    primary: primary,
+                    bg: chipBg,
+                    textColor: purpleText,
+                    onTap: () => setState(() => _tab = 5),
                   ),
                 ],
               ),
@@ -212,8 +271,7 @@ class _MisPedidosPageState extends State<MisPedidosPage> {
                       ),
                     )
                   : StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                      /// ✅ SOLO DEL USUARIO (porque es subcolección del usuario)
-                      stream: _pedidosRef.orderBy('createdAt', descending: true).snapshots(),
+                      stream: _pedidosQuery.snapshots(),
                       builder: (context, snap) {
                         if (snap.connectionState == ConnectionState.waiting) {
                           return const Center(
@@ -242,32 +300,34 @@ class _MisPedidosPageState extends State<MisPedidosPage> {
                         final all = docs.map((d) {
                           final data = d.data();
 
-                          final rawStatus = (data['estado'] ?? 'pendiente').toString();
+                          final rawStatus =
+                              (data['estado'] ?? 'pendiente').toString();
                           final st = _mapStatus(rawStatus);
 
-                          /// ✅ en el índice guardamos total FINAL (si lo sigues como te dejé)
                           final total = _asDouble(data['total']);
 
                           final createdAt = data['createdAt'];
                           final dateText = _formatDate(createdAt);
 
                           final items = data['items'];
-                          final itemsCount = _itemsCount(items, data['conteoItems']);
+                          final itemsCount =
+                              _itemsCount(items, data['conteoItems']);
 
-                          /// ✅ codigo, si no existe, mostramos el id
                           final code = (data['codigo'] ?? d.id).toString();
 
                           return _PedidoModel(
-                            id: d.id, // ✅ ESTE id ES EL pedidoId real
+                            id: d.id, // ✅ pedidoId real
                             code: code,
                             total: total,
                             dateText: dateText,
                             itemsCount: itemsCount,
                             status: st,
+                            rawEstado: rawStatus,
                           );
                         }).toList();
 
-                        final filtered = all.where((p) => _passesTab(p.status)).toList();
+                        final filtered =
+                            all.where((p) => _passesTab(p.status)).toList();
 
                         if (filtered.isEmpty) {
                           return Center(
@@ -312,7 +372,7 @@ class _MisPedidosPageState extends State<MisPedidosPage> {
                                     context,
                                     MaterialPageRoute(
                                       builder: (_) => DetallePedidoPage(
-                                        pedidoId: p.id, // ✅ /pedidos/{pedidoId}
+                                        pedidoId: p.id,
                                         pedidoCode: p.code,
                                       ),
                                     ),
@@ -441,7 +501,7 @@ class _PedidoCard extends StatelessWidget {
                   ),
                   child: Icon(
                     Icons.receipt_long_rounded,
-                    color: Palette.button, // rosado
+                    color: Palette.button,
                     size: 26,
                   ),
                 ),
@@ -502,7 +562,8 @@ class _PedidoCard extends StatelessWidget {
             Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
                   decoration: BoxDecoration(
                     color: status.bg,
                     borderRadius: BorderRadius.circular(12),
@@ -532,7 +593,10 @@ class _PedidoCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 6),
-                Icon(Icons.chevron_right_rounded, color: purpleText.withOpacity(0.85)),
+                Icon(
+                  Icons.chevron_right_rounded,
+                  color: purpleText.withOpacity(0.85),
+                ),
               ],
             ),
           ],
@@ -560,27 +624,38 @@ class _StatusMeta {
 
 _StatusMeta _statusMeta(_PedidoStatus status) {
   switch (status) {
-    case _PedidoStatus.enProceso:
+    case _PedidoStatus.pendiente:
       return _StatusMeta(
         label: 'Pendiente',
         actionText: 'Ver detalles',
         icon: Icons.timelapse_rounded,
         bg: Palette.statsWarning,
       );
+
+    case _PedidoStatus.aceptado:
+      return _StatusMeta(
+        label: 'Aceptado',
+        actionText: 'Ver detalles',
+        icon: Icons.verified_outlined,
+        bg: Palette.statsWarning,
+      );
+
     case _PedidoStatus.enCamino:
       return _StatusMeta(
-        label: 'En Camino',
+        label: 'En camino',
         actionText: 'Ver seguimiento',
         icon: Icons.local_shipping_outlined,
         bg: Palette.statsWarning,
       );
-    case _PedidoStatus.entregado:
+
+    case _PedidoStatus.completado:
       return _StatusMeta(
-        label: 'Entregado',
+        label: 'Completado',
         actionText: 'Ver detalles',
         icon: Icons.check_circle_outline_rounded,
         bg: Palette.statsSuccess,
       );
+
     case _PedidoStatus.cancelado:
       return _StatusMeta(
         label: 'Cancelado',
@@ -593,7 +668,7 @@ _StatusMeta _statusMeta(_PedidoStatus status) {
 
 /* ---------------- Model ---------------- */
 
-enum _PedidoStatus { enProceso, enCamino, entregado, cancelado }
+enum _PedidoStatus { pendiente, aceptado, enCamino, completado, cancelado }
 
 class _PedidoModel {
   final String id; // ✅ pedidoId real
@@ -602,6 +677,7 @@ class _PedidoModel {
   final String dateText;
   final int itemsCount;
   final _PedidoStatus status;
+  final String rawEstado;
 
   const _PedidoModel({
     required this.id,
@@ -610,5 +686,6 @@ class _PedidoModel {
     required this.dateText,
     required this.itemsCount,
     required this.status,
+    required this.rawEstado,
   });
 }

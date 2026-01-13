@@ -17,16 +17,31 @@ class CartStore extends ChangeNotifier {
   final List<CartItem> _items = [];
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _sub;
 
-  // ✅ re-bindeo automático al restaurar sesión (app restart)
   StreamSubscription<User?>? _authSub;
 
   // ✅ estado por item (para mostrar loader en UI)
   final Map<String, bool> _updating = {};
   final Map<String, Timer> _updatingTimers = {};
 
+  // ✅ cache de stock por producto
+  final Map<String, int> _stockCache = {};
+
+  // ✅ mensaje para UI (SnackBar)
+  String? _toastMessage;
+  String? consumeToast() {
+    final t = _toastMessage;
+    _toastMessage = null;
+    return t;
+  }
+
   List<CartItem> get items => _items;
 
   bool isUpdating(String productId) => _updating[productId] == true;
+
+  void _setToast(String msg) {
+    _toastMessage = msg;
+    notifyListeners();
+  }
 
   void _setUpdating(String productId, bool v) {
     _updating[productId] = v;
@@ -55,13 +70,13 @@ class CartStore extends ChangeNotifier {
     bind();
   }
 
-  /// ✅ engancha listener a usuarios/{uid}/carrito
   void bind() {
     _sub?.cancel();
 
     final uid = _auth.currentUser?.uid;
     if (uid == null) {
       _items.clear();
+      _stockCache.clear();
       notifyListeners();
       return;
     }
@@ -82,9 +97,11 @@ class CartStore extends ChangeNotifier {
             final price = (data['price'] is num)
                 ? (data['price'] as num).toDouble()
                 : double.tryParse((data['price'] ?? '0').toString()) ?? 0.0;
+
             final qty = (data['qty'] is num)
                 ? (data['qty'] as num).toInt()
                 : int.tryParse((data['qty'] ?? '1').toString()) ?? 1;
+
             final imageUrl = (data['imageUrl'] ?? '').toString();
 
             return CartItem(
@@ -96,6 +113,11 @@ class CartStore extends ChangeNotifier {
             );
           }),
         );
+
+      // 🔥 precargar stock en background (sin bloquear UI)
+      for (final it in _items) {
+        _prefetchStock(it.id);
+      }
 
       notifyListeners();
     });
@@ -109,11 +131,40 @@ class CartStore extends ChangeNotifier {
     return _fire.collection('usuarios').doc(uid).collection('carrito').doc(productId);
   }
 
+  Future<void> _prefetchStock(String productId) async {
+    if (_stockCache.containsKey(productId)) return;
+    final s = await _fetchStock(productId);
+    _stockCache[productId] = s;
+  }
+
+  Future<int> _fetchStock(String productId) async {
+    try {
+      final doc = await _fire.collection('productos').doc(productId).get();
+      if (!doc.exists) return 0;
+      final data = doc.data() as Map<String, dynamic>;
+      final raw = data['stock'];
+
+      if (raw is num) return raw.toInt();
+      return int.tryParse(raw?.toString() ?? '') ?? 0;
+    } catch (_) {
+      return 0;
+    }
+  }
+
+  Future<int> _getStock(String productId) async {
+    if (_stockCache.containsKey(productId)) return _stockCache[productId] ?? 0;
+    final s = await _fetchStock(productId);
+    _stockCache[productId] = s;
+    return s;
+  }
+
+  String _stockMsg(int stock) {
+    if (stock <= 0) return 'Uy 😕 por ahora no hay stock disponible de este producto.';
+    return 'Solo tenemos $stock unidad${stock == 1 ? "" : "es"} disponible${stock == 1 ? "" : "s"} por ahora 🙂';
+  }
+
   /* ---------------- ACCIONES ---------------- */
 
-  /// ✅ NUEVO: Agregar producto al carrito con cantidad (qty)
-  /// - Si el producto ya existe: incrementa qty
-  /// - Si no existe: crea doc con qty
   Future<void> addProductWithQty({
     required String productId,
     required String name,
@@ -126,21 +177,47 @@ class CartStore extends ChangeNotifier {
 
     final safeQty = qty <= 0 ? 1 : qty;
 
+    // ✅ límite por stock
+    final stock = await _getStock(productId);
+    if (stock > 0 && safeQty > stock) {
+      _setToast(_stockMsg(stock));
+    }
+
     final ref = _cartRef(uid, productId);
 
-    // ✅ usamos transaction para sumar si ya existe
     await _fire.runTransaction((tx) async {
       final snap = await tx.get(ref);
+
+      int finalQtyToSet = safeQty;
+
+      if (stock > 0) {
+        finalQtyToSet = finalQtyToSet.clamp(1, stock);
+      } else {
+        finalQtyToSet = finalQtyToSet.clamp(1, 9999);
+      }
+
       if (snap.exists) {
+        // si ya existe: sumar, pero sin pasar stock
+        final currentQty = ((snap.data()?['qty'] ?? 1) is num)
+            ? (snap.data()?['qty'] as num).toInt()
+            : int.tryParse((snap.data()?['qty'] ?? '1').toString()) ?? 1;
+
+        int newQty = currentQty + finalQtyToSet;
+
+        if (stock > 0 && newQty > stock) {
+          newQty = stock;
+          _setToast(_stockMsg(stock));
+        }
+
         tx.update(ref, {
-          'qty': FieldValue.increment(safeQty),
+          'qty': newQty,
           'updatedAt': FieldValue.serverTimestamp(),
         });
       } else {
         tx.set(ref, {
           'name': name,
           'price': price,
-          'qty': safeQty,
+          'qty': finalQtyToSet,
           'imageUrl': imageUrl,
           'createdAt': FieldValue.serverTimestamp(),
           'updatedAt': FieldValue.serverTimestamp(),
@@ -149,22 +226,19 @@ class CartStore extends ChangeNotifier {
     });
   }
 
-  /// ✅ Agregar desde wishlist (y eliminar de wishlist)
   Future<void> addFromWishlist(WishItem item) async {
     final uid = _auth.currentUser?.uid;
     if (uid == null) return;
 
-    final cartRef = _fire
-        .collection('usuarios')
-        .doc(uid)
-        .collection('carrito')
-        .doc(item.id);
+    // ✅ límite por stock
+    final stock = await _getStock(item.id);
+    if (stock <= 0) {
+      _setToast(_stockMsg(stock));
+      return;
+    }
 
-    final wishRef = _fire
-        .collection('usuarios')
-        .doc(uid)
-        .collection('wishlist')
-        .doc(item.id);
+    final cartRef = _fire.collection('usuarios').doc(uid).collection('carrito').doc(item.id);
+    final wishRef = _fire.collection('usuarios').doc(uid).collection('wishlist').doc(item.id);
 
     await _fire.runTransaction((tx) async {
       tx.set(cartRef, {
@@ -181,7 +255,7 @@ class CartStore extends ChangeNotifier {
   }
 
   // -----------------------------
-  // ✅ OPTIMISTIC QTY (INSTANTE)
+  // ✅ OPTIMISTIC QTY (INSTANTE) + LIMITE STOCK
   // -----------------------------
 
   Future<void> incQty(String productId) async {
@@ -192,7 +266,15 @@ class CartStore extends ChangeNotifier {
     if (idx == -1) return;
 
     final current = _items[idx];
-    _items[idx] = current.copyWith(qty: current.qty + 1);
+    final desired = current.qty + 1;
+
+    final stock = await _getStock(productId);
+    if (stock > 0 && desired > stock) {
+      _setToast(_stockMsg(stock));
+      return;
+    }
+
+    _items[idx] = current.copyWith(qty: desired);
     _setUpdatingWithMinTime(productId, true);
     notifyListeners();
 
@@ -241,16 +323,60 @@ class CartStore extends ChangeNotifier {
     }
   }
 
+  // -----------------------------
+  // ✅ SET QTY MANUAL (TECLADO) + LIMITE STOCK
+  // -----------------------------
+  Future<void> setQty(String productId, int qty) async {
+    final uid = _auth.currentUser?.uid;
+    if (uid == null) return;
+
+    final idx = _findIndex(productId);
+    if (idx == -1) return;
+
+    int newQty = qty <= 1 ? 1 : qty;
+
+    final stock = await _getStock(productId);
+    if (stock > 0 && newQty > stock) {
+      newQty = stock;
+      _setToast(_stockMsg(stock));
+      if (newQty <= 0) return;
+    }
+
+    // ✅ optimistic
+    final current = _items[idx];
+    final oldQty = current.qty;
+    _items[idx] = current.copyWith(qty: newQty);
+
+    _setUpdatingWithMinTime(productId, true);
+    notifyListeners();
+
+    try {
+      await _cartRef(uid, productId).set(
+        {
+          'qty': newQty,
+          'updatedAt': FieldValue.serverTimestamp(),
+        },
+        SetOptions(merge: true),
+      );
+
+      _updating[productId] = false;
+      notifyListeners();
+    } catch (_) {
+      final nowIdx = _findIndex(productId);
+      if (nowIdx != -1) {
+        final cur = _items[nowIdx];
+        _items[nowIdx] = cur.copyWith(qty: oldQty);
+      }
+      _updating[productId] = false;
+      notifyListeners();
+    }
+  }
+
   Future<void> remove(String productId) async {
     final uid = _auth.currentUser?.uid;
     if (uid == null) return;
 
-    await _fire
-        .collection('usuarios')
-        .doc(uid)
-        .collection('carrito')
-        .doc(productId)
-        .delete();
+    await _fire.collection('usuarios').doc(uid).collection('carrito').doc(productId).delete();
   }
 
   Future<void> clear() async {
@@ -267,24 +393,15 @@ class CartStore extends ChangeNotifier {
 
   /* ---------------- CHECKOUT -> PEDIDOS (ROOT) ---------------- */
 
-  /// ✅ Crea pedido en /pedidos/{pedidoId}
-  /// ✅ crea índice en /usuarios/{uid}/pedidos/{pedidoId}
-  /// ✅ borra carrito
-  ///
-  /// ✅ NUEVO:
-  /// - también guarda 'departamento' (y 'direccion') a nivel raíz del pedido e índice
-  ///   para filtros rápidos.
   Future<String?> checkoutToPedidos({
     required UbicacionSeleccionada ubicacion,
   }) async {
     final uid = _auth.currentUser?.uid;
     if (uid == null) return null;
 
-    // 1) leer carrito
     final carritoSnap = await _fire.collection('usuarios').doc(uid).collection('carrito').get();
     if (carritoSnap.docs.isEmpty) return null;
 
-    // 2) construir items
     final items = <Map<String, dynamic>>[];
     double totalProductos = 0.0;
 
@@ -314,15 +431,14 @@ class CartStore extends ChangeNotifier {
       });
     }
 
-    // 3) crear pedido (ROOT)
     final code = _gen6Digits();
 
-    final pedidoDoc = _fire.collection('pedidos').doc(); // ✅ ROOT /pedidos
+    final pedidoDoc = _fire.collection('pedidos').doc();
     final userIndexDoc = _fire
         .collection('usuarios')
         .doc(uid)
         .collection('pedidos')
-        .doc(pedidoDoc.id); // ✅ índice (mismo id)
+        .doc(pedidoDoc.id);
 
     const double costoEnvio = 0.0;
     final totalFinal = totalProductos + costoEnvio;
@@ -330,20 +446,14 @@ class CartStore extends ChangeNotifier {
     final payload = <String, dynamic>{
       'codigo': code,
       'estado': 'pendiente',
-
-      // ✅ para filtros rápidos
       'departamento': ubicacion.departamento,
       'direccion': ubicacion.direccion,
-
-      'total': totalProductos, // productos
+      'total': totalProductos,
       'costo_envio': costoEnvio,
       'fecha_entrega': null,
       'conteoItems': items.length,
       'items': items,
-
-      // ✅ snapshot completo
       'ubicacion': ubicacion.toJson(),
-
       'createdAt': FieldValue.serverTimestamp(),
       'uid': uid,
     };
@@ -352,12 +462,9 @@ class CartStore extends ChangeNotifier {
       'pedidoId': pedidoDoc.id,
       'codigo': code,
       'estado': 'pendiente',
-
-      // ✅ para filtros rápidos también en el índice
       'departamento': ubicacion.departamento,
       'direccion': ubicacion.direccion,
-
-      'total': totalFinal, // total final (productos + envío)
+      'total': totalFinal,
       'costo_envio': costoEnvio,
       'fecha_entrega': null,
       'conteoItems': items.length,
@@ -365,7 +472,6 @@ class CartStore extends ChangeNotifier {
       'uid': uid,
     };
 
-    // 4) batch
     final batch = _fire.batch();
     batch.set(pedidoDoc, payload);
     batch.set(userIndexDoc, indexPayload);
@@ -429,7 +535,6 @@ class CartItem {
   }
 }
 
-/// ✅ Para enviar la ubicación elegida al pedido (snapshot)
 class UbicacionSeleccionada {
   final String id;
   final String nombre;

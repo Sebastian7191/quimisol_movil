@@ -1,4 +1,7 @@
+// lib/features/pasajeros_features/carrito/pages/carrito.dart
 import 'dart:async';
+import 'dart:math' as math;
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -33,6 +36,10 @@ class _CarritoPageState extends State<CarritoPage> {
   // ✅ Evita parpadeo: solo recalcula si cambió el set de productos (no por qty)
   String _lastProductsKey = '';
 
+  // ✅ FIX PARPADEO: cachea el stream de ubicaciones
+  Stream<QuerySnapshot<Map<String, dynamic>>>? _ubicStream;
+  String _ubicStreamKey = '';
+
   @override
   void initState() {
     super.initState();
@@ -53,16 +60,24 @@ class _CarritoPageState extends State<CarritoPage> {
 
   void _onChanged() {
     if (!mounted) return;
-    setState(() {});
+
+    // ✅ mostrar mensaje friendly si hay
+    final msg = _store.consumeToast();
+    if (msg != null) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+    }
 
     // ✅ SOLO recalcular deptos si cambió el set de productIds (add/remove/clear)
     final keyNow = _currentProductsKey();
-    if (keyNow == _lastProductsKey) return;
+    if (keyNow != _lastProductsKey) {
+      _deptoDebounce?.cancel();
+      _deptoDebounce = Timer(const Duration(milliseconds: 250), () {
+        _refreshAllowedDeptos(force: true);
+      });
+    }
 
-    _deptoDebounce?.cancel();
-    _deptoDebounce = Timer(const Duration(milliseconds: 250), () {
-      _refreshAllowedDeptos(force: true);
-    });
+    // ✅ igual se necesita rebuild para qty/precios, pero el stream ya no se reinicia
+    setState(() {});
   }
 
   List<CartItem> get _items => _store.items;
@@ -77,31 +92,46 @@ class _CarritoPageState extends State<CarritoPage> {
 
   double get _shipping => 0;
 
-  // ✅ total SIN descuento
-  double get _total => (_subtotal + _shipping) < 0 ? 0 : (_subtotal + _shipping);
+  // ✅ total (según precio guardado en carrito)
+  double get _total =>
+      (_subtotal + _shipping) < 0 ? 0 : (_subtotal + _shipping);
 
   CollectionReference<Map<String, dynamic>> get _ubicRef =>
       _fire.collection('usuarios').doc(_uid).collection('ubicaciones');
-
-  /// ✅ Stream de ubicaciones, pero filtrado a los departamentos permitidos
-  Stream<QuerySnapshot<Map<String, dynamic>>> _ubicStreamFiltered() {
-    if (_allowedDeptos.isEmpty) {
-      return _ubicRef.snapshots();
-    }
-
-    final list = _allowedDeptos.toList();
-    if (list.length <= 10) {
-      return _ubicRef.where('departamento', whereIn: list).snapshots();
-    }
-
-    return _ubicRef.snapshots();
-  }
 
   String _norm(String s) => s.trim().toLowerCase();
 
   String _currentProductsKey() {
     final ids = _items.map((e) => e.id).toSet().toList()..sort();
     return ids.join('|');
+  }
+
+  /// ✅ FIX PARPADEO:
+  /// - NO crea Stream nuevo en cada build
+  /// - SOLO cambia cuando cambia _allowedDeptos
+  Stream<QuerySnapshot<Map<String, dynamic>>> _ubicStreamFiltered() {
+    final keyList = _allowedDeptos.toList()..sort();
+    final key = keyList.join('|');
+
+    if (_ubicStream != null && _ubicStreamKey == key) {
+      return _ubicStream!;
+    }
+
+    _ubicStreamKey = key;
+
+    if (_allowedDeptos.isEmpty) {
+      _ubicStream = _ubicRef.snapshots();
+      return _ubicStream!;
+    }
+
+    final list = keyList;
+    if (list.length <= 10) {
+      _ubicStream = _ubicRef.where('departamento', whereIn: list).snapshots();
+      return _ubicStream!;
+    }
+
+    _ubicStream = _ubicRef.snapshots();
+    return _ubicStream!;
   }
 
   /// ✅ Calcula departamentos permitidos leyendo:
@@ -119,6 +149,10 @@ class _CarritoPageState extends State<CarritoPage> {
         setState(() {
           _allowedDeptos = {};
           _loadingDeptos = false;
+
+          // ✅ reset stream cache
+          _ubicStream = null;
+          _ubicStreamKey = '';
         });
       }
       return;
@@ -146,6 +180,10 @@ class _CarritoPageState extends State<CarritoPage> {
           setState(() {
             _allowedDeptos = {};
             _loadingDeptos = false;
+
+            // ✅ reset stream cache
+            _ubicStream = null;
+            _ubicStreamKey = '';
           });
         }
         return;
@@ -167,10 +205,16 @@ class _CarritoPageState extends State<CarritoPage> {
         setState(() {
           _allowedDeptos = deps;
           _loadingDeptos = false;
+
+          // ✅ importantísimo: solo cuando cambian deptos
+          _ubicStream = null;
+          _ubicStreamKey = '';
         });
 
         if (_selectedUbic != null &&
-            !_allowedDeptos.map(_norm).contains(_norm(_selectedUbic!.departamento))) {
+            !_allowedDeptos
+                .map(_norm)
+                .contains(_norm(_selectedUbic!.departamento))) {
           _selectedUbic = null;
         }
       }
@@ -185,15 +229,23 @@ class _CarritoPageState extends State<CarritoPage> {
 
     if (_selectedUbic == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Selecciona una ubicación para la entrega.')),
+        const SnackBar(
+          content: Text('Selecciona una ubicación para la entrega.'),
+        ),
       );
       return;
     }
 
     if (_allowedDeptos.isNotEmpty &&
-        !_allowedDeptos.map(_norm).contains(_norm(_selectedUbic!.departamento))) {
+        !_allowedDeptos
+            .map(_norm)
+            .contains(_norm(_selectedUbic!.departamento))) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('La ubicación debe ser del mismo departamento del almacén.')),
+        const SnackBar(
+          content: Text(
+            'La ubicación debe ser del mismo departamento del almacén.',
+          ),
+        ),
       );
       return;
     }
@@ -201,7 +253,9 @@ class _CarritoPageState extends State<CarritoPage> {
     setState(() => _paying = true);
 
     try {
-      final pedidoId = await _store.checkoutToPedidos(ubicacion: _selectedUbic!);
+      final pedidoId = await _store.checkoutToPedidos(
+        ubicacion: _selectedUbic!,
+      );
 
       if (!mounted) return;
 
@@ -212,9 +266,9 @@ class _CarritoPageState extends State<CarritoPage> {
         return;
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Pedido creado ✅')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Pedido creado ✅')));
 
       Navigator.pop(context);
     } finally {
@@ -255,7 +309,10 @@ class _CarritoPageState extends State<CarritoPage> {
                     onPressed: _items.isEmpty ? null : _store.clear,
                     child: Text(
                       'Vaciar',
-                      style: TextStyle(color: primary, fontWeight: FontWeight.w900),
+                      style: TextStyle(
+                        color: primary,
+                        fontWeight: FontWeight.w900,
+                      ),
                     ),
                   ),
                 ],
@@ -278,6 +335,7 @@ class _CarritoPageState extends State<CarritoPage> {
                           onRemove: () => _store.remove(item.id),
                           onMinus: () => _store.decQty(item.id),
                           onPlus: () => _store.incQty(item.id),
+                          onSetQty: (v) => _store.setQty(item.id, v),
                         ),
                       );
                     }),
@@ -287,8 +345,11 @@ class _CarritoPageState extends State<CarritoPage> {
                         padding: const EdgeInsets.only(top: 30),
                         child: Column(
                           children: [
-                            Icon(Icons.shopping_cart_outlined,
-                                size: 52, color: ink.withOpacity(0.35)),
+                            Icon(
+                              Icons.shopping_cart_outlined,
+                              size: 52,
+                              color: ink.withOpacity(0.35),
+                            ),
                             const SizedBox(height: 10),
                             Text(
                               'Tu carrito está vacío',
@@ -312,7 +373,9 @@ class _CarritoPageState extends State<CarritoPage> {
                               const SizedBox(
                                 width: 16,
                                 height: 16,
-                                child: CircularProgressIndicator(strokeWidth: 2),
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
                               ),
                               const SizedBox(width: 10),
                               Expanded(
@@ -409,7 +472,9 @@ class _CarritoPageState extends State<CarritoPage> {
                       borderRadius: BorderRadius.circular(18),
                     ),
                   ),
-                  onPressed: (_items.isEmpty || _paying || _loadingDeptos) ? null : _payNow,
+                  onPressed: (_items.isEmpty || _paying || _loadingDeptos)
+                      ? null
+                      : _payNow,
                   child: _paying
                       ? const SizedBox(
                           width: 18,
@@ -428,7 +493,10 @@ class _CarritoPageState extends State<CarritoPage> {
                               ),
                             ),
                             SizedBox(width: 10),
-                            Icon(Icons.arrow_forward_rounded, color: Colors.white),
+                            Icon(
+                              Icons.arrow_forward_rounded,
+                              color: Colors.white,
+                            ),
                           ],
                         ),
                 ),
@@ -472,7 +540,11 @@ class _UbicacionDropdown extends StatelessWidget {
             ink: ink,
             child: Row(
               children: const [
-                SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)),
+                SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
                 SizedBox(width: 10),
                 Text('Cargando ubicaciones...'),
               ],
@@ -514,7 +586,8 @@ class _UbicacionDropdown extends StatelessWidget {
         final options = docs.map((d) {
           final data = d.data();
           final nombre = (data['nombre'] ?? 'Ubicación').toString();
-          final direccion = (data['direccion'] ?? data['address'] ?? '').toString();
+          final direccion = (data['direccion'] ?? data['address'] ?? '')
+              .toString();
           final departamento = (data['departamento'] ?? '').toString().trim();
 
           final latRaw = data['lat'] ?? data['latitud'];
@@ -543,7 +616,9 @@ class _UbicacionDropdown extends StatelessWidget {
 
         final Map<String, List<UbicacionSeleccionada>> grouped = {};
         for (final u in options) {
-          final key = u.departamento.isEmpty ? 'Sin departamento' : u.departamento;
+          final key = u.departamento.isEmpty
+              ? 'Sin departamento'
+              : u.departamento;
           grouped.putIfAbsent(key, () => []).add(u);
         }
 
@@ -555,7 +630,9 @@ class _UbicacionDropdown extends StatelessWidget {
           });
 
         for (final k in depts) {
-          grouped[k]!.sort((a, b) => a.nombre.toLowerCase().compareTo(b.nombre.toLowerCase()));
+          grouped[k]!.sort(
+            (a, b) => a.nombre.toLowerCase().compareTo(b.nombre.toLowerCase()),
+          );
         }
 
         final items = <DropdownMenuItem<UbicacionSeleccionada>>[];
@@ -619,7 +696,9 @@ class _UbicacionDropdown extends StatelessWidget {
         UbicacionSeleccionada? current = selected;
         if (current == null || !options.any((o) => o.id == current!.id)) {
           current = options.first;
-          WidgetsBinding.instance.addPostFrameCallback((_) => onChanged(current));
+          WidgetsBinding.instance.addPostFrameCallback(
+            (_) => onChanged(current),
+          );
         } else {
           current = options.firstWhere((o) => o.id == current!.id);
         }
@@ -635,7 +714,10 @@ class _UbicacionDropdown extends StatelessWidget {
                   child: DropdownButton<UbicacionSeleccionada>(
                     value: current,
                     isExpanded: true,
-                    icon: Icon(Icons.keyboard_arrow_down_rounded, color: ink.withOpacity(0.60)),
+                    icon: Icon(
+                      Icons.keyboard_arrow_down_rounded,
+                      color: ink.withOpacity(0.60),
+                    ),
                     items: items,
                     selectedItemBuilder: (_) => selectedWidgets,
                     onChanged: (v) {
@@ -665,6 +747,8 @@ class _UbicacionDropdown extends StatelessWidget {
   }
 }
 
+/* ---------------- CART CARD (DESCUENTO ABAJO) ---------------- */
+
 class _CartCard extends StatelessWidget {
   const _CartCard({
     required this.item,
@@ -673,6 +757,7 @@ class _CartCard extends StatelessWidget {
     required this.onRemove,
     required this.onMinus,
     required this.onPlus,
+    required this.onSetQty,
   });
 
   final CartItem item;
@@ -681,166 +766,378 @@ class _CartCard extends StatelessWidget {
   final VoidCallback onRemove;
   final VoidCallback onMinus;
   final VoidCallback onPlus;
+  final ValueChanged<int> onSetQty;
+
+  Stream<DocumentSnapshot<Map<String, dynamic>>> _descuentoStream(String id) {
+    return FirebaseFirestore.instance
+        .collection('productos')
+        .doc(id)
+        .collection('descuentos')
+        .doc('activo')
+        .snapshots();
+  }
+
+  Future<DocumentSnapshot<Map<String, dynamic>>> _productoOnce(String id) {
+    return FirebaseFirestore.instance.collection('productos').doc(id).get();
+  }
+
+  double _toDouble(dynamic v) {
+    if (v is num) return v.toDouble();
+    return double.tryParse(v?.toString() ?? '') ?? 0.0;
+  }
 
   @override
   Widget build(BuildContext context) {
     final ink = Palette.ink;
 
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Palette.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: ink.withOpacity(0.05)),
-      ),
-      child: Row(
-        children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(14),
-            child: Image.network(
-              item.imageUrl,
-              height: 62,
-              width: 62,
-              fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => Container(
-                height: 62,
-                width: 62,
-                color: ink.withOpacity(0.06),
-                alignment: Alignment.center,
-                child: Icon(Icons.image_not_supported_outlined, color: ink.withOpacity(0.45)),
+    return FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+      future: _productoOnce(item.id),
+      builder: (context, prodSnap) {
+        final prod = prodSnap.data?.data();
+
+        // ✅ base price desde productos; fallback al precio guardado en carrito
+        final basePrice = _toDouble(prod?['price']);
+        final base = basePrice > 0 ? basePrice : item.price;
+
+        return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+          stream: _descuentoStream(item.id),
+          builder: (context, dsSnap) {
+            final d = dsSnap.data?.data();
+
+            final bool activo = (d?['activo'] == true);
+            final String tipo = (d?['tipo'] ?? 'PORCENTAJE').toString().trim();
+            final double valor = _toDouble(d?['valor']);
+
+            final bool hasDescuento = activo && valor > 0;
+
+            double finalPrice = base;
+            String badge = '';
+            String line = '';
+
+            if (hasDescuento) {
+              if (tipo == 'PORCENTAJE') {
+                final pct = valor.clamp(0.0, 100.0);
+                finalPrice = base * (1 - (pct / 100.0));
+                finalPrice = math.max(0.0, finalPrice);
+
+                final pctTxt = (pct % 1 == 0)
+                    ? pct.toStringAsFixed(0)
+                    : pct.toStringAsFixed(1);
+
+                badge = '-$pctTxt%';
+                line = ' $badge';
+              } else {
+                finalPrice = math.max(0.0, base - valor);
+
+                final vTxt = (valor % 1 == 0)
+                    ? valor.toStringAsFixed(0)
+                    : valor.toStringAsFixed(2);
+
+                badge = '-Bs $vTxt';
+                line = ' $badge';
+              }
+            }
+
+            // ✅ precio que se muestra (si hay descuento, muestra precio final)
+            final priceToShow = hasDescuento ? finalPrice : item.price;
+
+            return Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: Palette.white,
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: ink.withOpacity(0.05)),
               ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        item.name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: ink,
-                          fontWeight: FontWeight.w900,
-                          fontSize: 16,
-                        ),
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.only(left: 10),
-                      child: InkWell(
+              child: Row(
+                children: [
+                  Stack(
+                    children: [
+                      ClipRRect(
                         borderRadius: BorderRadius.circular(14),
-                        onTap: onRemove,
-                        child: Container(
-                          height: 38,
-                          width: 38,
-                          alignment: Alignment.center,
-                          child: Icon(
-                            Icons.delete_outline_rounded,
-                            size: 22,
-                            color: ink.withOpacity(0.45),
+                        child: Image.network(
+                          item.imageUrl,
+                          height: 62,
+                          width: 62,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Container(
+                            height: 62,
+                            width: 62,
+                            color: ink.withOpacity(0.06),
+                            alignment: Alignment.center,
+                            child: Icon(
+                              Icons.image_not_supported_outlined,
+                              color: ink.withOpacity(0.45),
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    // ✅ loader al lado del precio mientras “confirma” Firestore
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          'Bs. ${item.price.toStringAsFixed(2)}',
-                          style: TextStyle(
-                            color: primary,
-                            fontWeight: FontWeight.w900,
-                            fontSize: 16,
+                      if (hasDescuento)
+                        Positioned(
+                          left: 4,
+                          top: 4,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 3,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.red,
+                              borderRadius: BorderRadius.circular(10),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.14),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 6),
+                                ),
+                              ],
+                            ),
+                            child: Text(
+                              badge,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w900,
+                                fontSize: 10.5,
+                              ),
+                            ),
                           ),
                         ),
-                        const SizedBox(width: 8),
-                        AnimatedSwitcher(
-                          duration: const Duration(milliseconds: 180),
-                          child: isUpdating
-                              ? SizedBox(
-                                  key: const ValueKey('load'),
-                                  width: 14,
-                                  height: 14,
-                                  child: CircularProgressIndicator(strokeWidth: 2, color: primary),
-                                )
-                              : const SizedBox(key: ValueKey('none')),
+                    ],
+                  ),
+
+                  const SizedBox(width: 12),
+
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                item.name,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: ink,
+                                  fontWeight: FontWeight.w900,
+                                  fontSize: 16,
+                                ),
+                              ),
+                            ),
+                            InkWell(
+                              borderRadius: BorderRadius.circular(14),
+                              onTap: onRemove,
+                              child: SizedBox(
+                                height: 38,
+                                width: 38,
+                                child: Icon(
+                                  Icons.delete_outline_rounded,
+                                  size: 22,
+                                  color: ink.withOpacity(0.45),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+
+                        const SizedBox(height: 8),
+
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        'Bs. ${priceToShow.toStringAsFixed(2)}',
+                                        style: TextStyle(
+                                          color: hasDescuento
+                                              ? Colors.red
+                                              : primary,
+                                          fontWeight: FontWeight.w900,
+                                          fontSize: 16,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      AnimatedSwitcher(
+                                        duration: const Duration(
+                                          milliseconds: 180,
+                                        ),
+                                        child: isUpdating
+                                            ? SizedBox(
+                                                key: const ValueKey('load'),
+                                                width: 14,
+                                                height: 14,
+                                                child:
+                                                    CircularProgressIndicator(
+                                                      strokeWidth: 2,
+                                                      color: primary,
+                                                    ),
+                                              )
+                                            : const SizedBox(
+                                                key: ValueKey('none'),
+                                              ),
+                                      ),
+                                    ],
+                                  ),
+                                  if (hasDescuento) ...[
+                                    const SizedBox(height: 3),
+                                    Text(
+                                      'Bs. ${base.toStringAsFixed(2)}',
+                                      style: TextStyle(
+                                        color: ink.withOpacity(0.45),
+                                        fontWeight: FontWeight.w800,
+                                        fontSize: 12.2,
+                                        decoration: TextDecoration.lineThrough,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 3),
+                                    Text(
+                                      line, // ✅ debajo (no a lado)
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        color: Colors.red.withOpacity(0.95),
+                                        fontWeight: FontWeight.w900,
+                                        fontSize: 12.0,
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            _QtyPill(
+                              qty: item.qty,
+                              primary: primary,
+                              onMinus: onMinus,
+                              onPlus: onPlus,
+                              onSetQty: onSetQty,
+                            ),
+                          ],
                         ),
                       ],
                     ),
-
-                    const Spacer(),
-                    _QtyPill(
-                      qty: item.qty,
-                      primary: primary,
-                      onMinus: onMinus,
-                      onPlus: onPlus,
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
     );
   }
 }
 
-class _QtyPill extends StatelessWidget {
+/* ---------------- QTY PILL (EDITABLE) ---------------- */
+
+class _QtyPill extends StatefulWidget {
   const _QtyPill({
     required this.qty,
     required this.primary,
     required this.onMinus,
     required this.onPlus,
+    required this.onSetQty,
   });
 
   final int qty;
   final Color primary;
   final VoidCallback onMinus;
   final VoidCallback onPlus;
+  final ValueChanged<int> onSetQty;
+
+  @override
+  State<_QtyPill> createState() => _QtyPillState();
+}
+
+class _QtyPillState extends State<_QtyPill> {
+  late final TextEditingController _c;
+
+  @override
+  void initState() {
+    super.initState();
+    _c = TextEditingController(text: widget.qty.toString());
+  }
+
+  @override
+  void didUpdateWidget(covariant _QtyPill oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.qty != widget.qty && _c.text != widget.qty.toString()) {
+      _c.text = widget.qty.toString();
+    }
+  }
+
+  void _commit() {
+    final raw = _c.text.trim();
+    final v = int.tryParse(raw) ?? widget.qty;
+    final fixed = v <= 1 ? 1 : v;
+    if (fixed.toString() != _c.text) _c.text = fixed.toString();
+    widget.onSetQty(fixed);
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final ink = Palette.ink;
 
-    return Container(
-      height: 44,
-      padding: const EdgeInsets.symmetric(horizontal: 10),
-      decoration: BoxDecoration(
-        color: primary.withOpacity(0.12),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: primary.withOpacity(0.18)),
-      ),
-      child: Row(
-        children: [
-          _QtyBtn(icon: Icons.remove_rounded, onTap: onMinus, color: primary),
-          const SizedBox(width: 12),
-          SizedBox(
-            width: 34,
-            child: Text(
-              '$qty',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: ink,
-                fontWeight: FontWeight.w900,
-                fontSize: 15.5,
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minWidth: 118, maxWidth: 138),
+      child: Container(
+        height: 40,
+        padding: const EdgeInsets.symmetric(horizontal: 6),
+        decoration: BoxDecoration(
+          color: widget.primary.withOpacity(0.10),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: widget.primary.withOpacity(0.16)),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            _QtyBtn(
+              icon: Icons.remove_rounded,
+              onTap: widget.onMinus,
+              color: widget.primary,
+            ),
+
+            SizedBox(
+              width: 34,
+              child: TextField(
+                controller: _c,
+                keyboardType: TextInputType.number,
+                textAlign: TextAlign.center,
+                maxLength: 3,
+                decoration: const InputDecoration(
+                  counterText: '',
+                  isDense: true,
+                  border: InputBorder.none,
+                ),
+                style: TextStyle(
+                  color: ink,
+                  fontWeight: FontWeight.w900,
+                  fontSize: 14.5,
+                ),
+                onSubmitted: (_) => _commit(),
+                onEditingComplete: _commit,
+                onTapOutside: (_) => _commit(),
               ),
             ),
-          ),
-          const SizedBox(width: 12),
-          _QtyBtn(icon: Icons.add_rounded, onTap: onPlus, color: primary),
-        ],
+
+            _QtyBtn(
+              icon: Icons.add_rounded,
+              onTap: widget.onPlus,
+              color: widget.primary,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -867,6 +1164,8 @@ class _QtyBtn extends StatelessWidget {
     );
   }
 }
+
+/* ---------------- SUMMARY ---------------- */
 
 class _SummaryRow extends StatelessWidget {
   const _SummaryRow({
