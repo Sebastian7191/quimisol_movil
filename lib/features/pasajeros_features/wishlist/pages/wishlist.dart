@@ -1,3 +1,8 @@
+// wishlist_page.dart
+
+import 'dart:math' as math;
+
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:quimisol_movil/core/theme/palette.dart';
 import 'package:quimisol_movil/features/pasajeros_features/carrito/pages/carrito.dart';
@@ -59,8 +64,18 @@ class _WishlistPageState extends State<WishlistPage> {
     _store.remove(item.id);
   }
 
-  Future<void> _moveToCart(WishItem item) async {
-    await _cart.addFromWishlist(item);
+  // ✅ mantiene tu lógica (addFromWishlist) pero respeta descuento
+  Future<void> _moveToCart(WishItem item, double priceToUse) async {
+    final fixed = WishItem(
+      id: item.id,
+      name: item.name,
+      price: priceToUse, // ✅ precio final (con descuento)
+      rating: item.rating,
+      stock: item.stock,
+      imageUrl: item.imageUrl,
+    );
+
+    await _cart.addFromWishlist(fixed);
     // ❌ no navegación automática
   }
 
@@ -225,8 +240,9 @@ class _WishlistPageState extends State<WishlistPage> {
                             cardBg: cardBg,
                             ink: ink,
                             onRemove: () => _removeAt(i),
-                            onMoveToCart:
-                                it.stock <= 0 ? null : () => _moveToCart(it),
+                            onMoveToCart: it.stock <= 0
+                                ? null
+                                : (priceToUse) => _moveToCart(it, priceToUse),
                           ),
                         );
                       },
@@ -299,94 +315,214 @@ class _WishCard extends StatelessWidget {
   final Color cardBg;
   final Color ink;
   final VoidCallback onRemove;
-  final VoidCallback? onMoveToCart;
+
+  // ✅ manda el precio final al mover al carrito (para aplicar descuento)
+  final Future<void> Function(double priceToUse)? onMoveToCart;
+
+  Stream<DocumentSnapshot<Map<String, dynamic>>> _descuentoStream(String id) {
+    return FirebaseFirestore.instance
+        .collection('productos')
+        .doc(id)
+        .collection('descuentos')
+        .doc('activo')
+        .snapshots();
+  }
+
+  double _toDouble(dynamic v) {
+    if (v is num) return v.toDouble();
+    return double.tryParse(v?.toString() ?? '') ?? 0.0;
+  }
 
   @override
   Widget build(BuildContext context) {
     final soldOut = item.stock <= 0;
 
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: cardBg,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: ink.withOpacity(0.06)),
-      ),
-      child: Column(
-        children: [
-          Stack(
+    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+      stream: _descuentoStream(item.id),
+      builder: (context, snap) {
+        final Map<String, dynamic>? d = snap.data?.data();
+
+        final bool activo = (d?['activo'] == true);
+        final String tipo = (d?['tipo'] ?? 'PORCENTAJE').toString().trim();
+        final double valor = _toDouble(d?['valor']);
+
+        final bool hasDescuento = activo && valor > 0;
+
+        final double base = item.price;
+        double finalPrice = base;
+        String badge = '';
+
+        if (hasDescuento) {
+          if (tipo == 'PORCENTAJE') {
+            final double pct = valor.clamp(0.0, 100.0);
+            finalPrice = base * (1 - (pct / 100.0));
+            finalPrice = math.max(0.0, finalPrice);
+
+            final String pctTxt =
+                (pct % 1 == 0) ? pct.toStringAsFixed(0) : pct.toStringAsFixed(1);
+
+            badge = '-$pctTxt%';
+          } else {
+            finalPrice = math.max(0.0, base - valor);
+
+            final String vTxt =
+                (valor % 1 == 0) ? valor.toStringAsFixed(0) : valor.toStringAsFixed(2);
+
+            badge = '-Bs $vTxt';
+          }
+        }
+
+        final double priceToShow = hasDescuento ? finalPrice : base;
+
+        return Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: cardBg,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: ink.withOpacity(0.06)),
+          ),
+          child: Column(
             children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(14),
-                child: AspectRatio(
-                  aspectRatio: 16 / 10,
-                  child: Image.network(
-                    item.imageUrl,
-                    fit: BoxFit.cover,
+              Stack(
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(14),
+                    child: AspectRatio(
+                      aspectRatio: 16 / 10,
+                      child: Image.network(
+                        item.imageUrl,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => Container(
+                          color: ink.withOpacity(0.06),
+                          child: Icon(
+                            Icons.image_outlined,
+                            color: ink.withOpacity(0.35),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  // ✅ Badge descuento
+                  if (hasDescuento)
+                    Positioned(
+                      left: 8,
+                      top: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.red,
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.14),
+                              blurRadius: 12,
+                              offset: const Offset(0, 8),
+                            ),
+                          ],
+                        ),
+                        child: Text(
+                          badge,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w900,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    ),
+
+                  Positioned(
+                    top: 8,
+                    right: 8,
+                    child: InkWell(
+                      onTap: onRemove,
+                      child: Icon(
+                        Icons.delete_outline_rounded,
+                        color: ink.withOpacity(0.70),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 10),
+
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  item.name,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: ink,
+                    fontWeight: FontWeight.w900,
                   ),
                 ),
               ),
-              Positioned(
-                top: 8,
-                right: 8,
-                child: InkWell(
-                  onTap: onRemove,
-                  child: Icon(Icons.delete_outline_rounded,
-                      color: ink.withOpacity(0.70)),
+
+              const SizedBox(height: 6),
+
+              // ✅ Precio con descuento + tachado
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    'Bs. ${priceToShow.toStringAsFixed(2)}',
+                    style: TextStyle(
+                      color: soldOut
+                          ? ink.withOpacity(0.35)
+                          : (hasDescuento ? Colors.red : primary),
+                      fontWeight: FontWeight.w900,
+                      fontSize: 16,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  if (hasDescuento)
+                    Text(
+                      'Bs. ${base.toStringAsFixed(2)}',
+                      style: TextStyle(
+                        color: ink.withOpacity(0.45),
+                        fontWeight: FontWeight.w800,
+                        fontSize: 12.5,
+                        decoration: TextDecoration.lineThrough,
+                      ),
+                    ),
+                ],
+              ),
+
+              const SizedBox(height: 10),
+
+              SizedBox(
+                height: 44,
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: (soldOut || onMoveToCart == null)
+                      ? null
+                      : () => onMoveToCart!(priceToShow),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: soldOut ? ink.withOpacity(0.10) : primary,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                  child: Text(
+                    soldOut ? 'Agotado' : 'Mover al carrito',
+                    style: TextStyle(
+                      color: soldOut ? ink.withOpacity(0.75) : Colors.white,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 10),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: Text(
-              item.name,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: ink,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-          ),
-          const SizedBox(height: 6),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: Text(
-              'Bs. ${item.price.toStringAsFixed(2)}',
-              style: TextStyle(
-                color: soldOut ? ink.withOpacity(0.35) : primary,
-                fontWeight: FontWeight.w900,
-                fontSize: 16,
-              ),
-            ),
-          ),
-          const SizedBox(height: 10),
-          SizedBox(
-            height: 44,
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: onMoveToCart,
-              style: ElevatedButton.styleFrom(
-                backgroundColor:
-                    soldOut ? ink.withOpacity(0.10) : primary,
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
-              ),
-              child: Text(
-                soldOut ? 'Agotado' : 'Mover al carrito',
-                style: TextStyle(
-                  color: soldOut ? ink.withOpacity(0.75) : Colors.white,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 }
