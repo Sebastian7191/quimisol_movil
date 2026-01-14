@@ -1,9 +1,11 @@
+// home_screen_conductor.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import 'package:quimisol_movil/core/theme/palette.dart';
 import 'package:quimisol_movil/features/conductores_features/home_screen/pages/repartidor_viajes_page.dart';
+import 'package:quimisol_movil/features/conductores_features/home_screen/pages/pedidos_mapa_page.dart'; // ✅ IMPORT
 import 'package:quimisol_movil/features/conductores_features/home_screen/services/repartidor_servicio_localizacion.dart';
 import 'package:quimisol_movil/shared/services/auth_service.dart';
 
@@ -56,12 +58,22 @@ class _HomeScreenConductorState extends State<HomeScreenConductor> {
     }
   }
 
+  void _openPedidosMapa() {
+    // ✅ abre DIRECTO a la page (sin depender de rutas)
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const PedidosMapaPage()),
+    );
+
+    // Si prefieres SI O SI con Modular routes, comenta lo de arriba y usa esto:
+    // Modular.to.pushNamed('/conductor/pedidos-mapa');
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Palette.fieldBg,
 
-      // 🔥 APPBAR LIMPIO
+      // 🔥 APPBAR LIMPIO + ICONO DERECHA (MAPA)
       appBar: AppBar(
         elevation: 0,
         backgroundColor: Colors.transparent,
@@ -76,6 +88,7 @@ class _HomeScreenConductorState extends State<HomeScreenConductor> {
             ),
           ),
         ),
+
         leading: IconButton(
           icon: Icon(Icons.logout_rounded, color: Palette.ink),
           onPressed: _logout,
@@ -86,6 +99,16 @@ class _HomeScreenConductorState extends State<HomeScreenConductor> {
           isOnline: _isOnline,
           onChanged: _toggleOnline,
         ),
+
+        // ✅ ICONO DERECHA -> MAPA DE PEDIDOS
+        actions: [
+          IconButton(
+            tooltip: 'Mapa de pedidos',
+            icon: Icon(Icons.map_rounded, color: Palette.ink),
+            onPressed: _openPedidosMapa,
+          ),
+          const SizedBox(width: 6),
+        ],
       ),
 
       // ✅ SOLO VIAJES (SIN TABS NI TEXTO)
@@ -96,7 +119,7 @@ class _HomeScreenConductorState extends State<HomeScreenConductor> {
 
 /// =======================================================
 /// 🔥 SWITCH BONITO (MINIMAL + PRO)
-// =======================================================
+/// =======================================================
 class _StatusSwitch extends StatelessWidget {
   final bool isOnline;
   final ValueChanged<bool> onChanged;
