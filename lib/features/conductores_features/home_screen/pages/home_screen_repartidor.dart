@@ -1,11 +1,11 @@
-// home_screen_conductor.dart
+// lib/features/conductores_features/home_screen/pages/home_screen_conductor.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import 'package:quimisol_movil/core/theme/palette.dart';
 import 'package:quimisol_movil/features/conductores_features/home_screen/pages/repartidor_viajes_page.dart';
-import 'package:quimisol_movil/features/conductores_features/home_screen/pages/pedidos_mapa_page.dart'; // ✅ IMPORT
+import 'package:quimisol_movil/features/conductores_features/home_screen/pages/pedidos_mapa_page.dart';
 import 'package:quimisol_movil/features/conductores_features/home_screen/services/repartidor_servicio_localizacion.dart';
 import 'package:quimisol_movil/shared/services/auth_service.dart';
 
@@ -59,21 +59,15 @@ class _HomeScreenConductorState extends State<HomeScreenConductor> {
   }
 
   void _openPedidosMapa() {
-    // ✅ abre DIRECTO a la page (sin depender de rutas)
     Navigator.of(context).push(
       MaterialPageRoute(builder: (_) => const PedidosMapaPage()),
     );
-
-    // Si prefieres SI O SI con Modular routes, comenta lo de arriba y usa esto:
-    // Modular.to.pushNamed('/conductor/pedidos-mapa');
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Palette.fieldBg,
-
-      // 🔥 APPBAR LIMPIO + ICONO DERECHA (MAPA)
       appBar: AppBar(
         elevation: 0,
         backgroundColor: Colors.transparent,
@@ -88,19 +82,14 @@ class _HomeScreenConductorState extends State<HomeScreenConductor> {
             ),
           ),
         ),
-
         leading: IconButton(
           icon: Icon(Icons.logout_rounded, color: Palette.ink),
           onPressed: _logout,
         ),
-
-        // ✅ SOLO EL SWITCH
         title: _StatusSwitch(
           isOnline: _isOnline,
           onChanged: _toggleOnline,
         ),
-
-        // ✅ ICONO DERECHA -> MAPA DE PEDIDOS
         actions: [
           IconButton(
             tooltip: 'Mapa de pedidos',
@@ -111,8 +100,52 @@ class _HomeScreenConductorState extends State<HomeScreenConductor> {
         ],
       ),
 
-      // ✅ SOLO VIAJES (SIN TABS NI TEXTO)
-      body: const RepartidorViajesPage(),
+      // ✅ OCUPADO: no muestra pedidos / ACTIVO: muestra cards
+      body: _isOnline ? const RepartidorViajesPage() : const _OcupadoEmptyState(),
+    );
+  }
+}
+
+class _OcupadoEmptyState extends StatelessWidget {
+  const _OcupadoEmptyState();
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 18),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.do_not_disturb_on_rounded,
+              size: 64,
+              color: Palette.ink.withOpacity(0.55),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Estás en modo Ocupado',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w900,
+                color: Palette.ink.withOpacity(0.9),
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Cambia a "Activo" para ver los pedidos disponibles.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: Palette.ink.withOpacity(0.65),
+                height: 1.25,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -146,18 +179,14 @@ class _StatusSwitch extends StatelessWidget {
         ),
         child: Stack(
           children: [
-            // Fondo animado
             AnimatedAlign(
               duration: const Duration(milliseconds: 260),
               curve: Curves.easeOutCubic,
-              alignment:
-                  isOnline ? Alignment.centerRight : Alignment.centerLeft,
+              alignment: isOnline ? Alignment.centerRight : Alignment.centerLeft,
               child: Container(
                 width: 92,
                 decoration: BoxDecoration(
-                  color: isOnline
-                      ? Palette.statsSuccess
-                      : Palette.statsDanger,
+                  color: isOnline ? Palette.statsSuccess : Palette.statsDanger,
                   borderRadius: BorderRadius.circular(999),
                   boxShadow: [
                     BoxShadow(
@@ -169,8 +198,6 @@ class _StatusSwitch extends StatelessWidget {
                 ),
               ),
             ),
-
-            // Textos
             Row(
               children: [
                 Expanded(

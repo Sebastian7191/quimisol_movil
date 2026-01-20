@@ -97,20 +97,27 @@ class FirebaseAuthService implements AuthService {
       final ref = _db.collection('usuarios').doc(uid);
       final doc = await ref.get();
 
+      final data = doc.data();
       final bool isProfileCompleted =
-          doc.exists && doc.data()?['profile_completed'] == true;
+          doc.exists && data?['profile_completed'] == true;
 
-      // 👇 SI NO EXISTE O NO COMPLETÓ PERFIL → false
-      await ref.set({
+      // ✅ Si ya existe role, lo respetamos
+      final String? existingRole = data?['role'] as String?;
+      final bool hasRole = (existingRole != null && existingRole.isNotEmpty);
+
+      final payload = <String, dynamic>{
         'email': userCred.user!.email,
-        'role': 'cliente',
+        // 👇 solo asignar role si NO existe
+        if (!hasRole) 'role': 'cliente',
         'profile_completed': isProfileCompleted ? true : false,
         if (userCred.user!.displayName != null)
           'name': userCred.user!.displayName,
         if (userCred.user!.photoURL != null) 'photo': userCred.user!.photoURL,
         if (!doc.exists) 'created_at': FieldValue.serverTimestamp(),
         'updated_at': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
+      };
+
+      await ref.set(payload, SetOptions(merge: true));
 
       return GoogleLoginResult(
         isNewUser: !isProfileCompleted,

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math' as math;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_database/firebase_database.dart';
@@ -24,131 +25,253 @@ class PedidoEnCursoPage extends StatefulWidget {
 }
 
 class _PedidoEnCursoPageState extends State<PedidoEnCursoPage> {
-  // ✅ Token SOLO para Directions HTTP
+  // ✅ Token SOLO para Directions HTTP (el SDK del mapa ya está en main.dart)
   static const String _mapboxToken =
       'pk.eyJ1Ijoic2ViYXMxMjciLCJhIjoiY21mMGhhdDRiMG5mbTJscHlnMGUweGlicSJ9.SVeyu-4RTAybmgRxhPxSWw';
+
+  final http.Client _http = http.Client();
 
   mb.MapboxMap? _map;
   mb.PolylineAnnotationManager? _polylineManager;
   mb.PointAnnotationManager? _pointManager;
 
+  // Se crean 1 vez, luego update
+  mb.PointAnnotation? _pedidoAnn;
+  mb.PointAnnotation? _repartidorAnn;
+  mb.PolylineAnnotation? _routeAnn;
+
+  // puntos
   mb.Point? _pedidoPoint;
   mb.Point? _repartidorPoint;
 
+  // UI
   String _direccion = '';
   String _codigoPedido = '';
-  String _estado = ''; // ← Aceptado / En camino / Completado
+  String _estado = '';
   double _distanciaKm = 0;
   int _etaMin = 0;
 
+  // listeners
+  StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _pedidoSub;
   late final DatabaseReference _repartidorRef;
   StreamSubscription<DatabaseEvent>? _rtdbSub;
 
-  bool _mapReady = false;
+  // map ready
+  bool _styleLoaded = false;
 
-  // ✅ Para centrar cada 20s SOLO si está "En camino"
+  // fit/recenter
   Timer? _recenterTimer;
   mb.CoordinateBounds? _lastRouteBounds;
+  bool _didInitialFit = false;
 
-  // ✅ Anti-spam de requests Directions
+  // Directions control
   DateTime _lastDirectionsAt = DateTime.fromMillisecondsSinceEpoch(0);
+  mb.Position? _lastDirectionsOrigin;
+  Timer? _directionsDebounce;
+
+  bool get _isEnCamino => _estado.trim().toLowerCase() == 'en camino';
 
   @override
   void initState() {
     super.initState();
-    _loadPedido();
+    _listenPedidoRealtime();
     _listenRTDB();
   }
 
   @override
   void dispose() {
-    _rtdbSub?.cancel();
+    _directionsDebounce?.cancel();
     _recenterTimer?.cancel();
+    _rtdbSub?.cancel();
+    _pedidoSub?.cancel();
+    _http.close();
     super.dispose();
   }
 
-  bool get _isEnCamino => _estado.trim().toLowerCase() == 'en camino';
-
   // ─────────────────────────────────────────────
-  // 📍 PEDIDO (FIRESTORE)
+  // 📍 Pedido realtime (Firestore)
   // ─────────────────────────────────────────────
-  Future<void> _loadPedido() async {
-    final doc = await FirebaseFirestore.instance
+  void _listenPedidoRealtime() {
+    _pedidoSub = FirebaseFirestore.instance
         .collection('pedidos')
         .doc(widget.pedidoId)
-        .get();
+        .snapshots()
+        .listen((doc) {
+      final data = doc.data();
+      if (data == null) return;
 
-    final data = doc.data();
-    if (data == null) return;
+      final u = (data['ubicacion'] as Map?)?.cast<String, dynamic>() ?? {};
+      final lat = (u['lat'] as num?)?.toDouble();
+      final lng = (u['lng'] as num?)?.toDouble();
+      if (lat == null || lng == null) return;
 
-    final u = (data['ubicacion'] as Map?)?.cast<String, dynamic>() ?? {};
-    final lat = (u['lat'] as num?)?.toDouble();
-    final lng = (u['lng'] as num?)?.toDouble();
+      _pedidoPoint = mb.Point(coordinates: mb.Position(lng, lat));
 
-    if (lat == null || lng == null) return;
+      if (mounted) {
+        setState(() {
+          _direccion = (u['direccion'] ?? '').toString();
+          _codigoPedido = (data['codigo'] ?? '').toString();
+          _estado = (data['estado'] ?? '').toString();
+        });
+      }
 
-    _pedidoPoint = mb.Point(coordinates: mb.Position(lng, lat));
+      _syncRecenterTimer();
 
-    setState(() {
-      _direccion = (u['direccion'] ?? '').toString();
-      _codigoPedido = (data['codigo'] ?? '').toString();
-      _estado = (data['estado'] ?? '').toString();
+      // marker pedido (si el estilo ya cargó)
+      _updatePedidoMarker();
+
+      // ruta si ya hay repartidor
+      _scheduleDirections(force: true);
     });
-
-    _syncRecenterTimer();
-    _drawRoute(); // por si ya hay RTDB
   }
 
   // ─────────────────────────────────────────────
-  // 📡 REPARTIDOR (RTDB – SOLO LECTURA)
+  // 📡 Repartidor realtime (RTDB)
   // ─────────────────────────────────────────────
   void _listenRTDB() {
-    _repartidorRef = FirebaseDatabase.instance.ref(
-      'repartidores/${widget.repartidorUid}',
-    );
+    _repartidorRef =
+        FirebaseDatabase.instance.ref('repartidores/${widget.repartidorUid}');
 
     _rtdbSub = _repartidorRef.onValue.listen((event) {
       if (!event.snapshot.exists) return;
 
       final raw = event.snapshot.value;
       if (raw is! Map) return;
-
       final data = raw.cast<dynamic, dynamic>();
 
       final lat = (data['lat'] as num?)?.toDouble();
       final lng = (data['lng'] as num?)?.toDouble();
-
       if (lat == null || lng == null) return;
 
       _repartidorPoint = mb.Point(coordinates: mb.Position(lng, lat));
 
-      _drawRoute(); // ← se recalcula ruta con cada update RTDB
+      // ✅ rápido: solo mueve el marker
+      _updateRepartidorMarker();
+
+      // ✅ ruta: debounce + threshold + throttle
+      _scheduleDirections();
     });
   }
 
   // ─────────────────────────────────────────────
-  // 🚗 RUTA DE AUTO (MAPBOX DIRECTIONS)
+  // 🗺️ Style loaded (viene desde MapWidget)
+  // OJO: lo pongo con dynamic para que compile en tu versión sí o sí
   // ─────────────────────────────────────────────
-  Future<void> _drawRoute() async {
-    if (!_mapReady || _pedidoPoint == null || _repartidorPoint == null) return;
+  Future<void> _onStyleLoaded(dynamic _) async {
+    if (_map == null) return;
 
-    // ✅ throttle (evita pegarle a Directions cada 3s)
+    _styleLoaded = true;
+
+    // managers solo 1 vez
+    _polylineManager ??=
+        await _map!.annotations.createPolylineAnnotationManager();
+    _pointManager ??= await _map!.annotations.createPointAnnotationManager();
+
+    // crea/actualiza lo que ya exista
+    await _updatePedidoMarker();
+    await _updateRepartidorMarker();
+
+    // intenta ruta
+    _scheduleDirections(force: true);
+
+    // recenter si aplica
+    _syncRecenterTimer();
+  }
+
+  // ─────────────────────────────────────────────
+  // 📌 Markers (crear una vez, luego update)
+  // ─────────────────────────────────────────────
+  Future<void> _updatePedidoMarker() async {
+    if (!_styleLoaded || _pointManager == null || _pedidoPoint == null) return;
+
+    if (_pedidoAnn == null) {
+      _pedidoAnn = await _pointManager!.create(
+        mb.PointAnnotationOptions(
+          geometry: _pedidoPoint!,
+          iconImage: "marker-15",
+          iconSize: 1.5,
+        ),
+      );
+    } else {
+      _pedidoAnn!.geometry = _pedidoPoint!;
+      await _pointManager!.update(_pedidoAnn!);
+    }
+  }
+
+  Future<void> _updateRepartidorMarker() async {
+    if (!_styleLoaded ||
+        _pointManager == null ||
+        _repartidorPoint == null) return;
+
+    if (_repartidorAnn == null) {
+      _repartidorAnn = await _pointManager!.create(
+        mb.PointAnnotationOptions(
+          geometry: _repartidorPoint!,
+          iconImage: "car-15",
+          iconSize: 1.6,
+        ),
+      );
+    } else {
+      _repartidorAnn!.geometry = _repartidorPoint!;
+      await _pointManager!.update(_repartidorAnn!);
+    }
+  }
+
+  // ─────────────────────────────────────────────
+  // 🚗 Directions: threshold + debounce + throttle
+  // ─────────────────────────────────────────────
+  void _scheduleDirections({bool force = false}) {
+    if (!_styleLoaded || _map == null) return;
+    if (_pedidoPoint == null || _repartidorPoint == null) return;
+
+    final o = _repartidorPoint!.coordinates;
+
+    // threshold: si se movió poco, no recalcular ruta
+    if (!force && _lastDirectionsOrigin != null) {
+      final movedM = _haversineMeters(
+        (_lastDirectionsOrigin!.lat).toDouble(),
+        (_lastDirectionsOrigin!.lng).toDouble(),
+        (o.lat).toDouble(),
+        (o.lng).toDouble(),
+      );
+      if (movedM < 35) return;
+    }
+
+    _directionsDebounce?.cancel();
+    _directionsDebounce = Timer(const Duration(milliseconds: 650), () {
+      _drawRoute(force: force);
+    });
+  }
+
+  Future<void> _drawRoute({bool force = false}) async {
+    if (!_styleLoaded ||
+        _map == null ||
+        _polylineManager == null ||
+        _pedidoPoint == null ||
+        _repartidorPoint == null) return;
+
+    // throttle: no pegarle a directions cada ratito
     final now = DateTime.now();
-    if (now.difference(_lastDirectionsAt).inSeconds < 6) return;
+    if (!force && now.difference(_lastDirectionsAt).inSeconds < 10) return;
     _lastDirectionsAt = now;
 
     final o = _repartidorPoint!.coordinates;
     final d = _pedidoPoint!.coordinates;
+    _lastDirectionsOrigin = o;
 
-    // pedimos 2 rutas (principal + alternativa)
     final uri = Uri.parse(
       'https://api.mapbox.com/directions/v5/mapbox/driving/'
       '${o.lng},${o.lat};${d.lng},${d.lat}'
-      '?geometries=geojson&overview=full&alternatives=true'
+      '?geometries=geojson&overview=full&alternatives=false'
       '&access_token=$_mapboxToken',
     );
 
-    final res = await http.get(uri);
+    http.Response res;
+    try {
+      res = await _http.get(uri).timeout(const Duration(seconds: 8));
+    } catch (_) {
+      return;
+    }
     if (res.statusCode != 200) return;
 
     final json = jsonDecode(res.body) as Map<String, dynamic>;
@@ -156,105 +279,58 @@ class _PedidoEnCursoPageState extends State<PedidoEnCursoPage> {
     if (routes.isEmpty) return;
 
     final mainRoute = routes.first as Map<String, dynamic>;
-    final altRoute = routes.length > 1
-        ? routes[1] as Map<String, dynamic>
-        : null;
-
     final mainGeo = (mainRoute['geometry'] as Map<String, dynamic>?) ?? {};
-    final mainCoordsRaw = (mainGeo['coordinates'] as List?) ?? [];
+    final coordsRaw = (mainGeo['coordinates'] as List?) ?? [];
 
-    final mainPositions = mainCoordsRaw
+    final positions = coordsRaw
         .whereType<List>()
         .where((c) => c.length >= 2)
-        .map(
-          (c) =>
-              mb.Position((c[0] as num).toDouble(), (c[1] as num).toDouble()),
-        )
+        .map((c) => mb.Position(
+              (c[0] as num).toDouble(),
+              (c[1] as num).toDouble(),
+            ))
         .toList();
 
-    if (mainPositions.length < 2) return;
+    if (positions.length < 2) return;
 
     // stats
     final distMeters = (mainRoute['distance'] as num?)?.toDouble() ?? 0.0;
     final durSeconds = (mainRoute['duration'] as num?)?.toDouble() ?? 0.0;
 
-    setState(() {
-      _distanciaKm = distMeters / 1000.0;
-      _etaMin = (durSeconds / 60.0).round();
-    });
-
-    // bounds de la ruta para recenter cada 20s
-    _lastRouteBounds = _boundsFromPositions(mainPositions);
-
-    // draw
-    await _polylineManager?.deleteAll();
-
-    // principal (rosa suave)
-    await _polylineManager?.create(
-      mb.PolylineAnnotationOptions(
-        geometry: mb.LineString(coordinates: mainPositions),
-        lineColor: Palette.button.value,
-        lineWidth: 7,
-        lineOpacity: 0.95,
-      ),
-    );
-
-    // alternativa (morado suave)
-    if (altRoute != null) {
-      final altGeo = (altRoute['geometry'] as Map<String, dynamic>?) ?? {};
-      final altCoordsRaw = (altGeo['coordinates'] as List?) ?? [];
-
-      final altPositions = altCoordsRaw
-          .whereType<List>()
-          .where((c) => c.length >= 2)
-          .map(
-            (c) =>
-                mb.Position((c[0] as num).toDouble(), (c[1] as num).toDouble()),
-          )
-          .toList();
-
-      if (altPositions.length >= 2) {
-        await _polylineManager?.create(
-          mb.PolylineAnnotationOptions(
-            geometry: mb.LineString(coordinates: altPositions),
-            lineColor: Palette.secondary.value,
-            lineWidth: 5,
-            lineOpacity: 0.60,
-          ),
-        );
-      }
+    if (mounted) {
+      setState(() {
+        _distanciaKm = distMeters / 1000.0;
+        _etaMin = (durSeconds / 60.0).round();
+      });
     }
 
-    // markers (puntos)
-    await _pointManager?.deleteAll();
+    // bounds
+    _lastRouteBounds = _boundsFromPositions(positions);
 
-    // 📍 Pedido (rojo)
-    await _pointManager?.create(
-      mb.PointAnnotationOptions(
-        geometry: _pedidoPoint!,
-        iconImage: "marker-15",
-        iconSize: 1.5,
-      ),
-    );
+    // polyline: crear 1 vez, luego update (sin deleteAll)
+    if (_routeAnn == null) {
+      _routeAnn = await _polylineManager!.create(
+        mb.PolylineAnnotationOptions(
+          geometry: mb.LineString(coordinates: positions),
+          lineColor: Palette.button.value,
+          lineWidth: 7,
+          lineOpacity: 0.95,
+        ),
+      );
+    } else {
+      _routeAnn!.geometry = mb.LineString(coordinates: positions);
+      await _polylineManager!.update(_routeAnn!);
+    }
 
-    // 🚚 Repartidor (morado)
-    await _pointManager?.create(
-      mb.PointAnnotationOptions(
-        geometry: _repartidorPoint!,
-        iconImage: "car-15",
-        iconSize: 1.6,
-      ),
-    );
-
-    // si está en camino, el recenter lo hace el timer cada 20s.
-    // si NO está en camino, hacemos un fit una sola vez para que se vea bien al entrar.
-    if (!_isEnCamino) {
+    // Fit 1 sola vez si NO está en camino
+    if (!_isEnCamino && !_didInitialFit) {
+      _didInitialFit = true;
       await _fitToRouteBounds();
     }
   }
 
   // ─────────────────────────────────────────────
-  // 🎯 FIT A TODA LA RUTA (cada 20s)
+  // 🎯 Fit / Recenter
   // ─────────────────────────────────────────────
   void _syncRecenterTimer() {
     _recenterTimer?.cancel();
@@ -270,7 +346,6 @@ class _PedidoEnCursoPageState extends State<PedidoEnCursoPage> {
   Future<void> _fitToRouteBounds() async {
     if (_map == null || _lastRouteBounds == null) return;
 
-    // padding: arriba un poco (appbar) y abajo bastante (modal)
     final padding = mb.MbxEdgeInsets(
       top: 110,
       left: 40,
@@ -278,29 +353,19 @@ class _PedidoEnCursoPageState extends State<PedidoEnCursoPage> {
       right: 40,
     );
 
-    // ✅ OJO: en v2.x pide 6 args posicionales (ponemos null en los que no usamos)
     final cam = await _map!.cameraForCoordinateBounds(
       _lastRouteBounds!,
       padding,
-      0.0, // bearing
-      0.0, // pitch
-      null, // maxZoom
-      null, // offset o minZoom (según plataforma)
+      0.0,
+      0.0,
+      null,
+      null,
     );
 
-    await _map!.easeTo(cam, mb.MapAnimationOptions(duration: 850));
+    await _map!.easeTo(cam, mb.MapAnimationOptions(duration: 700));
   }
 
   mb.CoordinateBounds _boundsFromPositions(List<mb.Position> coords) {
-    if (coords.isEmpty) {
-      // Evita StateError por coords.first
-      return mb.CoordinateBounds(
-        southwest: mb.Point(coordinates: mb.Position(0.0, 0.0)),
-        northeast: mb.Point(coordinates: mb.Position(0.0, 0.0)),
-        infiniteBounds: false,
-      );
-    }
-
     double minLng = coords.first.lng.toDouble();
     double maxLng = coords.first.lng.toDouble();
     double minLat = coords.first.lat.toDouble();
@@ -309,7 +374,6 @@ class _PedidoEnCursoPageState extends State<PedidoEnCursoPage> {
     for (final p in coords) {
       final lng = p.lng.toDouble();
       final lat = p.lat.toDouble();
-
       if (lng < minLng) minLng = lng;
       if (lng > maxLng) maxLng = lng;
       if (lat < minLat) minLat = lat;
@@ -323,8 +387,23 @@ class _PedidoEnCursoPageState extends State<PedidoEnCursoPage> {
     );
   }
 
+  double _haversineMeters(double lat1, double lon1, double lat2, double lon2) {
+    const r = 6371000.0;
+    final dLat = _deg2rad(lat2 - lat1);
+    final dLon = _deg2rad(lon2 - lon1);
+    final a = math.sin(dLat / 2) * math.sin(dLat / 2) +
+        math.cos(_deg2rad(lat1)) *
+            math.cos(_deg2rad(lat2)) *
+            math.sin(dLon / 2) *
+            math.sin(dLon / 2);
+    final c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
+    return r * c;
+  }
+
+  double _deg2rad(double deg) => deg * (math.pi / 180.0);
+
   // ─────────────────────────────────────────────
-  // 🔘 BOTÓN (lo dejé igual que tu versión actual)
+  // 🔘 Botón
   // ─────────────────────────────────────────────
   Future<void> _marcarEnCurso() async {
     await FirebaseFirestore.instance
@@ -332,16 +411,14 @@ class _PedidoEnCursoPageState extends State<PedidoEnCursoPage> {
         .doc(widget.pedidoId)
         .update({'estado': 'En camino'});
 
-    // refresca estado local
     setState(() => _estado = 'En camino');
     _syncRecenterTimer();
   }
 
   @override
   Widget build(BuildContext context) {
-    final titleCode = _codigoPedido.isNotEmpty
-        ? _codigoPedido
-        : widget.pedidoId;
+    final titleCode =
+        _codigoPedido.isNotEmpty ? _codigoPedido : widget.pedidoId;
 
     return Scaffold(
       backgroundColor: Palette.fieldBg,
@@ -354,29 +431,27 @@ class _PedidoEnCursoPageState extends State<PedidoEnCursoPage> {
           'Pedido: $titleCode',
           style: const TextStyle(fontWeight: FontWeight.w900),
         ),
+        actions: [
+          IconButton(
+            tooltip: 'Centrar ruta',
+            onPressed: _fitToRouteBounds,
+            icon: const Icon(Icons.center_focus_strong_rounded),
+          ),
+        ],
       ),
       body: Stack(
         children: [
           mb.MapWidget(
             styleUri: 'mapbox://styles/mapbox/streets-v12',
             cameraOptions: mb.CameraOptions(zoom: 15),
-            onMapCreated: (map) async {
+            onMapCreated: (map) {
               _map = map;
-              _polylineManager = await map.annotations
-                  .createPolylineAnnotationManager();
-              _pointManager = await map.annotations
-                  .createPointAnnotationManager();
-              _mapReady = true;
-
-              // si ya tenemos puntos, dibuja
-              _drawRoute();
-
-              // si ya estaba en camino al entrar, activa recenter
-              _syncRecenterTimer();
+              // no dibujar aquí; espera style loaded
             },
+            // ✅ aquí va el listener (no en _map)
+            onStyleLoadedListener: _onStyleLoaded,
           ),
 
-          // ⬇️ MODAL INFERIOR
           Positioned(
             left: 0,
             right: 0,
@@ -412,7 +487,7 @@ class _PedidoEnCursoPageState extends State<PedidoEnCursoPage> {
                       ),
                     ),
                     Text(
-                      _direccion,
+                      _direccion.isEmpty ? 'Sin dirección' : _direccion,
                       style: const TextStyle(
                         fontWeight: FontWeight.w800,
                         fontSize: 14,

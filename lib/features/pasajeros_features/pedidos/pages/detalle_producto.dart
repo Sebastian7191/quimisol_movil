@@ -155,10 +155,7 @@ class _DetallePedidoPageState extends State<DetallePedidoPage> {
         s == 'encamino') {
       return _TrackStep.enCurso;
     }
-    if (s == 'completado' ||
-        s == 'completada' ||
-        s == 'entregado' ||
-        s == 'entregada') {
+    if (s == 'completado' || s == 'completada' || s == 'entregado') {
       return _TrackStep.completado;
     }
 
@@ -319,7 +316,7 @@ class _DetallePedidoPageState extends State<DetallePedidoPage> {
                         // ✅ Repartidor
                         final repartidorNombre = _repartidorNombreFromData(data);
 
-                        // ✅ ENTREGA: si fecha_entrega es null, mostrar fecha_envio (con hora)
+                        // ✅ ENTREGA
                         final entregaRaw = data['fecha_entrega']; // puede ser null
                         final envioRaw = data['fecha_envio']; // puede ser null también
 
@@ -329,7 +326,7 @@ class _DetallePedidoPageState extends State<DetallePedidoPage> {
                                 ? _formatTimestamp(envioRaw)
                                 : 'En revisión';
 
-                        // ✅ costo_envio (admite "costo_envio" o "costoEnvio")
+                        // ✅ costo_envio
                         final costoEnvio = _asDouble(
                           data.containsKey('costo_envio')
                               ? data['costo_envio']
@@ -341,7 +338,9 @@ class _DetallePedidoPageState extends State<DetallePedidoPage> {
                         final items = <Map<String, dynamic>>[];
                         if (itemsRaw is List) {
                           for (final e in itemsRaw) {
-                            if (e is Map) items.add(Map<String, dynamic>.from(e));
+                            if (e is Map) {
+                              items.add(Map<String, dynamic>.from(e));
+                            }
                           }
                         }
 
@@ -351,12 +350,12 @@ class _DetallePedidoPageState extends State<DetallePedidoPage> {
                           (acc, it) => acc + _itemSubtotal(it),
                         );
 
-                        // total productos (si viene total>0 lo respetamos, si no calculamos)
+                        // total productos
                         final totalDoc = _asDouble(data['total']);
                         final totalProductos =
                             totalDoc > 0 ? totalDoc : productsSubtotal;
 
-                        // total final = productos + envío
+                        // total final
                         final totalFinal =
                             totalProductos + (costoEnvio > 0 ? costoEnvio : 0);
 
@@ -369,7 +368,8 @@ class _DetallePedidoPageState extends State<DetallePedidoPage> {
                           children: [
                             Expanded(
                               child: ListView(
-                                padding: const EdgeInsets.fromLTRB(16, 8, 16, 140),
+                                padding:
+                                    const EdgeInsets.fromLTRB(16, 8, 16, 140),
                                 children: [
                                   // Card superior: Estado + Resumen
                                   Container(
@@ -393,7 +393,8 @@ class _DetallePedidoPageState extends State<DetallePedidoPage> {
                                         Row(
                                           children: [
                                             Container(
-                                              padding: const EdgeInsets.symmetric(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
                                                 horizontal: 10,
                                                 vertical: 7,
                                               ),
@@ -414,7 +415,8 @@ class _DetallePedidoPageState extends State<DetallePedidoPage> {
                                                     badge.label,
                                                     style: const TextStyle(
                                                       color: Colors.white,
-                                                      fontWeight: FontWeight.w900,
+                                                      fontWeight:
+                                                          FontWeight.w900,
                                                       fontSize: 12,
                                                     ),
                                                   ),
@@ -425,7 +427,8 @@ class _DetallePedidoPageState extends State<DetallePedidoPage> {
                                             Text(
                                               'Resumen',
                                               style: TextStyle(
-                                                color: purple.withOpacity(0.80),
+                                                color:
+                                                    purple.withOpacity(0.80),
                                                 fontWeight: FontWeight.w900,
                                               ),
                                             ),
@@ -450,10 +453,10 @@ class _DetallePedidoPageState extends State<DetallePedidoPage> {
                                         _ResumenRow(
                                           label: 'Entrega',
                                           value: entregaText,
-                                          valueColor:
-                                              (entregaRaw == null && envioRaw == null)
-                                                  ? Palette.statsWarning
-                                                  : purple,
+                                          valueColor: (entregaRaw == null &&
+                                                  envioRaw == null)
+                                              ? Palette.statsWarning
+                                              : purple,
                                         ),
 
                                         const SizedBox(height: 10),
@@ -547,7 +550,8 @@ class _DetallePedidoPageState extends State<DetallePedidoPage> {
                                       final sub = _itemSubtotal(it);
 
                                       return Padding(
-                                        padding: const EdgeInsets.only(bottom: 12),
+                                        padding:
+                                            const EdgeInsets.only(bottom: 12),
                                         child: _PedidoItemRow(
                                           name: name,
                                           imageUrl: img,
@@ -563,11 +567,13 @@ class _DetallePedidoPageState extends State<DetallePedidoPage> {
 
                             // Barra inferior: Seguimiento
                             Container(
-                              padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
+                              padding:
+                                  const EdgeInsets.fromLTRB(16, 12, 16, 14),
                               decoration: BoxDecoration(
                                 color: Palette.white,
                                 border: Border(
-                                  top: BorderSide(color: purple.withOpacity(0.10)),
+                                  top: BorderSide(
+                                      color: purple.withOpacity(0.10)),
                                 ),
                                 boxShadow: [
                                   BoxShadow(
@@ -830,6 +836,9 @@ class _TrackingRow extends StatelessWidget {
       _TrackNode('Completado', Icons.check_circle_outline_rounded),
     ];
 
+    final lastIndex = steps.length - 1;
+    final isFinished = activeIndex >= lastIndex;
+
     return Row(
       children: [
         for (int i = 0; i < steps.length; i++) ...[
@@ -837,8 +846,10 @@ class _TrackingRow extends StatelessWidget {
             child: _TrackDot(
               label: steps[i].label,
               icon: steps[i].icon,
-              done: i < activeIndex,
-              active: i == activeIndex,
+              // ✅ si ya está finalizado, también el último cuenta como done
+              done: isFinished ? (i <= activeIndex) : (i < activeIndex),
+              // ✅ si ya finalizó, no hay “active” morado (todo queda en done)
+              active: isFinished ? false : (i == activeIndex),
             ),
           ),
           if (i != steps.length - 1)
@@ -847,7 +858,7 @@ class _TrackingRow extends StatelessWidget {
                 height: 3,
                 margin: const EdgeInsets.only(bottom: 18),
                 decoration: BoxDecoration(
-                  color: (i < activeIndex)
+                  color: (isFinished ? (i <= activeIndex) : (i < activeIndex))
                       ? Palette.statsSuccess.withOpacity(0.85)
                       : purple.withOpacity(0.12),
                   borderRadius: BorderRadius.circular(999),

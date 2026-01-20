@@ -1,11 +1,16 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:quimisol_movil/core/theme/palette.dart';
-import 'package:quimisol_movil/features/conductores_features/home_screen/pages/home_screen_repartidor.dart';
-import 'package:quimisol_movil/features/pasajeros_features/pedidos/pages/lista_pedidos.dart';
-import 'package:quimisol_movil/features/pasajeros_features/perfil/pages/perfil.dart';
-import 'package:quimisol_movil/features/pasajeros_features/wishlist/pages/wishlist.dart';
 
+// PAGES
+import 'package:quimisol_movil/features/conductores_features/home_screen/pages/home_screen_repartidor.dart';
+import 'package:quimisol_movil/features/conductores_features/notificaciones/pages/notificaciones_page.dart';
+import 'package:quimisol_movil/features/pasajeros_features/perfil/pages/perfil.dart';
+
+/// ✅ CREA/USA TU PAGE REAL AQUÍ:
+/// - Si ya tienes una page: cambia este import por el tuyo.
+/// - Si no, usa el stub de abajo.
+import 'package:quimisol_movil/features/conductores_features/historial/pages/historial_entregas_page.dart';
 
 class NavBarRepartidores extends StatefulWidget {
   const NavBarRepartidores({super.key});
@@ -20,10 +25,10 @@ class _NavbarRepartidoresState extends State<NavBarRepartidores> {
   @override
   Widget build(BuildContext context) {
     final pages = <Widget>[
-      const HomeScreenConductor(),
-      const WishlistPage(),
-      const MisPedidosPage(),
-      const PerfilPage(), // ✅ AQUI
+      const HomeScreenConductor(),     // Principal
+      const HistorialEntregasPage(),   // Historial (entregas + calificaciones)
+      const NotificacionesPage(),      // Notificaciones
+      const PerfilPage(),              // Perfil
     ];
 
     return Scaffold(
@@ -38,7 +43,7 @@ class _NavbarRepartidoresState extends State<NavBarRepartidores> {
   }
 }
 
-/// Navbar: mismo diseño + estilos nuevos (blanco + borde rosa + letras moradas)
+/// Navbar: mismo diseño + estilos (blanco + borde rosa + letras moradas)
 class _BottomPillNavbarAnimated extends StatelessWidget {
   final int currentIndex;
   final ValueChanged<int> onChanged;
@@ -52,8 +57,8 @@ class _BottomPillNavbarAnimated extends StatelessWidget {
   Widget build(BuildContext context) {
     final items = const <_NavItem>[
       _NavItem(icon: Icons.storefront_rounded, label: 'Principal'),
-      _NavItem(icon: Icons.favorite_rounded, label: 'Deseados'),
-      _NavItem(icon: Icons.shopping_cart_outlined, label: 'Pedidos'),
+      _NavItem(icon: Icons.receipt_long_rounded, label: 'Historial'),
+      _NavItem(icon: Icons.notifications_none_rounded, label: 'Avisos'),
       _NavItem(icon: Icons.person_outline_rounded, label: 'Perfil'),
     ];
 
@@ -64,14 +69,14 @@ class _BottomPillNavbarAnimated extends StatelessWidget {
     const bubbleSize = 58.0;
     final notchRadius = bubbleSize * 0.52;
 
-    // ✅ Colores nuevos
+    // ✅ Colores
     final barBg = Palette.white;
     final borderColor = Palette.button; // rosado borde
     final labelColor = Palette.primary; // morado texto
     final iconUnselected = Palette.ink.withOpacity(0.45);
     final iconSelected = Palette.primary;
 
-    final bubbleColor = Palette.button; // burbuja rosada mantiene
+    final bubbleColor = Palette.button; // burbuja rosada
     final bubbleIconColor = Palette.white;
 
     final unit = barWidth / items.length;
@@ -89,12 +94,15 @@ class _BottomPillNavbarAnimated extends StatelessWidget {
             tween: Tween<double>(begin: targetX, end: targetX),
             builder: (context, animatedCenterX, _) {
               double bubbleLeft = animatedCenterX - (bubbleSize / 2);
-              bubbleLeft = bubbleLeft.clamp(-14.0, barWidth - bubbleSize + 14.0);
+              bubbleLeft = bubbleLeft.clamp(
+                -14.0,
+                barWidth - bubbleSize + 14.0,
+              );
 
               return Stack(
                 clipBehavior: Clip.none,
                 children: [
-                  // Fondo pill + notch animado (ahora blanco + borde rosa)
+                  // Fondo pill + notch animado (blanco + borde rosa)
                   CustomPaint(
                     painter: _PillNotchPainterMove(
                       fillColor: barBg,
@@ -119,21 +127,28 @@ class _BottomPillNavbarAnimated extends StatelessWidget {
                               child: AnimatedContainer(
                                 duration: const Duration(milliseconds: 260),
                                 curve: Curves.easeOut,
-                                padding: EdgeInsets.only(top: isSelected ? 4 : 12),
+                                padding: EdgeInsets.only(
+                                  top: isSelected ? 4 : 12,
+                                ),
                                 child: Column(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
                                     Icon(
                                       items[i].icon,
                                       size: 24,
-                                      color: isSelected ? iconSelected : iconUnselected,
+                                      color: isSelected
+                                          ? iconSelected
+                                          : iconUnselected,
                                     ),
                                     const SizedBox(height: 4),
                                     AnimatedDefaultTextStyle(
-                                      duration: const Duration(milliseconds: 180),
+                                      duration:
+                                          const Duration(milliseconds: 180),
                                       style: TextStyle(
                                         fontSize: 12,
-                                        fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                                        fontWeight: isSelected
+                                            ? FontWeight.w700
+                                            : FontWeight.w500,
                                         color: isSelected
                                             ? labelColor
                                             : labelColor.withOpacity(0.65),
@@ -166,7 +181,10 @@ class _BottomPillNavbarAnimated extends StatelessWidget {
                         decoration: BoxDecoration(
                           color: bubbleColor,
                           shape: BoxShape.circle,
-                          border: Border.all(color: borderColor.withOpacity(0.9), width: 2),
+                          border: Border.all(
+                            color: borderColor.withOpacity(0.9),
+                            width: 2,
+                          ),
                           boxShadow: [
                             BoxShadow(
                               color: Colors.black.withOpacity(0.18),
