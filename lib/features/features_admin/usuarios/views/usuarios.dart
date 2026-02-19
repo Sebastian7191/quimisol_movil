@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:quimisol_movil/core/theme/palette.dart';
+import 'package:quimisol_movil/features/features_admin/usuarios/views/widgets/dialog/users_dialog.dart';
 
 import '../controllers/usuarios_controller.dart';
 import '../data/almacen_row.dart';
@@ -21,7 +22,6 @@ class UsuariosPage extends StatefulWidget {
 class _UsuariosPageState extends State<UsuariosPage>
     with TickerProviderStateMixin {
   final controller = UsuariosController();
-
   late final AnimationController _bgCtrl;
 
   @override
@@ -33,7 +33,6 @@ class _UsuariosPageState extends State<UsuariosPage>
       duration: const Duration(milliseconds: 2600),
     )..repeat(reverse: true);
 
-    // Rebuild UI when search text changes
     controller.searchCtrl.addListener(() => setState(() {}));
   }
 
@@ -44,17 +43,15 @@ class _UsuariosPageState extends State<UsuariosPage>
     super.dispose();
   }
 
-  // streams y filtros en controller
   Stream<QuerySnapshot<Map<String, dynamic>>> _usersStream() =>
       controller.usersStream();
+
   @override
   Widget build(BuildContext context) {
     final ink = Palette.ink;
 
     return Scaffold(
       backgroundColor: Palette.fieldBg,
-
-      // ✅ SIN SafeArea: no agrega espacio arriba/izquierda
       body: Column(
         children: [
           _AnimatedHeader(
@@ -143,18 +140,18 @@ class _UsuariosPageState extends State<UsuariosPage>
                               role: controller.roleFilter,
                             )
                           : ListView.builder(
-                              padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                              padding:
+                                  const EdgeInsets.fromLTRB(16, 8, 16, 16),
                               itemCount: users.length,
                               itemBuilder: (_, i) {
                                 final u = users[i];
-
                                 final delay = math.min(380, i * 22);
 
                                 return _StaggerIn(
                                   delayMs: delay,
                                   child: Padding(
                                     padding: const EdgeInsets.only(bottom: 12),
-                                    child: _UserCardFancy(
+                                    child: _UserCardResponsive(
                                       controller: controller,
                                       uid: u.uid,
                                       name: u.name,
@@ -202,20 +199,21 @@ class _AnimatedHeader extends StatelessWidget {
       builder: (_, __) {
         final t = bgCtrl.value;
 
-        final leftPurple = Color.lerp(
+        final left = Color.lerp(
           Palette.primary.withValues(alpha: 0.95),
           Palette.secondary.withValues(alpha: 0.90),
-          0.10 + 0.25 * t)!;
-
+          0.10 + 0.25 * t,
+        )!;
         final mid = Color.lerp(
           Palette.primary.withValues(alpha: 0.95),
           Palette.secondary.withValues(alpha: 0.90),
-          0.45 + 0.20 * t)!;
-
-        final rightPink = Color.lerp(
+          0.45 + 0.20 * t,
+        )!;
+        final right = Color.lerp(
           Palette.primary.withValues(alpha: 0.95),
           Palette.secondary.withValues(alpha: 0.90),
-          0.80 - 0.20 * t)!;
+          0.80 - 0.20 * t,
+        )!;
 
         return Container(
           width: double.infinity,
@@ -223,7 +221,7 @@ class _AnimatedHeader extends StatelessWidget {
             gradient: LinearGradient(
               begin: Alignment.centerLeft,
               end: Alignment.centerRight,
-              colors: [leftPurple, mid, rightPink],
+              colors: [left, mid, right],
             ),
             borderRadius: const BorderRadius.only(
               bottomLeft: Radius.circular(26),
@@ -375,7 +373,7 @@ class _RoleFilterMini extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: .18),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.white, width: 2)
+        border: Border.all(color: Colors.white, width: 2),
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
@@ -434,10 +432,10 @@ class _RoleFilterMini extends StatelessWidget {
   }
 }
 
-/* ---------------- LISTA / CARDS ---------------- */
+/* ---------------- CARD RESPONSIVE (LLAMA A UsersDialog) ---------------- */
 
-class _UserCardFancy extends StatelessWidget {
-  const _UserCardFancy({
+class _UserCardResponsive extends StatelessWidget {
+  const _UserCardResponsive({
     required this.controller,
     required this.uid,
     required this.name,
@@ -448,14 +446,11 @@ class _UserCardFancy extends StatelessWidget {
   });
 
   final UsuariosController controller;
-
   final String uid;
   final String name;
   final String email;
   final String photoRaw;
   final String role;
-
-  // ✅ NUEVO
   final String almacenId;
 
   Color _roleColor(String r) {
@@ -482,111 +477,244 @@ class _UserCardFancy extends StatelessWidget {
     }
   }
 
+  void _openDetails(BuildContext context) {
+    UsersDialog.open(
+      context,
+      controller: controller,
+      uid: uid,
+      name: name,
+      email: email,
+      photoRaw: photoRaw,
+      role: role,
+      almacenId: almacenId,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final ink = Palette.ink;
-    final roleColor = _roleColor(role);
 
-    return Container(
-      decoration: BoxDecoration(
-        color: Palette.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: ink.withValues(alpha: .06)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: .04),
-            blurRadius: 18,
-            offset: const Offset(0, 12),
-          ),
-        ],
-      ),
-      padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
-      child: Row(
-        children: [
-          _AvatarResolved(uid: uid, photoRaw: photoRaw),
-          const SizedBox(width: 12),
+    return LayoutBuilder(
+      builder: (context, c) {
+        final compact = c.maxWidth < 520;
+        final roleColor = _roleColor(role);
 
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: ink,
-                    fontWeight: FontWeight.w900,
-                    fontSize: 14.8,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  email.isEmpty ? '—' : email,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: ink.withValues(alpha: .55),
-                    fontWeight: FontWeight.w700,
-                    fontSize: 12.5,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: roleColor.withValues(alpha: .10),
-                    borderRadius: BorderRadius.circular(999),
-                    border: Border.all(color: roleColor.withValues(alpha: .22)),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(_roleIcon(role), size: 14, color: roleColor),
-                      const SizedBox(width: 6),
-                      Text(
-                        role,
-                        style: TextStyle(
-                          color: Palette.ink.withValues(alpha: .75),
-                          fontWeight: FontWeight.w900,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ),
+        // ✅ Card tappable (UX top)
+        return InkWell(
+          borderRadius: BorderRadius.circular(20),
+          onTap: () => _openDetails(context),
+          child: Container(
+            decoration: BoxDecoration(
+              color: Palette.white,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: ink.withValues(alpha: .06)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: .04),
+                  blurRadius: 18,
+                  offset: const Offset(0, 12),
                 ),
               ],
             ),
+            padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+            child: compact
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          _AvatarResolved(uid: uid, photoRaw: photoRaw),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  name,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    color: ink,
+                                    fontWeight: FontWeight.w900,
+                                    fontSize: 15.2,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  email.isEmpty ? '—' : email,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    color: ink.withValues(alpha: .55),
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 12.5,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          IconButton(
+                            onPressed: () => _openDetails(context),
+                            icon: Icon(
+                              Icons.more_horiz_rounded,
+                              color: ink.withValues(alpha: .75),
+                            ),
+                            splashRadius: 22,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: roleColor.withValues(alpha: .10),
+                          borderRadius: BorderRadius.circular(999),
+                          border: Border.all(
+                            color: roleColor.withValues(alpha: .22),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(_roleIcon(role), size: 14, color: roleColor),
+                            const SizedBox(width: 6),
+                            Text(
+                              role,
+                              style: TextStyle(
+                                color: Palette.ink.withValues(alpha: .75),
+                                fontWeight: FontWeight.w900,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 10,
+                        runSpacing: 10,
+                        children: [
+                          RoleComboFancy(
+                            controller: controller,
+                            uid: uid,
+                            currentRole: role,
+                          ),
+                          if (role == 'repartidor')
+                            _AlmacenComboFancy(
+                              controller: controller,
+                              uid: uid,
+                              currentAlmacenId: almacenId,
+                            ),
+                        ],
+                      ),
+                    ],
+                  )
+                : Row(
+                    children: [
+                      _AvatarResolved(uid: uid, photoRaw: photoRaw),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: ink,
+                                fontWeight: FontWeight.w900,
+                                fontSize: 14.8,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              email.isEmpty ? '—' : email,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: ink.withValues(alpha: .55),
+                                fontWeight: FontWeight.w700,
+                                fontSize: 12.5,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 6,
+                              ),
+                              decoration: BoxDecoration(
+                                color: roleColor.withValues(alpha: .10),
+                                borderRadius: BorderRadius.circular(999),
+                                border: Border.all(
+                                  color: roleColor.withValues(alpha: .22),
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    _roleIcon(role),
+                                    size: 14,
+                                    color: roleColor,
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    role,
+                                    style: TextStyle(
+                                      color: Palette.ink.withValues(alpha: .75),
+                                      fontWeight: FontWeight.w900,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          RoleComboFancy(
+                            controller: controller,
+                            uid: uid,
+                            currentRole: role,
+                          ),
+                          if (role == 'repartidor') ...[
+                            const SizedBox(width: 10),
+                            _AlmacenComboFancy(
+                              controller: controller,
+                              uid: uid,
+                              currentAlmacenId: almacenId,
+                            ),
+                          ],
+                          const SizedBox(width: 6),
+                          IconButton(
+                            onPressed: () => _openDetails(context),
+                            icon: Icon(
+                              Icons.more_horiz_rounded,
+                              color: ink.withValues(alpha: .75),
+                            ),
+                            splashRadius: 22,
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
           ),
-
-          const SizedBox(width: 10),
-
-          // ✅ DERECHA: combo rol + (si repartidor) combo almacén
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              RoleComboFancy(controller: controller, uid: uid, currentRole: role),
-
-              if (role == 'repartidor') ...[
-                const SizedBox(width: 10),
-                _AlmacenComboFancy(
-                  controller: controller,
-                  uid: uid,
-                  currentAlmacenId: almacenId,
-                ),
-              ],
-            ],
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 }
 
-/* ---------------- ALMACEN PICKER (AGRUPADO POR DEPARTAMENTO) ---------------- */
+/* ---------------- ALMACEN PICKER (igual que tu versión) ---------------- */
 
 class _AlmacenComboFancy extends StatefulWidget {
   const _AlmacenComboFancy({
@@ -618,10 +746,8 @@ class _AlmacenComboFancyState extends State<_AlmacenComboFancy> {
       _saved = false;
     });
 
-    final uid = widget.uid;
-
     try {
-      await widget.controller.setAlmacen(uid: uid, almacenId: almacenId);
+      await widget.controller.setAlmacen(uid: widget.uid, almacenId: almacenId);
 
       if (!mounted) return;
       setState(() => _saved = true);
@@ -645,7 +771,6 @@ class _AlmacenComboFancyState extends State<_AlmacenComboFancy> {
   }) async {
     final ink = Palette.ink;
 
-    // ✅ Agrupar por departamento
     final Map<String, List<AlmacenRow>> grouped = {};
     for (final a in almacenes) {
       final dep = (a.departamento.trim().isEmpty)
@@ -657,7 +782,6 @@ class _AlmacenComboFancyState extends State<_AlmacenComboFancy> {
     final deps = grouped.keys.toList()
       ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
 
-    // ✅ Orden interno por nombre
     for (final k in deps) {
       grouped[k]!.sort(
         (a, b) => a.nombre.toLowerCase().compareTo(b.nombre.toLowerCase()),
@@ -689,7 +813,6 @@ class _AlmacenComboFancyState extends State<_AlmacenComboFancy> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // header
                 Row(
                   children: [
                     Container(
@@ -729,8 +852,6 @@ class _AlmacenComboFancyState extends State<_AlmacenComboFancy> {
                   ],
                 ),
                 const SizedBox(height: 6),
-
-                // lista
                 Flexible(
                   child: ListView.builder(
                     shrinkWrap: true,
@@ -744,15 +865,10 @@ class _AlmacenComboFancyState extends State<_AlmacenComboFancy> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            // título departamento
                             Container(
                               width: double.infinity,
-                              padding: const EdgeInsets.fromLTRB(
-                                12,
-                                10,
-                                12,
-                                10,
-                              ),
+                              padding:
+                                  const EdgeInsets.fromLTRB(12, 10, 12, 10),
                               decoration: BoxDecoration(
                                 color: Palette.card,
                                 borderRadius: BorderRadius.circular(16),
@@ -769,8 +885,6 @@ class _AlmacenComboFancyState extends State<_AlmacenComboFancy> {
                               ),
                             ),
                             const SizedBox(height: 8),
-
-                            // items del departamento
                             ...list.map((a) {
                               final sel = a.id == selectedId;
                               return Padding(
@@ -785,11 +899,7 @@ class _AlmacenComboFancyState extends State<_AlmacenComboFancy> {
                                     onTap: () => Navigator.pop(context, a.id),
                                     child: Padding(
                                       padding: const EdgeInsets.fromLTRB(
-                                        12,
-                                        12,
-                                        12,
-                                        12,
-                                      ),
+                                          12, 12, 12, 12),
                                       child: Row(
                                         children: [
                                           Icon(
@@ -855,7 +965,6 @@ class _AlmacenComboFancyState extends State<_AlmacenComboFancy> {
       builder: (context, snap) {
         final docs = snap.data?.docs ?? [];
 
-        // ✅ id, nombre, departamento
         final almacenes = docs.map((d) {
           final data = d.data();
           return AlmacenRow(
@@ -877,11 +986,8 @@ class _AlmacenComboFancyState extends State<_AlmacenComboFancy> {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(
-                  Icons.warehouse_rounded,
-                  size: 18,
-                  color: ink.withValues(alpha: .55),
-                ),
+                Icon(Icons.warehouse_rounded,
+                    size: 18, color: ink.withValues(alpha: .55)),
                 const SizedBox(width: 8),
                 Text(
                   'Sin almacenes',
@@ -896,13 +1002,10 @@ class _AlmacenComboFancyState extends State<_AlmacenComboFancy> {
           );
         }
 
-        // ✅ nombre seleccionado
-        final selected = almacenes
-            .where((a) => a.id == widget.currentAlmacenId)
-            .toList();
-        final selectedName = selected.isNotEmpty
-            ? selected.first.nombre
-            : 'Elegir almacén';
+        final selected =
+            almacenes.where((a) => a.id == widget.currentAlmacenId).toList();
+        final selectedName =
+            selected.isNotEmpty ? selected.first.nombre : 'Elegir almacén';
         final selectedId = selected.isNotEmpty ? selected.first.id : null;
 
         return AnimatedContainer(
@@ -919,7 +1022,7 @@ class _AlmacenComboFancyState extends State<_AlmacenComboFancy> {
             onTap: _saving
                 ? null
                 : () =>
-                      _openPicker(almacenes: almacenes, selectedId: selectedId),
+                    _openPicker(almacenes: almacenes, selectedId: selectedId),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -940,18 +1043,18 @@ class _AlmacenComboFancyState extends State<_AlmacenComboFancy> {
                           ),
                         )
                       : _saved
-                      ? Icon(
-                          Icons.check_circle_rounded,
-                          key: const ValueKey('saved'),
-                          color: Palette.primary,
-                          size: 18,
-                        )
-                      : Icon(
-                          Icons.warehouse_rounded,
-                          key: const ValueKey('idle'),
-                          color: Palette.primary,
-                          size: 18,
-                        ),
+                          ? const Icon(
+                              Icons.check_circle_rounded,
+                              key: ValueKey('saved'),
+                              color: Palette.primary,
+                              size: 18,
+                            )
+                          : const Icon(
+                              Icons.warehouse_rounded,
+                              key: ValueKey('idle'),
+                              color: Palette.primary,
+                              size: 18,
+                            ),
                 ),
                 const SizedBox(width: 8),
                 ConstrainedBox(
@@ -968,10 +1071,8 @@ class _AlmacenComboFancyState extends State<_AlmacenComboFancy> {
                   ),
                 ),
                 const SizedBox(width: 6),
-                Icon(
-                  Icons.keyboard_arrow_down_rounded,
-                  color: ink.withValues(alpha: .60),
-                ),
+                Icon(Icons.keyboard_arrow_down_rounded,
+                    color: ink.withValues(alpha: .60)),
               ],
             ),
           ),
@@ -1047,9 +1148,8 @@ class _AvatarResolvedState extends State<_AvatarResolved> {
       }
 
       if (raw.startsWith('gs://')) {
-        final url = await FirebaseStorage.instance
-            .refFromURL(raw)
-            .getDownloadURL();
+        final url =
+            await FirebaseStorage.instance.refFromURL(raw).getDownloadURL();
         _cache[widget.uid] = url;
         setState(() {
           _resolved = url;
@@ -1111,20 +1211,14 @@ class _AvatarResolvedState extends State<_AvatarResolved> {
                     ),
                   )
                 : (_resolved != null)
-                ? Image.network(
-                    _resolved!,
-                    fit: BoxFit.cover,
-                    gaplessPlayback: true,
-                    errorBuilder: (_, __, ___) =>
-                        _RetryAvatar(onRetry: _resolve),
-                  )
-                : _RetryAvatar(onRetry: _resolve),
-          ),
-        ),
-        Positioned.fill(
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(customBorder: const CircleBorder(), onTap: _resolve),
+                    ? Image.network(
+                        _resolved!,
+                        fit: BoxFit.cover,
+                        gaplessPlayback: true,
+                        errorBuilder: (_, __, ___) =>
+                            _RetryAvatar(onRetry: _resolve),
+                      )
+                    : _RetryAvatar(onRetry: _resolve),
           ),
         ),
       ],
@@ -1151,7 +1245,7 @@ class _RetryAvatar extends StatelessWidget {
   }
 }
 
-/* ---------------- STAGGER ANIMATION ---------------- */
+/* ---------------- STAGGER ---------------- */
 
 class _StaggerIn extends StatefulWidget {
   const _StaggerIn({required this.child, required this.delayMs});

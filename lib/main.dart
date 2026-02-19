@@ -1,7 +1,7 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 import 'package:flutter/services.dart';
 
 // ✅ Locales (para DateFormat con 'es_BO' y DatePicker/TimePicker en español)
@@ -11,6 +11,10 @@ import 'package:intl/intl.dart';
 import 'app_module.dart';
 import 'app_widget.dart';
 import 'firebase_options.dart';
+
+// ⚠️ Mapbox: IMPORTA SOLO si vas a usarlo (móvil). En web está causando crash.
+// Si lo dejas importado no pasa nada siempre, pero la llamada sí rompe.
+import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -24,15 +28,17 @@ Future<void> main() async {
   await initializeDateFormatting('es_BO', null);
   Intl.defaultLocale = 'es_BO';
 
-  // ✅ Mapbox token
-  MapboxOptions.setAccessToken(
-    "TOKEN_MAPBOX",
-  );
+  // ✅ Mapbox token (SOLO móvil/desktop nativo, NO web)
+  if (!kIsWeb) {
+    MapboxOptions.setAccessToken("TOKEN_MAPBOX");
+  }
 
-  // ✅ Ocultar barra de navegación / botones del sistema (full screen)
-  await SystemChrome.setEnabledSystemUIMode(
-    SystemUiMode.immersiveSticky,
-  );
+  // ✅ Fullscreen (mejor solo en móvil; en web no aplica)
+  if (!kIsWeb) {
+    await SystemChrome.setEnabledSystemUIMode(
+      SystemUiMode.immersiveSticky,
+    );
+  }
 
   runApp(
     ModularApp(
