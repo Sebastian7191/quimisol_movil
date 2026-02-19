@@ -44,7 +44,7 @@ class EntregaItem {
 
     return EntregaItem(
       id: doc.id,
-      pedidoCodigo: d['pedido_codigo']?.toString(),
+      pedidoCodigo: d['codigo']?.toString(),
       clienteNombre: d['cliente_nombre']?.toString(),
       direccion: d['direccion']?.toString(),
       total: total,

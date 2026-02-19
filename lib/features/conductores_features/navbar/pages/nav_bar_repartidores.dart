@@ -1,16 +1,15 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:quimisol_movil/core/theme/palette.dart';
+import 'package:flutter_modular/flutter_modular.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
-// PAGES
 import 'package:quimisol_movil/features/conductores_features/home_screen/pages/home_screen_repartidor.dart';
 import 'package:quimisol_movil/features/conductores_features/notificaciones/pages/notificaciones_page.dart';
-import 'package:quimisol_movil/features/pasajeros_features/perfil/pages/perfil.dart';
-
-/// ✅ CREA/USA TU PAGE REAL AQUÍ:
-/// - Si ya tienes una page: cambia este import por el tuyo.
-/// - Si no, usa el stub de abajo.
 import 'package:quimisol_movil/features/conductores_features/historial/pages/historial_entregas_page.dart';
+import 'package:quimisol_movil/features/conductores_features/home_screen/services/repartidor_servicio_localizacion.dart';
+import 'package:quimisol_movil/features/conductores_features/perfil/pages/conductor_perfil_page.dart';
+import 'package:quimisol_movil/shared/services/auth_service.dart';
 
 class NavBarRepartidores extends StatefulWidget {
   const NavBarRepartidores({super.key});
@@ -22,13 +21,36 @@ class NavBarRepartidores extends StatefulWidget {
 class _NavbarRepartidoresState extends State<NavBarRepartidores> {
   int _currentIndex = 0;
 
+  late final AuthService _authService;
+  late final RepartidorLocationService _locationService;
+
+  @override
+  void initState() {
+    super.initState();
+    _authService = Modular.get<AuthService>();
+    _locationService = RepartidorLocationService();
+  }
+
+  Future<void> _logout() async {
+    // limpia ubicación RTDB del repartidor si tu service lo hace
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid != null) {
+      await _locationService.clear(uid);
+    }
+
+    await _authService.logout();
+
+    if (!mounted) return;
+    Modular.to.pushNamedAndRemoveUntil('/login', (_) => false);
+  }
+
   @override
   Widget build(BuildContext context) {
     final pages = <Widget>[
-      const HomeScreenConductor(),     // Principal
-      const HistorialEntregasPage(),   // Historial (entregas + calificaciones)
-      const NotificacionesPage(),      // Notificaciones
-      const PerfilPage(),              // Perfil
+      const HomeScreenConductor(), // Principal
+      const HistorialEntregasPage(), // Historial (entregas + calificaciones)
+      const NotificacionesPage(), // Notificaciones
+      ConductorProfilePage(onLogout: _logout), // ✅ PERFIL REPARTIDOR
     ];
 
     return Scaffold(
@@ -94,10 +116,7 @@ class _BottomPillNavbarAnimated extends StatelessWidget {
             tween: Tween<double>(begin: targetX, end: targetX),
             builder: (context, animatedCenterX, _) {
               double bubbleLeft = animatedCenterX - (bubbleSize / 2);
-              bubbleLeft = bubbleLeft.clamp(
-                -14.0,
-                barWidth - bubbleSize + 14.0,
-              );
+              bubbleLeft = bubbleLeft.clamp(-14.0, barWidth - bubbleSize + 14.0);
 
               return Stack(
                 clipBehavior: Clip.none,
@@ -127,28 +146,22 @@ class _BottomPillNavbarAnimated extends StatelessWidget {
                               child: AnimatedContainer(
                                 duration: const Duration(milliseconds: 260),
                                 curve: Curves.easeOut,
-                                padding: EdgeInsets.only(
-                                  top: isSelected ? 4 : 12,
-                                ),
+                                padding: EdgeInsets.only(top: isSelected ? 4 : 12),
                                 child: Column(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
                                     Icon(
                                       items[i].icon,
                                       size: 24,
-                                      color: isSelected
-                                          ? iconSelected
-                                          : iconUnselected,
+                                      color: isSelected ? iconSelected : iconUnselected,
                                     ),
                                     const SizedBox(height: 4),
                                     AnimatedDefaultTextStyle(
-                                      duration:
-                                          const Duration(milliseconds: 180),
+                                      duration: const Duration(milliseconds: 180),
                                       style: TextStyle(
                                         fontSize: 12,
-                                        fontWeight: isSelected
-                                            ? FontWeight.w700
-                                            : FontWeight.w500,
+                                        fontWeight:
+                                            isSelected ? FontWeight.w700 : FontWeight.w500,
                                         color: isSelected
                                             ? labelColor
                                             : labelColor.withOpacity(0.65),
@@ -181,10 +194,7 @@ class _BottomPillNavbarAnimated extends StatelessWidget {
                         decoration: BoxDecoration(
                           color: bubbleColor,
                           shape: BoxShape.circle,
-                          border: Border.all(
-                            color: borderColor.withOpacity(0.9),
-                            width: 2,
-                          ),
+                          border: Border.all(color: borderColor.withOpacity(0.9), width: 2),
                           boxShadow: [
                             BoxShadow(
                               color: Colors.black.withOpacity(0.18),

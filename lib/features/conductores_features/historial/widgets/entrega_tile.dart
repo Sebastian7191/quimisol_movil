@@ -14,6 +14,12 @@ class EntregaTile extends StatelessWidget {
     required this.onTap,
   });
 
+  // ✅ Título: siempre mostrar código
+  String _pedidoTitle() {
+    final code = (item.pedidoCodigo ?? '').trim();
+    return 'Pedido #${code.isEmpty ? '—' : code}';
+  }
+
   // ⭐ estrellas
   Widget _stars(double rating) {
     final full = rating.floor().clamp(0, 5);
@@ -130,14 +136,12 @@ class EntregaTile extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Título + fecha
+                  // ✅ Título + fecha
                   Row(
                     children: [
                       Expanded(
                         child: Text(
-                          item.pedidoCodigo != null
-                              ? 'Pedido ${item.pedidoCodigo}'
-                              : 'Entrega',
+                          _pedidoTitle(), // ✅ aquí el cambio
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
@@ -160,7 +164,7 @@ class EntregaTile extends StatelessWidget {
 
                   const SizedBox(height: 8),
 
-                  // ✅ Estado (chip)
+                  // Estado (chip)
                   _stateChip(item.estado),
 
                   const SizedBox(height: 8),

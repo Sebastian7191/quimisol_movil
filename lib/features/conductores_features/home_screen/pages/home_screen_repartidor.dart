@@ -1,12 +1,14 @@
 // lib/features/conductores_features/home_screen/pages/home_screen_conductor.dart
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'package:quimisol_movil/core/theme/palette.dart';
 import 'package:quimisol_movil/features/conductores_features/home_screen/pages/repartidor_viajes_page.dart';
 import 'package:quimisol_movil/features/conductores_features/home_screen/pages/pedidos_mapa_page.dart';
-import 'package:quimisol_movil/features/conductores_features/home_screen/services/repartidor_servicio_localizacion.dart';
 import 'package:quimisol_movil/shared/services/auth_service.dart';
 
 class HomeScreenConductor extends StatefulWidget {
@@ -17,45 +19,99 @@ class HomeScreenConductor extends StatefulWidget {
 }
 
 class _HomeScreenConductorState extends State<HomeScreenConductor> {
+  // ✅ Firestore: cambia esto si tu colección tiene otro nombre
+  static const String kUsersCollection = 'usuarios';
+
   bool _isOnline = false;
 
   late final AuthService _authService;
-  late final RepartidorLocationService _locationService;
+
+  StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? _estadoSub;
 
   @override
   void initState() {
     super.initState();
     _authService = Modular.get<AuthService>();
-    _locationService = RepartidorLocationService();
+
+    _bindEstadoFromFirestore();
   }
 
   @override
   void dispose() {
-    _locationService.stop();
+    _estadoSub?.cancel();
     super.dispose();
   }
 
-  Future<void> _logout() async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid != null) {
-      await _locationService.clear(uid);
-    }
-    await _authService.logout();
-    if (!mounted) return;
-    Modular.to.pushNamedAndRemoveUntil('/login', (_) => false);
-  }
-
-  void _toggleOnline(bool v) async {
-    setState(() => _isOnline = v);
-
+  /// ================================
+  /// 🔥 Firestore binding (escucha estado)
+  /// ================================
+  void _bindEstadoFromFirestore() {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return;
 
-    if (v) {
-      await _locationService.start(uid: uid);
-    } else {
-      _locationService.stop();
+    final docRef = FirebaseFirestore.instance
+        .collection(kUsersCollection)
+        .doc(uid);
+
+    _estadoSub?.cancel();
+    _estadoSub = docRef.snapshots().listen((snap) {
+      final data = snap.data();
+      final estado = (data?['estado'] as bool?) ?? false;
+
+      if (estado != _isOnline) {
+        if (mounted) setState(() => _isOnline = estado);
+      }
+    }, onError: (_) {});
+  }
+
+  /// Set en Firestore: estado = true/false
+  Future<void> _setEstadoInFirestore(bool v) async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+
+    final docRef = FirebaseFirestore.instance
+        .collection(kUsersCollection)
+        .doc(uid);
+
+    await docRef.set(
+      {
+        'estado': v,
+        'updatedAt': FieldValue.serverTimestamp(),
+      },
+      SetOptions(merge: true),
+    );
+  }
+
+  /// Cambia el estado: optimista + guarda en Firestore
+  Future<void> _toggleOnline(bool v) async {
+    setState(() => _isOnline = v);
+
+    try {
+      await _setEstadoInFirestore(v);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _isOnline = !v);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No se pudo actualizar tu estado.'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
     }
+  }
+
+  Future<void> _logout() async {
+    try {
+      // ✅ Dejarlo ocupado al salir
+      await _setEstadoInFirestore(false);
+    } catch (_) {
+      // Ignorar para no bloquear logout
+    }
+
+    await _authService.logout();
+    if (!mounted) return;
+    Modular.to.pushNamedAndRemoveUntil('/login', (_) => false);
   }
 
   void _openPedidosMapa() {
@@ -88,7 +144,7 @@ class _HomeScreenConductorState extends State<HomeScreenConductor> {
         ),
         title: _StatusSwitch(
           isOnline: _isOnline,
-          onChanged: _toggleOnline,
+          onChanged: (v) => _toggleOnline(v),
         ),
         actions: [
           IconButton(

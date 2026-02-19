@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import 'package:quimisol_movil/core/theme/palette.dart';
+import 'package:quimisol_movil/features/conductores_features/historial/pages/detalle_pedido_cliente.dart';
 import '../data/models/entrega_item.dart';
 import '../data/services/historial_entregas_service.dart';
 import '../widgets/empty_historial.dart';
@@ -46,70 +47,18 @@ class _HistorialEntregasPageState extends State<HistorialEntregasPage> {
       items.where((e) => (e.rating ?? 0) > 0).length;
 
   Future<void> _openDetalle(EntregaItem e) async {
-    // Aquí puedes abrir un detalle real (si tienes page),
-    // por ahora mostramos bottom sheet bonito como en notificaciones.
-    showModalBottomSheet(
-      context: context,
-      showDragHandle: true,
-      builder: (_) {
-        final rating = e.rating;
-        return Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                e.pedidoCodigo != null ? 'Pedido ${e.pedidoCodigo}' : 'Entrega',
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const SizedBox(height: 10),
+    final pedidoId = e.id; // ✅ este es el doc.id del historial
+    final pedidoCode = (e.pedidoCodigo ?? '').toString().trim();
 
-              if ((e.clienteNombre ?? '').isNotEmpty)
-                Text('Cliente: ${e.clienteNombre}'),
-              if ((e.direccion ?? '').isNotEmpty)
-                Text('Dirección: ${e.direccion}'),
-
-              const SizedBox(height: 10),
-              Text('Fecha: ${_formatTime(e.deliveredAt)}'),
-
-              if (e.total != null) ...[
-                const SizedBox(height: 10),
-                Text('Total: Bs ${e.total!.toStringAsFixed(2)}'),
-              ],
-
-              const SizedBox(height: 12),
-              Text(
-                rating != null && rating > 0
-                    ? 'Calificación: ${rating.toStringAsFixed(1)} / 5'
-                    : 'Calificación: Sin calificar',
-                style: TextStyle(
-                  fontWeight: FontWeight.w800,
-                  color: Palette.primary.withOpacity(0.9),
-                ),
-              ),
-
-              if ((e.ratingComment ?? '').trim().isNotEmpty) ...[
-                const SizedBox(height: 10),
-                Text(
-                  'Comentario:',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w800,
-                    color: Palette.ink.withOpacity(0.8),
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text('“${e.ratingComment!.trim()}”'),
-              ],
-
-              const SizedBox(height: 12),
-            ],
-          ),
-        );
-      },
+    // Si tu historial guarda el mismo ID que /pedidos/{pedidoId}, esto funciona directo.
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => DetallePedidoClientePage(
+          pedidoId: pedidoId,
+          pedidoCode: pedidoCode.isEmpty ? '—' : pedidoCode,
+        ),
+      ),
     );
   }
 

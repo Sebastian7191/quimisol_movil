@@ -1,6 +1,7 @@
 // lib/features/conductores_features/home_screen/pages/pedido_ruta_map_page.dart
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math' as Math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
@@ -11,6 +12,7 @@ import 'package:http/http.dart' as http;
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart' as mb;
 
 import 'package:quimisol_movil/core/theme/palette.dart';
+import 'package:quimisol_movil/features/conductores_features/home_screen/services/repartidor_servicio_localizacion.dart';
 
 class PedidoRutaMapPage extends StatefulWidget {
   final String pedidoId;
@@ -28,7 +30,7 @@ class PedidoRutaMapPage extends StatefulWidget {
 
 class _PedidoRutaMapPageState extends State<PedidoRutaMapPage> {
   static const String _mapboxToken =
-      'pk.eyJ1Ijoic2ViYXMxMjciLCJhIjoiY21mMGhhdDRiMG5mbTJscHlnMGUweGlicSJ9.SVeyu-4RTAybmgRxhPxSWw';
+      'TOKEN_MAPBOX';
 
   static const String _styleUri = "mapbox://styles/mapbox/streets-v12";
 
@@ -46,7 +48,17 @@ class _PedidoRutaMapPageState extends State<PedidoRutaMapPage> {
   // ✅ Ruta: solo rosa
   static const double _routeWidth = 7.0;
 
+  // ✅ NUEVO: reglas de actualización de ruta
+  static const double _routeUpdateMinMoveMeters = 50.0;
+  static const Duration _routeUpdateMinInterval = Duration(seconds: 6);
+
   final DatabaseReference _rtdb = FirebaseDatabase.instance.ref();
+
+  // ✅ Servicio que ESCRIBE en RTDB (ubicación)
+  final RepartidorLocationService _locationService = RepartidorLocationService();
+
+  // ✅ RTDB solo se activa cuando esté "En camino"
+  bool _rtdbActive = false;
 
   mb.MapboxMap? _map;
   mb.PointAnnotationManager? _pointManager;
@@ -67,7 +79,6 @@ class _PedidoRutaMapPageState extends State<PedidoRutaMapPage> {
 
   bool _changingEstado = false;
 
-  DateTime _lastDirectionsHit = DateTime.fromMillisecondsSinceEpoch(0);
   bool _fetchingRoute = false;
 
   // ✅ no mover cámara cada update
@@ -86,18 +97,57 @@ class _PedidoRutaMapPageState extends State<PedidoRutaMapPage> {
   // ✅ si tu versión no soporta iconOffset, esto lo detecta
   bool _supportsIconOffset = true;
 
+  // ✅ control de actualización ruta (50m o 6s)
+  DateTime _lastRouteUpdateAt = DateTime.fromMillisecondsSinceEpoch(0);
+  double? _lastRouteALat, _lastRouteALng;
+  double? _lastRouteBLat, _lastRouteBLng;
+
   @override
   void initState() {
     super.initState();
     _prepareMarkerImages();
-    _listenRepartidorLocation();
+
+    // ❌ NO activar RTDB al entrar
     _loadPedidoData();
   }
 
   @override
   void dispose() {
-    _repartidorSub?.cancel();
+    _stopRealtime(); // ✅ corta listener + timer (si estaba activo)
     super.dispose();
+  }
+
+  // ─────────────────────────────────────────────
+  // ✅ Activar/Desactivar RTDB (solo al "En camino")
+  // ─────────────────────────────────────────────
+  Future<void> _startRealtimeIfNeeded() async {
+    if (_rtdbActive) return;
+
+    _rtdbActive = true;
+
+    // ✅ 1) empieza a ESCRIBIR en RTDB (tu timer/condiciones)
+    await _locationService.start(uid: widget.repartidorUid);
+
+    // ✅ 2) empieza a ESCUCHAR desde RTDB (para pintar A y ruta)
+    _listenRepartidorLocation();
+  }
+
+  Future<void> _stopRealtime() async {
+    // cancela listener (aunque no esté "activo")
+    _repartidorSub?.cancel();
+    _repartidorSub = null;
+
+    if (!_rtdbActive) return;
+
+    _rtdbActive = false;
+
+    // corta timer de GPS/RTDB
+    _locationService.stop();
+
+    // opcional: limpia el nodo del repartidor en RTDB al terminar
+    try {
+      await _locationService.clear(widget.repartidorUid);
+    } catch (_) {}
   }
 
   // ─────────────────────────────────────────────
@@ -183,9 +233,13 @@ class _PedidoRutaMapPageState extends State<PedidoRutaMapPage> {
   }
 
   // ─────────────────────────────────────────────
-  // A) Repartidor desde RTDB (tiempo real)
+  // A) Repartidor desde RTDB (tiempo real) ✅ SOLO cuando esté activo
   // ─────────────────────────────────────────────
   void _listenRepartidorLocation() {
+    // por seguridad, cancela anterior si existía
+    _repartidorSub?.cancel();
+    _repartidorSub = null;
+
     final ref = _rtdb.child('repartidores/${widget.repartidorUid}');
 
     _repartidorSub = ref.onValue.listen(
@@ -262,6 +316,12 @@ class _PedidoRutaMapPageState extends State<PedidoRutaMapPage> {
 
       _bLat = lat;
       _bLng = lng;
+
+      // ✅ Si el pedido ya estaba "En camino", activamos RTDB al abrir
+      final st = (_pedidoEstado ?? '').trim().toLowerCase();
+      if (st == 'en camino') {
+        await _startRealtimeIfNeeded();
+      }
 
       if (!mounted) return;
       setState(() => _loading = false);
@@ -340,8 +400,8 @@ class _PedidoRutaMapPageState extends State<PedidoRutaMapPage> {
       if (did) _didInitialCameraFit = true;
     }
 
-    // Ruta (solo si tenemos A y B)
-    if (_aLat != null && _aLng != null && _bLat != null && _bLng != null) {
+    // ✅ Ruta: SOLO si cumple (>=50m o >=6s) o primera vez / cambió destino
+    if (_shouldUpdateRouteNow()) {
       await _drawRoute();
     }
   }
@@ -475,17 +535,60 @@ class _PedidoRutaMapPageState extends State<PedidoRutaMapPage> {
   }
 
   // ─────────────────────────────────────────────
+  // ✅ Lógica: decidir si toca recalcular ruta (50m o 6s)
+  // ─────────────────────────────────────────────
+  bool _coordsChanged(double? lat1, double? lng1, double? lat2, double? lng2) {
+    if (lat1 == null || lng1 == null || lat2 == null || lng2 == null) return true;
+    // tolerancia mínima para evitar “ruido”
+    return (lat1 - lat2).abs() > 1e-6 || (lng1 - lng2).abs() > 1e-6;
+  }
+
+  double _deg2rad(double deg) => deg * (Math.pi / 180.0);
+
+  double _haversineMeters(double lat1, double lon1, double lat2, double lon2) {
+    const R = 6371000.0; // metros
+    final dLat = _deg2rad(lat2 - lat1);
+    final dLon = _deg2rad(lon2 - lon1);
+
+    final a = (Math.sin(dLat / 2) * Math.sin(dLat / 2)) +
+        Math.cos(_deg2rad(lat1)) *
+            Math.cos(_deg2rad(lat2)) *
+            (Math.sin(dLon / 2) * Math.sin(dLon / 2));
+
+    final c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  }
+
+  bool _shouldUpdateRouteNow() {
+    if (_aLat == null || _aLng == null || _bLat == null || _bLng == null) {
+      return false;
+    }
+
+    // 1) Primera vez
+    final noPrevious = _lastRouteALat == null || _lastRouteALng == null;
+    if (noPrevious) return true;
+
+    // 2) Si cambió el destino (B), recalcular ya
+    if (_coordsChanged(_bLat, _bLng, _lastRouteBLat, _lastRouteBLng)) return true;
+
+    // 3) Tiempo: cada 6 segundos
+    final now = DateTime.now();
+    if (now.difference(_lastRouteUpdateAt) >= _routeUpdateMinInterval) return true;
+
+    // 4) Distancia: >= 50m desde la última ruta
+    final moved =
+        _haversineMeters(_aLat!, _aLng!, _lastRouteALat!, _lastRouteALng!);
+    return moved >= _routeUpdateMinMoveMeters;
+  }
+
+  // ─────────────────────────────────────────────
   // Directions + actualizar GeoJsonSource
   // ─────────────────────────────────────────────
   Future<void> _drawRoute() async {
     if (_fetchingRoute) return;
-
-    // throttling: 10s
-    final now = DateTime.now();
-    if (now.difference(_lastDirectionsHit).inSeconds < 10) return;
+    if (_aLat == null || _aLng == null || _bLat == null || _bLng == null) return;
 
     _fetchingRoute = true;
-    _lastDirectionsHit = now;
 
     try {
       final aLng = _aLng!;
@@ -524,6 +627,13 @@ class _PedidoRutaMapPageState extends State<PedidoRutaMapPage> {
       if (source is mb.GeoJsonSource) {
         await source.updateGeoJSON(jsonEncode(featureCollection));
       }
+
+      // ✅ Guardar “último estado” para regla 50m/6s
+      _lastRouteUpdateAt = DateTime.now();
+      _lastRouteALat = aLat;
+      _lastRouteALng = aLng;
+      _lastRouteBLat = bLat;
+      _lastRouteBLng = bLng;
     } catch (_) {
       // silencioso
     } finally {
@@ -552,6 +662,14 @@ class _PedidoRutaMapPageState extends State<PedidoRutaMapPage> {
 
       if (!mounted) return;
       setState(() => _pedidoEstado = next);
+
+      // ✅ Activar RTDB recién cuando marque "En camino"
+      final nextLower = next.trim().toLowerCase();
+      if (nextLower == 'en camino') {
+        await _startRealtimeIfNeeded();
+      } else if (nextLower == 'entregado') {
+        await _stopRealtime();
+      }
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -645,12 +763,12 @@ class _InfoBar extends StatelessWidget {
     final statusText = error != null
         ? error!
         : loading
-        ? 'Cargando pedido...'
-        : (!aOk)
-        ? 'Esperando ubicación del repartidor...'
-        : (!bOk)
-        ? 'Esperando ubicación del pedido...'
-        : 'Mostrando ruta';
+            ? 'Cargando pedido...'
+            : (!aOk)
+                ? 'Esperando ubicación del repartidor...'
+                : (!bOk)
+                    ? 'Esperando ubicación del pedido...'
+                    : 'Mostrando ruta';
 
     final st = (estado ?? '').trim().toLowerCase();
     final isEntregado = st == 'entregado';
@@ -659,8 +777,8 @@ class _InfoBar extends StatelessWidget {
     final buttonText = isEntregado
         ? 'Entregado'
         : isEnCamino
-        ? 'Marcar como Entregado'
-        : 'Marcar En Camino';
+            ? 'Marcar como Entregado'
+            : 'Marcar En Camino';
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -682,8 +800,8 @@ class _InfoBar extends StatelessWidget {
             error != null
                 ? Icons.error_rounded
                 : (aOk && bOk)
-                ? Icons.route_rounded
-                : Icons.gps_fixed_rounded,
+                    ? Icons.route_rounded
+                    : Icons.gps_fixed_rounded,
             color: error != null ? Palette.statsDanger : Palette.primary,
           ),
           const SizedBox(width: 10),
@@ -719,9 +837,7 @@ class _InfoBar extends StatelessWidget {
           SizedBox(
             height: 40,
             child: ElevatedButton(
-              onPressed: (changingEstado || isEntregado)
-                  ? null
-                  : onToggleEstado,
+              onPressed: (changingEstado || isEntregado) ? null : onToggleEstado,
               style: ElevatedButton.styleFrom(
                 backgroundColor: Palette.button,
                 disabledBackgroundColor: Palette.ink.withOpacity(0.15),
@@ -731,7 +847,6 @@ class _InfoBar extends StatelessWidget {
                   borderRadius: BorderRadius.circular(14),
                 ),
               ),
-
               child: changingEstado
                   ? const SizedBox(
                       width: 18,

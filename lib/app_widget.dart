@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_modular/flutter_modular.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 
 class AppWidget extends StatelessWidget {
   const AppWidget({super.key});
@@ -22,6 +23,21 @@ class AppWidget extends StatelessWidget {
     return MaterialApp.router(
       title: 'quimisol_movil',
       debugShowCheckedModeBanner: false,
+
+      // ✅ Calendario / DatePicker / TimePicker en Español
+      locale: const Locale('es', 'BO'),
+      supportedLocales: const [
+        Locale('es', 'BO'),
+        Locale('es', 'ES'),
+        Locale('es'),
+        Locale('en'),
+      ],
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+
       theme: ThemeData(
         useMaterial3: true,
         colorScheme: colorScheme,
@@ -49,6 +65,7 @@ class AppWidget extends StatelessWidget {
           ),
         ),
       ),
+
       routeInformationParser: Modular.routeInformationParser,
       routerDelegate: Modular.routerDelegate,
     );

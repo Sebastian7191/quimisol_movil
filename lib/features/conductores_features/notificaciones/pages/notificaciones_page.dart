@@ -101,7 +101,11 @@ class _NotificacionesPageState extends State<NotificacionesPage> {
             const SizedBox(height: 12),
             Row(
               children: [
-                Icon(Icons.access_time_rounded, size: 18, color: Palette.ink.withOpacity(0.6)),
+                Icon(
+                  Icons.access_time_rounded,
+                  size: 18,
+                  color: Palette.ink.withOpacity(0.6),
+                ),
                 const SizedBox(width: 6),
                 Text(
                   _formatTime(n.createdAt),
@@ -124,9 +128,14 @@ class _NotificacionesPageState extends State<NotificacionesPage> {
       backgroundColor: Palette.fieldBg,
       appBar: AppBar(
         elevation: 0,
-        backgroundColor: Colors.transparent,
-        title: const Text('Notificaciones'),
+        backgroundColor: Palette.button, // ✅ ROSA (tu palette)
+        foregroundColor: Colors.white, // ✅ iconos + texto blanco
+        surfaceTintColor: Colors.transparent,
         centerTitle: true,
+        title: const Text(
+          'Notificaciones',
+          style: TextStyle(fontWeight: FontWeight.w900),
+        ),
         actions: [
           IconButton(
             tooltip: 'Marcar todo como leído',
@@ -141,6 +150,7 @@ class _NotificacionesPageState extends State<NotificacionesPage> {
           const SizedBox(width: 6),
         ],
       ),
+
       body: uid == null
           ? const Center(child: Text('No hay sesión activa'))
           : StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
@@ -168,7 +178,8 @@ class _NotificacionesPageState extends State<NotificacionesPage> {
                       n: n,
                       timeText: _formatTime(n.createdAt),
                       onTap: () => _openNotification(n),
-                      onDelete: () => _service.deleteNotification(uid: uid, notifId: n.id),
+                      onDelete: () =>
+                          _service.deleteNotification(uid: uid, notifId: n.id),
                     );
                   },
                 );

@@ -6,7 +6,6 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import '../../../../../core/theme/palette.dart';
 import '../../../../../shared/widgets/gradient_background.dart';
 import '../../../../../shared/widgets/rounded_card.dart';
-import '../../../../../shared/buttons/social_button.dart';
 import '../../../../../shared/buttons/app_button.dart';
 
 import 'package:quimisol_movil/shared/services/auth_service.dart';
@@ -22,8 +21,6 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  static const Duration _socialDelay = Duration(seconds: 2);
-
   final _formKey = GlobalKey<FormState>();
 
   final _emailCtrl = TextEditingController();
@@ -48,7 +45,7 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  // ----------------- LÓGICA ORIGINAL -----------------
+  // ----------------- LÓGICA ORIGINAL + ADMIN -----------------
 
   Future<void> _handleEmailSubmit() async {
     if (!_formKey.currentState!.validate()) return;
@@ -100,17 +97,29 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  // ✅ AHORA SOPORTA ROL ADMIN
   Future<void> _redirectByRole() async {
     final role = await _authService.getUserRole();
     if (!mounted) return;
 
+    if (role == 'admin') {
+      // ✅ Admin -> SidebarShellPage (ruta definida en AppModule)
+      Modular.to.navigate('/admin');
+      return;
+    }
+
     if (role == 'cliente') {
       Modular.to.navigate('/home-pasajero');
-    } else if (role == 'conductor' || role == 'repartidor') {
-      Modular.to.navigate('/home-conductor');
-    } else {
-      Modular.to.navigate('/home-pasajero');
+      return;
     }
+
+    if (role == 'conductor' || role == 'repartidor') {
+      Modular.to.navigate('/home-conductor');
+      return;
+    }
+
+    // fallback
+    Modular.to.navigate('/home-pasajero');
   }
 
   void _showErrorSnack(String message) {
@@ -145,6 +154,45 @@ class _LoginScreenState extends State<LoginScreen> {
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(30),
         borderSide: const BorderSide(color: Palette.primary),
+      ),
+    );
+  }
+
+  Widget _googleFullButton() {
+    return SizedBox(
+      width: double.infinity,
+      height: 54,
+      child: OutlinedButton(
+        onPressed: () async {
+          if (_isLoading) return;
+          await _handleGoogleLogin();
+        },
+        style: OutlinedButton.styleFrom(
+          backgroundColor: Colors.white,
+          foregroundColor: Colors.black87,
+          side: BorderSide(color: Colors.black.withValues(alpha: 0.12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(30),
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: const [
+            Icon(
+              FontAwesomeIcons.google,
+              size: 18,
+              color: Palette.primary, // rojo Google
+            ),
+            SizedBox(width: 12),
+            Text(
+              'Continuar con Google',
+              style: TextStyle(
+                fontWeight: FontWeight.w800,
+                fontSize: 15,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -244,9 +292,8 @@ class _LoginScreenState extends State<LoginScreen> {
                         const SizedBox(height: 12),
 
                         AppButton(
-                          label: _isRegisterMode
-                              ? 'REGISTRARSE'
-                              : 'INICIAR SESIÓN',
+                          label:
+                              _isRegisterMode ? 'REGISTRARSE' : 'INICIAR SESIÓN',
                           isLoading: _isLoading,
                           onPressed: () async {
                             if (_isLoading) return;
@@ -256,34 +303,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
                         const SizedBox(height: 18),
 
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            SocialButton(
-                              icon: FontAwesomeIcons.google,
-                              onPressed: () async {
-                                if (_isLoading) return;
-                                await _handleGoogleLogin();
-                              },
-                            ),
-                            const SizedBox(width: 10),
-                            SocialButton(
-                              icon: FontAwesomeIcons.facebookF,
-                              onPressed: () async {
-                                if (_isLoading) return;
-                                await Future.delayed(_socialDelay);
-                              },
-                            ),
-                            const SizedBox(width: 10),
-                            SocialButton(
-                              icon: FontAwesomeIcons.instagram,
-                              onPressed: () async {
-                                if (_isLoading) return;
-                                await Future.delayed(_socialDelay);
-                              },
-                            ),
-                          ],
-                        ),
+                        // ✅ Botón grande Google
+                        _googleFullButton(),
 
                         const SizedBox(height: 10),
 

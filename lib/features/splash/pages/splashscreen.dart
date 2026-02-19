@@ -14,8 +14,7 @@ class SplashPage extends StatefulWidget {
   State<SplashPage> createState() => _SplashPageState();
 }
 
-class _SplashPageState extends State<SplashPage>
-    with TickerProviderStateMixin {
+class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
   late final AuthService _authService;
 
   late final AnimationController _shineCtrl; // brillo
@@ -60,13 +59,25 @@ class _SplashPageState extends State<SplashPage>
     final role = await _authService.getUserRole();
     if (!mounted) return;
 
+    // ✅ NUEVO: ADMIN -> SidebarShellPage (ruta definida en AppModule)
+    if (role == 'admin') {
+      Modular.to.navigate('/admin');
+      return;
+    }
+
     if (role == 'cliente') {
       Modular.to.navigate('/home-pasajero');
-    } else if (role == 'repartidor' || role == 'repartidor') {
-      Modular.to.navigate('/home-conductor');
-    } else {
-      Modular.to.navigate('/login');
+      return;
     }
+
+    // ✅ Fix: antes estaba duplicado 'repartidor'
+    if (role == 'repartidor' || role == 'conductor') {
+      Modular.to.navigate('/home-conductor');
+      return;
+    }
+
+    // fallback
+    Modular.to.navigate('/login');
   }
 
   @override
@@ -190,8 +201,7 @@ class _ShinePainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _ShinePainter oldDelegate) =>
-      oldDelegate.t != t;
+  bool shouldRepaint(covariant _ShinePainter oldDelegate) => oldDelegate.t != t;
 }
 
 /// Loader de 3 puntos
@@ -214,9 +224,7 @@ class _ThreeDotsLoading extends StatelessWidget {
           height: active ? 10 : 7,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: active
-                ? Colors.white
-                : Colors.white.withOpacity(0.35),
+            color: active ? Colors.white : Colors.white.withOpacity(0.35),
           ),
         );
       }),
