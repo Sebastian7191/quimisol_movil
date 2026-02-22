@@ -71,11 +71,7 @@ Widget statusPill(String estado) {
       labelFor(estado),
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
-      style: TextStyle(
-        color: ink,
-        fontWeight: FontWeight.w900,
-        fontSize: 12,
-      ),
+      style: TextStyle(color: ink, fontWeight: FontWeight.w900, fontSize: 12),
     ),
   );
 }
@@ -221,11 +217,19 @@ class EmptyState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.inbox_rounded, size: 52, color: ink.withValues(alpha: 0.25)),
+            Icon(
+              Icons.inbox_rounded,
+              size: 52,
+              color: ink.withValues(alpha: 0.25),
+            ),
             const SizedBox(height: 10),
             Text(
               'No hay pedidos',
-              style: TextStyle(color: ink, fontWeight: FontWeight.w900, fontSize: 16),
+              style: TextStyle(
+                color: ink,
+                fontWeight: FontWeight.w900,
+                fontSize: 16,
+              ),
             ),
             const SizedBox(height: 6),
             Text(
@@ -233,13 +237,19 @@ class EmptyState extends StatelessWidget {
                   ? 'No se encontraron resultados para "$query"'
                   : 'Ajusta filtros o vuelve a intentar',
               textAlign: TextAlign.center,
-              style: TextStyle(color: ink.withValues(alpha: 0.65), fontWeight: FontWeight.w700),
+              style: TextStyle(
+                color: ink.withValues(alpha: 0.65),
+                fontWeight: FontWeight.w700,
+              ),
             ),
             if (estado != 'Todos') ...[
               const SizedBox(height: 8),
               Text(
                 'Filtro: $estado',
-                style: TextStyle(color: ink.withValues(alpha: 0.55), fontWeight: FontWeight.w800),
+                style: TextStyle(
+                  color: ink.withValues(alpha: 0.55),
+                  fontWeight: FontWeight.w800,
+                ),
               ),
             ],
           ],
@@ -254,11 +264,7 @@ class EmptyState extends StatelessWidget {
 // ==========================
 
 class PedidoCard extends StatelessWidget {
-  const PedidoCard({
-    super.key,
-    required this.pedido,
-    required this.onTap,
-  });
+  const PedidoCard({super.key, required this.pedido, required this.onTap});
 
   final PedidoRow pedido;
   final VoidCallback onTap;
@@ -274,7 +280,33 @@ class PedidoCard extends StatelessWidget {
     final code = (p.codigo ?? '').toString().trim();
     final address = (p.direccion ?? '').toString().trim();
     final depto = (p.departamento ?? '').toString().trim();
-    final conteo = p.itemsCount ?? 0;
+    int _countItems(PedidoRow p) {
+      // 1) Si tu modelo tiene alguna propiedad "cantidad"
+      //    (ajusta aquí si tú sabes el nombre exacto)
+      final dynamic direct =
+          (p as dynamic).itemsCount ??
+          (p as dynamic).cantidadItems ??
+          (p as dynamic).itemsLength ??
+          (p as dynamic).items ??
+          (p as dynamic).detalleCount;
+
+      if (direct is int) return direct;
+      if (direct is num) return direct.toInt();
+
+      // 2) Si lo que tienes es una LISTA de items/detalles
+      final dynamic list =
+          (p as dynamic).items ??
+          (p as dynamic).detalle ??
+          (p as dynamic).detalles ??
+          (p as dynamic).productos ??
+          (p as dynamic).carrito;
+
+      if (list is List) return list.length;
+
+      return 0;
+    }
+
+    final conteo = _countItems(p);
     final fecha = formatDateTime(p.createdAt);
 
     return LayoutBuilder(
@@ -404,8 +436,12 @@ class PedidoCard extends StatelessWidget {
                           spacing: 10,
                           runSpacing: 8,
                           children: [
-                            if (depto.isNotEmpty) miniPill(Icons.map_rounded, depto),
-                            miniPill(Icons.shopping_bag_rounded, 'Items: $conteo'),
+                            if (depto.isNotEmpty)
+                              miniPill(Icons.map_rounded, depto),
+                            miniPill(
+                              Icons.shopping_bag_rounded,
+                              'Items: $conteo',
+                            ),
                             miniPill(Icons.payments_rounded, p.totalLabel),
                           ],
                         ),
