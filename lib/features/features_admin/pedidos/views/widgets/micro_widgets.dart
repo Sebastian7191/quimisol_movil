@@ -1,8 +1,129 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:quimisol_movil/core/constants/pedido_estado.dart';
 import 'package:quimisol_movil/core/theme/palette.dart';
 
 import '../../data/pedido_row.dart';
+
+// ==========================
+// Helpers
+// ==========================
+
+String normalizeEstado(dynamic v) {
+  final s = (v ?? '').toString().trim();
+  if (s.isEmpty) return kEstadoPendiente;
+
+  final lower = s.toLowerCase();
+  if (lower.contains('pend')) return kEstadoPendiente;
+  if (lower.contains('acept')) return kEstadoAceptado;
+  if (lower.contains('camino')) return kEstadoEnCamino;
+  if (lower.contains('entreg')) return kEstadoEntregado;
+  if (lower.contains('cancel')) return kEstadoCancelado;
+
+  return s;
+}
+
+Color estadoColor(String s) {
+  switch (normalizeEstado(s)) {
+    case kEstadoEntregado:
+      return Palette.statsSuccess;
+    case kEstadoCancelado:
+      return Palette.statsDanger;
+    case kEstadoEnCamino:
+      return Palette.button;
+    case kEstadoAceptado:
+      return Palette.secondary;
+    case kEstadoPendiente:
+    default:
+      return Palette.primary;
+  }
+}
+
+Widget statusPill(String estado) {
+  final ink = Palette.ink;
+  final c = estadoColor(estado);
+
+  String labelFor(String v) {
+    switch (normalizeEstado(v)) {
+      case kEstadoPendiente:
+        return 'Pendiente';
+      case kEstadoAceptado:
+        return 'Aceptado';
+      case kEstadoEnCamino:
+        return 'En camino';
+      case kEstadoEntregado:
+        return 'Entregado';
+      case kEstadoCancelado:
+        return 'Cancelado';
+      default:
+        return v.toString();
+    }
+  }
+
+  return Container(
+    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+    decoration: BoxDecoration(
+      color: c.withValues(alpha: 0.14),
+      borderRadius: BorderRadius.circular(999),
+      border: Border.all(color: c.withValues(alpha: 0.28)),
+    ),
+    child: Text(
+      labelFor(estado),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: TextStyle(
+        color: ink,
+        fontWeight: FontWeight.w900,
+        fontSize: 12,
+      ),
+    ),
+  );
+}
+
+/// ✅ FIX: ahora no revienta si el texto es largo
+Widget miniPill(IconData icon, String text) {
+  final ink = Palette.ink;
+
+  return Container(
+    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+    decoration: BoxDecoration(
+      color: Palette.white,
+      borderRadius: BorderRadius.circular(999),
+      border: Border.all(color: ink.withValues(alpha: 0.06)),
+    ),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 14, color: Palette.primary),
+        const SizedBox(width: 6),
+        ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 180),
+          child: Text(
+            text,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: ink.withValues(alpha: 0.72),
+              fontWeight: FontWeight.w800,
+              fontSize: 11.5,
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+String formatDateTime(DateTime? dt) {
+  if (dt == null) return '-';
+  return DateFormat('dd/MM/yyyy • HH:mm').format(dt);
+}
+
+Color statusColor(String s) => estadoColor(s);
+
+// ==========================
+// Micro widgets que ya tenías
+// ==========================
 
 class CountPill extends StatelessWidget {
   const CountPill({super.key, required this.count});
@@ -14,16 +135,16 @@ class CountPill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: Palette.white,
+        color: Palette.fieldBg,
         borderRadius: BorderRadius.circular(999),
         border: Border.all(color: ink.withValues(alpha: 0.06)),
       ),
       child: Text(
         '$count',
         style: TextStyle(
-          color: ink,
+          color: ink.withValues(alpha: 0.8),
           fontWeight: FontWeight.w900,
-          fontSize: 12.5,
+          fontSize: 12,
         ),
       ),
     );
@@ -47,115 +168,12 @@ class HintPill extends StatelessWidget {
       child: Text(
         text,
         style: TextStyle(
-          color: ink.withValues(alpha: 0.55),
+          color: ink.withValues(alpha: 0.65),
           fontWeight: FontWeight.w800,
           fontSize: 11.5,
         ),
       ),
     );
-  }
-}
-
-class EstadoChip extends StatelessWidget {
-  const EstadoChip({super.key, required this.estado});
-  final String estado;
-
-  @override
-  Widget build(BuildContext context) {
-    final st = normalizeEstado(estado);
-    final c = _statusColor(st);
-    final label = _label(st);
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: c.withValues(alpha: 0.14),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: c.withValues(alpha: 0.28)),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          color: Palette.ink.withValues(alpha: 0.9),
-          fontWeight: FontWeight.w900,
-          fontSize: 11.5,
-        ),
-      ),
-    );
-  }
-
-  String _label(String s) {
-    switch (normalizeEstado(s)) {
-      case kEstadoEntregado:
-        return 'Entregado';
-      case kEstadoCancelado:
-        return 'Cancelado';
-      case kEstadoEnCamino:
-        return 'En camino';
-      case kEstadoAceptado:
-        return 'Aceptado';
-      case kEstadoPendiente:
-      default:
-        return 'Pendiente';
-    }
-  }
-
-  Color _statusColor(String s) {
-    switch (normalizeEstado(s)) {
-      case kEstadoEntregado:
-        return Palette.statsSuccess;
-      case kEstadoCancelado:
-        return Palette.statsDanger;
-      case kEstadoEnCamino:
-        return Palette.statsWarning;
-      case kEstadoAceptado:
-        return Palette.secondary;
-      case kEstadoPendiente:
-      default:
-        return Palette.primary;
-    }
-  }
-}
-
-Widget miniPill(IconData icon, String text) {
-  return Container(
-    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-    decoration: BoxDecoration(
-      color: Palette.white,
-      borderRadius: BorderRadius.circular(999),
-      border: Border.all(color: Palette.ink.withValues(alpha: 0.06)),
-    ),
-    child: Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 14, color: Palette.primary),
-        const SizedBox(width: 6),
-        Text(
-          text,
-          style: TextStyle(
-            color: Palette.ink.withValues(alpha: 0.72),
-            fontWeight: FontWeight.w800,
-            fontSize: 11.5,
-          ),
-        ),
-      ],
-    ),
-  );
-}
-
-Color statusColor(String s) {
-  switch (normalizeEstado(s)) {
-    case kEstadoEntregado:
-      return Palette.statsSuccess;
-    case kEstadoCancelado:
-      return Palette.statsDanger;
-    case kEstadoEnCamino:
-      return Palette.statsWarning;
-    case kEstadoAceptado:
-      return Palette.secondary;
-    case kEstadoPendiente:
-    default:
-      return Palette.primary;
   }
 }
 
@@ -171,16 +189,16 @@ class LoadingFancy extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           const SizedBox(
-            height: 34,
-            width: 34,
+            width: 26,
+            height: 26,
             child: CircularProgressIndicator(strokeWidth: 3),
           ),
           const SizedBox(height: 10),
           Text(
             text,
             style: TextStyle(
-              color: ink.withValues(alpha: 0.6),
-              fontWeight: FontWeight.w800,
+              color: ink.withValues(alpha: 0.7),
+              fontWeight: FontWeight.w900,
             ),
           ),
         ],
@@ -197,54 +215,50 @@ class EmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ink = Palette.ink;
-
     return Center(
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20),
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Palette.white,
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: ink.withValues(alpha: 0.06)),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.search_off_rounded,
-                size: 44,
-                color: ink.withValues(alpha: 0.35),
-              ),
-              const SizedBox(height: 10),
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.inbox_rounded, size: 52, color: ink.withValues(alpha: 0.25)),
+            const SizedBox(height: 10),
+            Text(
+              'No hay pedidos',
+              style: TextStyle(color: ink, fontWeight: FontWeight.w900, fontSize: 16),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              query.isNotEmpty
+                  ? 'No se encontraron resultados para "$query"'
+                  : 'Ajusta filtros o vuelve a intentar',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: ink.withValues(alpha: 0.65), fontWeight: FontWeight.w700),
+            ),
+            if (estado != 'Todos') ...[
+              const SizedBox(height: 8),
               Text(
-                'Sin resultados',
-                style: TextStyle(
-                  color: ink,
-                  fontWeight: FontWeight.w900,
-                  fontSize: 16,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'Estado: $estado${query.isEmpty ? '' : ' • "$query"'}',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: ink.withValues(alpha: 0.55),
-                  fontWeight: FontWeight.w800,
-                ),
+                'Filtro: $estado',
+                style: TextStyle(color: ink.withValues(alpha: 0.55), fontWeight: FontWeight.w800),
               ),
             ],
-          ),
+          ],
         ),
       ),
     );
   }
 }
 
+// ==========================
+// ✅ PEDIDO CARD (FIX OVERFLOW + MEJOR RESPONSIVE)
+// ==========================
+
 class PedidoCard extends StatelessWidget {
-  const PedidoCard({super.key, required this.pedido, required this.onTap});
+  const PedidoCard({
+    super.key,
+    required this.pedido,
+    required this.onTap,
+  });
 
   final PedidoRow pedido;
   final VoidCallback onTap;
@@ -254,105 +268,165 @@ class PedidoCard extends StatelessWidget {
     final p = pedido;
     final ink = Palette.ink;
 
-    final codigo = p.codigo.isEmpty ? '—' : p.codigo;
-    final estado = p.estado;
+    final estado = normalizeEstado(p.estado);
+    final barColor = statusColor(estado);
 
-    final direccion = p.direccion;
-    final depto = p.departamento;
-    final conteo = p.conteoItems;
+    final code = (p.codigo ?? '').toString().trim();
+    final address = (p.direccion ?? '').toString().trim();
+    final depto = (p.departamento ?? '').toString().trim();
+    final conteo = p.itemsCount ?? 0;
+    final fecha = formatDateTime(p.createdAt);
 
-    //final totalFinal = p.totalFinal;
+    return LayoutBuilder(
+      builder: (context, box) {
+        final tiny = box.maxWidth < 360;
 
-    final fecha = p.fechaLabel;
-    final c = statusColor(estado);
-
-    return Material(
-      color: Palette.fieldBg,
-      borderRadius: BorderRadius.circular(18),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(18),
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: ink.withValues(alpha: 0.06)),
-          ),
-          padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
-          child: Row(
-            children: [
-              Container(
-                width: 10,
-                height: 64,
-                decoration: BoxDecoration(
-                  color: c,
-                  borderRadius: BorderRadius.circular(999),
+        return InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(18),
+          child: Container(
+            decoration: BoxDecoration(
+              color: Palette.white,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: ink.withValues(alpha: 0.06)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.04),
+                  blurRadius: 16,
+                  offset: const Offset(0, 10),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
+              ],
+            ),
+            child: Row(
+              children: [
+                // barra estado
+                Container(
+                  width: 8,
+                  height: 118,
+                  decoration: BoxDecoration(
+                    color: barColor.withValues(alpha: 0.95),
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(18),
+                      bottomLeft: Radius.circular(18),
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 12, 10, 12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          '#$codigo',
-                          style: TextStyle(
-                            color: ink,
-                            fontWeight: FontWeight.w900,
-                            fontSize: 14.5,
+                        // TOP: sin overflow (móvil reacomoda)
+                        if (!tiny)
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  code.isEmpty ? 'Pedido' : '#$code',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    color: ink,
+                                    fontWeight: FontWeight.w900,
+                                    fontSize: 15,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              statusPill(estado),
+                              const SizedBox(width: 10),
+                              Text(
+                                fecha,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: ink.withValues(alpha: 0.55),
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          )
+                        else
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      code.isEmpty ? 'Pedido' : '#$code',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        color: ink,
+                                        fontWeight: FontWeight.w900,
+                                        fontSize: 15,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  statusPill(estado),
+                                ],
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                fecha,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: ink.withValues(alpha: 0.55),
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
                           ),
-                        ),
-                        const SizedBox(width: 8),
-                        EstadoChip(estado: estado),
-                        const Spacer(),
+
+                        const SizedBox(height: 8),
+
+                        // Dirección
                         Text(
-                          fecha.isEmpty ? '—' : fecha,
+                          address.isEmpty ? '-' : address,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            color: ink.withValues(alpha: 0.55),
+                            color: ink.withValues(alpha: 0.80),
                             fontWeight: FontWeight.w800,
-                            fontSize: 12,
                           ),
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      direccion.isEmpty ? '—' : direccion,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: ink.withValues(alpha: 0.78),
-                        fontWeight: FontWeight.w700,
-                        fontSize: 12.8,
-                        height: 1.2,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 6,
-                      children: [
-                        miniPill(
-                          Icons.map_rounded,
-                          depto.isEmpty ? '—' : depto,
+
+                        const SizedBox(height: 10),
+
+                        // Chips: WRAP (nunca overflow)
+                        Wrap(
+                          spacing: 10,
+                          runSpacing: 8,
+                          children: [
+                            if (depto.isNotEmpty) miniPill(Icons.map_rounded, depto),
+                            miniPill(Icons.shopping_bag_rounded, 'Items: $conteo'),
+                            miniPill(Icons.payments_rounded, p.totalLabel),
+                          ],
                         ),
-                        miniPill(Icons.shopping_bag_rounded, 'Items: $conteo'),
-                        miniPill(Icons.payments_rounded, p.totalLabel),
                       ],
                     ),
-                  ],
+                  ),
                 ),
-              ),
-              const SizedBox(width: 10),
-              Icon(
-                Icons.chevron_right_rounded,
-                color: ink.withValues(alpha: 0.35),
-              ),
-            ],
+
+                Padding(
+                  padding: const EdgeInsets.only(right: 10),
+                  child: Icon(
+                    Icons.chevron_right_rounded,
+                    color: ink.withValues(alpha: 0.35),
+                    size: 26,
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }

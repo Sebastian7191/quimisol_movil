@@ -1,14 +1,15 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+
 import 'package:quimisol_movil/core/theme/palette.dart';
 import 'package:quimisol_movil/features/features_admin/productos/data/producto_dialog_result.dart';
+
 import '../controllers/products_controller.dart';
 import '../data/producto_row.dart';
 import '../data/unidad_option.dart';
 import '../data/almacen_option.dart';
 
 import 'widgets/producto_dialog.dart';
-
 
 import 'widgets/dialogs/img_viewer_dialog.dart';
 import 'widgets/empty_box.dart';
@@ -149,8 +150,9 @@ class _ProductosPageState extends State<ProductosPage> {
       );
 
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Producto actualizado')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Producto actualizado')),
+        );
       }
     } catch (e) {
       if (mounted) {
@@ -212,8 +214,9 @@ class _ProductosPageState extends State<ProductosPage> {
       await controller.eliminarProducto(id, imagenPath);
 
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Producto eliminado')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Producto eliminado')),
+        );
       }
     } catch (e) {
       if (mounted) {
@@ -285,9 +288,8 @@ class _ProductosPageState extends State<ProductosPage> {
                   return AlmacenOption(
                     id: d.id,
                     nombre: (data['nombre'] ?? '').toString(),
-                    activo: (data['activo'] is bool)
-                        ? (data['activo'] as bool)
-                        : true,
+                    activo:
+                        (data['activo'] is bool) ? (data['activo'] as bool) : true,
                   );
                 })
                 .where((a) => a.activo)
@@ -295,483 +297,298 @@ class _ProductosPageState extends State<ProductosPage> {
 
             return LayoutBuilder(
               builder: (context, box) {
-                final isMobile = box.maxWidth < 860;
-                final pad = isMobile ? 12.0 : 20.0;
+                final w = box.maxWidth;
+                final isMobile = w < 860;
+                final compact = w < 720;
 
-                return Padding(
-                  padding: EdgeInsets.all(pad),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // ================= HEADER =================
-                      /*if (!isMobile)
-                        Row(
-                          children: [
-                            const Text(
-                              'Gestión de Productos',
-                              style: TextStyle(
-                                fontSize: 22,
-                                fontWeight: FontWeight.w800,
-                                color: Palette.ink,
-                              ),
-                            ),
-                            const Spacer(),
-                            ElevatedButton.icon(
-                              onPressed: (unidades.isEmpty || almacenes.isEmpty)
-                                  ? null
-                                  : () => _openAddDialog(
-                                        unidades: unidades,
-                                        almacenes: almacenes,
-                                      ),
-                              icon: const Icon(Icons.add_rounded),
-                              label: const Text('Agregar producto'),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Palette.button,
-                                foregroundColor: Palette.white,
-                                elevation: 0,
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 18,
-                                  vertical: 14,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(14),
-                                ),
-                                textStyle: const TextStyle(
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ),
-                          ],
+                final canAdd = !(unidades.isEmpty || almacenes.isEmpty);
+
+                return Scaffold(
+                  backgroundColor: Palette.card,
+
+                  // ✅ FAB pill: SOLO bordes celestes (Palette.button)
+                  floatingActionButton: compact
+                      ? _FloatingAddPill(
+                          enabled: canAdd,
+                          onTap: canAdd
+                              ? () => _openAddDialog(
+                                    unidades: unidades,
+                                    almacenes: almacenes,
+                                  )
+                              : null,
                         )
-                      else*/                   
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.centerLeft,
-                            end: Alignment.centerRight,
-                            colors: [
-                              Palette.primary.withValues(alpha: 0.95),
-                              Palette.secondary.withValues(alpha: 0.90),
-                            ],
+                      : null,
+
+                  body: SafeArea(
+                    child: Padding(
+                      padding: EdgeInsets.all(w < 420 ? 14 : 20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _HeaderProductos(
+                            compact: compact,
+                            canAdd: canAdd,
+                            onAdd: () => _openAddDialog(
+                              unidades: unidades,
+                              almacenes: almacenes,
+                            ),
                           ),
-                          borderRadius: BorderRadius.circular(18),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.08),
-                              blurRadius: 18,
-                              offset: const Offset(0, 8),
+                          const SizedBox(height: 12),
+
+                          _SearchBarProductos(controller: _searchCtrl),
+                          const SizedBox(height: 12),
+
+                          SizedBox(
+                            height: 44,
+                            child: ListView.separated(
+                              scrollDirection: Axis.horizontal,
+                              itemCount: const ['Todos', 'PRODUCTO', 'INSUMO'].length,
+                              separatorBuilder: (_, __) => const SizedBox(width: 10),
+                              itemBuilder: (_, i) {
+                                final t = const ['Todos', 'PRODUCTO', 'INSUMO'][i];
+                                final selected = _tipo == t;
+
+                                return ChoiceChip(
+                                  label: Text(t == 'Todos' ? 'Todos' : t),
+                                  selected: selected,
+                                  selectedColor: Palette.primary.withValues(alpha: 0.18),
+                                  backgroundColor: Palette.white,
+                                  side: BorderSide(
+                                    color: selected
+                                        ? Palette.primary.withValues(alpha: 0.55)
+                                        : Palette.button.withValues(alpha: 0.35),
+                                  ),
+                                  labelStyle: TextStyle(
+                                    color: Palette.ink.withValues(alpha: selected ? 1 : 0.9),
+                                    fontWeight: FontWeight.w900,
+                                  ),
+                                  onSelected: (_) => setState(() => _tipo = t),
+                                );
+                              },
                             ),
-                          ],
-                        ),
-                        child: Column(
-                          children: [
-                            Row(
-                              children: [
-                                Container(
-                                  width: 54,
-                                  height: 54,
-                                  decoration: BoxDecoration(
-                                    color: Palette.white.withValues(alpha: 0.18),
-                                    borderRadius: BorderRadius.circular(16),
-                                    border: Border.all(color: Palette.white.withValues(alpha: 0.35)),
-                                  ),
-                                  child: const Icon(
-                                    Icons.inventory_2_rounded,
-                                    color: Palette.white,
-                                    size: 28,
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        'Gestión de Productos',
-                                        style: TextStyle(
-                                          fontSize: isMobile ? 18 : 22,
-                                          fontWeight: FontWeight.w900,
-                                          color: Palette.white,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        'Administra productos e insumos rápidamente',
-                                        style: TextStyle(
-                                          fontSize: isMobile ? 12 : 13,
-                                          color: Palette.white.withValues(alpha: 0.92),
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
+                          ),
+                          const SizedBox(height: 16),
 
-                                // Botón (responsive)
-                                SizedBox(
-                                  width: isMobile ? 150 : null,
-                                  child: ElevatedButton.icon(
-                                    onPressed: (unidades.isEmpty || almacenes.isEmpty)
-                                        ? null
-                                        : () => _openAddDialog(
-                                              unidades: unidades,
-                                              almacenes: almacenes,
-                                            ),
-                                    icon: const Icon(Icons.add_rounded),
-                                    label: Text(isMobile ? 'Agregar' : 'Agregar producto'),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: Palette.white.withValues(alpha: 0.18),
-                                      foregroundColor: Palette.white,
-                                      elevation: 0,
-                                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(14),
-                                        side: BorderSide(
-                                          color: Palette.white, width: 2,
-                                        ),
-                                      ),
-                                      textStyle: const TextStyle(fontWeight: FontWeight.w800),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-
-                            const SizedBox(height: 12),
-
-                            // ===== buscador dentro del header =====
-                            Container(
-                              height: 50,
-                              decoration: BoxDecoration(
-                                color: Palette.white,
-                                borderRadius: BorderRadius.circular(18),
-                                border: Border.all(color: Palette.ink.withValues(alpha: 0.06)),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withValues(alpha: 0.08),
-                                    blurRadius: 20,
-                                    offset: const Offset(0, 12),
-                                  ),
-                                ],
-                              ),
-                              padding: const EdgeInsets.symmetric(horizontal: 12),
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    Icons.search_rounded,
-                                    color: Palette.ink.withValues(alpha: 0.45),
-                                  ),
-                                  const SizedBox(width: 10),
-                                  Expanded(
-                                    child: TextField(
-                                      controller: _searchCtrl,
-                                      decoration: InputDecoration(
-                                        hintText: 'Buscar por código o nombre…',
-                                        border: InputBorder.none,
-                                        hintStyle: TextStyle(
-                                          color: Palette.ink.withValues(alpha: 0.35),
-                                          fontWeight: FontWeight.w800,
-                                        ),
-                                      ),
-                                      style: const TextStyle(
-                                        color: Palette.ink,
-                                        fontWeight: FontWeight.w900,
-                                      ),
-                                    ),
-                                  ),
-                                  ValueListenableBuilder<TextEditingValue>(
-                                    valueListenable: _searchCtrl,
-                                    builder: (_, v, __) {
-                                      final has = v.text.trim().isNotEmpty;
-                                      return AnimatedSwitcher(
-                                        duration: const Duration(milliseconds: 160),
-                                        transitionBuilder: (c, a) =>
-                                            FadeTransition(opacity: a, child: c),
-                                        child: !has
-                                            ? const SizedBox(width: 10, key: ValueKey('empty'))
-                                            : InkWell(
-                                                key: const ValueKey('clear'),
-                                                onTap: () => _searchCtrl.clear(),
-                                                borderRadius: BorderRadius.circular(12),
-                                                child: Padding(
-                                                  padding: const EdgeInsets.all(6),
-                                                  child: Icon(
-                                                    Icons.close_rounded,
-                                                    color: Palette.ink.withValues(alpha: 0.55),
-                                                  ),
-                                                ),
-                                              ),
-                                      );
-                                    },
-                                  ),
-                                ],
-                              ),
-                            ),
-
-                            const SizedBox(height: 10),
-
-                            // ===== filtro dentro del header =====
-                            Align(
-                              alignment: Alignment.centerLeft,
-                              child: Wrap(
-                                spacing: 8,
-                                runSpacing: 8,
-                                children: ['Todos', 'PRODUCTO', 'INSUMO'].map((t) {
-                                  final selected = _tipo == t;
-
-                                  return ChoiceChip(
-                                    label: Text(t == 'Todos' ? 'Todos' : t),
-                                    selected: selected,
-                                    selectedColor: Palette.white.withValues(alpha: 0.22),
-                                    backgroundColor: Palette.white.withValues(alpha: 0.14),
-                                    side: BorderSide(
-                                      color: Palette.ink.withValues(alpha: selected ? 0.55 : 0.26),
-                                    ),
-                                    labelStyle: TextStyle(
-                                      color: Palette.ink.withValues(alpha: selected ? 1 : 0.92),
-                                      fontWeight: FontWeight.w800,
-                                    ),
-                                    onSelected: (_) => setState(() => _tipo = t),
+                          Expanded(
+                            child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                              stream: _productosStream(),
+                              builder: (context, snapshot) {
+                                if (snapshot.hasError) {
+                                  return ErrorBox(
+                                    message: 'Error al cargar productos: ${snapshot.error}',
                                   );
-                                }).toList(),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 16),
+                                }
 
-                      // ================= LISTADO =================
-                      Expanded(
-                        child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                          stream: _productosStream(),
-                          builder: (context, snapshot) {
-                            if (snapshot.hasError) {
-                              return ErrorBox(
-                                message: 'Error al cargar productos: ${snapshot.error}',
-                              );
-                            }
+                                if (snapshot.connectionState == ConnectionState.waiting) {
+                                  return const LoadingTable(icon: Icons.inventory_2_rounded);
+                                }
 
-                            if (snapshot.connectionState == ConnectionState.waiting) {
-                              return const LoadingTable(icon: Icons.inventory_2_rounded);
-                            }
+                                final docs = snapshot.data?.docs ?? [];
+                                final productos =
+                                    docs.map((d) => controller.mapProducto(d)).toList();
 
-                            final docs = snapshot.data?.docs ?? [];
+                                productos.sort((a, b) {
+                                  final da = a.createdAt;
+                                  final db = b.createdAt;
+                                  if (da == null && db == null) return 0;
+                                  if (da == null) return 1;
+                                  if (db == null) return -1;
+                                  return db.compareTo(da);
+                                });
 
-                            final productos = docs.map((d) => controller.mapProducto(d)).toList();
+                                final filtered = controller.filterProductos(
+                                  rows: productos,
+                                  search: _search,
+                                  tipo: _tipo,
+                                );
 
-                            productos.sort((a, b) {
-                              final da = a.createdAt;
-                              final db = b.createdAt;
-                              if (da == null && db == null) return 0;
-                              if (da == null) return 1;
-                              if (db == null) return -1;
-                              return db.compareTo(da);
-                            });
-
-                            final filtered = controller.filterProductos(
-                              rows: productos,
-                              search: _search,
-                              tipo: _tipo,
-                            );
-
-                            if (filtered.isEmpty) {
-                              return const EmptyBox(
-                                title: 'No hay productos',
-                                subtitle: 'Agrega un producto o ajusta tus filtros.',
-                                icon: Icons.inventory_2_rounded,
-                              );
-                            }
-
-                            // ✅ MOBILE: cards
-                            if (isMobile) {
-                              return ListView.separated(
-                                padding: const EdgeInsets.only(bottom: 8),
-                                itemCount: filtered.length,
-                                separatorBuilder: (_, __) => const SizedBox(height: 10),
-                                itemBuilder: (_, i) {
-                                  final p = filtered[i];
-
-                                  final id = p.id;
-                                  final codigo = p.codigo;
-                                  final nombre = p.nombre;
-                                  final tipoItem = p.tipoItem;
-                                  final unidadNombre = p.unidadNombre;
-                                  final desc = p.descripcion;
-                                  final stock = p.stock;
-                                  final precio = p.precio;
-                                  final imagenUrl = p.imagenUrl.trim();
-                                  final imagenPath = p.imagenPath.trim();
-
-                                  return _ProductoCardMobile(
-                                    nombre: nombre,
-                                    codigo: codigo,
-                                    tipoItem: tipoItem,
-                                    unidadNombre: unidadNombre,
-                                    descripcion: desc,
-                                    stock: stock,
-                                    precio: precio,
-                                    imagenUrl: imagenUrl,
-                                    onTapImage: (imagenPath.isEmpty && imagenUrl.isEmpty)
-                                        ? null
-                                        : () => _openImageViewer(
-                                              title: nombre,
-                                              imagenPath: imagenPath,
-                                              imagenUrl: imagenUrl,
-                                            ),
-                                    onEdit: () => _openEditDialog(
-                                      id: id,
-                                      product: p,
-                                      unidades: unidades,
-                                      almacenes: almacenes,
-                                    ),
-                                    onDelete: () => _deleteProducto(
-                                      id,
-                                      nombre,
-                                      imagenPath: imagenPath,
-                                    ),
+                                if (filtered.isEmpty) {
+                                  return const EmptyBox(
+                                    title: 'No hay productos',
+                                    subtitle: 'Agrega un producto o ajusta tus filtros.',
+                                    icon: Icons.inventory_2_rounded,
                                   );
-                                },
-                              );
-                            }
+                                }
 
-                            // ✅ DESKTOP: tu DataTable
-                            return Container(
-                              decoration: BoxDecoration(
-                                color: Palette.white,
-                                borderRadius: BorderRadius.circular(18),
-                                border: Border.all(
-                                  color: Palette.button.withValues(alpha: 0.35),
-                                ),
-                              ),
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(18),
-                                child: SingleChildScrollView(
-                                  child: DataTable(
-                                    headingRowHeight: 52,
-                                    dataRowMinHeight: 64,
-                                    dataRowMaxHeight: 84,
-                                    columnSpacing: 18,
-                                    headingTextStyle: const TextStyle(
-                                      fontWeight: FontWeight.w900,
-                                      color: Palette.ink,
-                                    ),
-                                    columns: const [
-                                      DataColumn(label: Text('Imagen')),
-                                      DataColumn(label: Text('Código')),
-                                      DataColumn(label: Text('Nombre')),
-                                      DataColumn(label: Text('Descripción')),
-                                      DataColumn(label: Text('Tipo')),
-                                      DataColumn(label: Text('Unidad')),
-                                      DataColumn(label: Text('Stock')),
-                                      DataColumn(label: Text('Precio')),
-                                      DataColumn(label: Text('Acciones')),
-                                    ],
-                                    rows: filtered.map((p) {
+                                if (isMobile) {
+                                  return ListView.separated(
+                                    padding: const EdgeInsets.only(bottom: 96),
+                                    itemCount: filtered.length,
+                                    separatorBuilder: (_, __) => const SizedBox(height: 10),
+                                    itemBuilder: (_, i) {
+                                      final p = filtered[i];
+
                                       final id = p.id;
-                                      final codigo = p.codigo;
                                       final nombre = p.nombre;
-                                      final tipoItem = p.tipoItem;
-                                      final unidadNombre = p.unidadNombre;
-                                      final desc = p.descripcion;
-                                      final stock = p.stock;
-                                      final precio = p.precio;
                                       final imagenUrl = p.imagenUrl.trim();
                                       final imagenPath = p.imagenPath.trim();
 
-                                      return DataRow(
-                                        cells: [
-                                          DataCell(
-                                            InkWell(
-                                              onTap: (imagenPath.isEmpty && imagenUrl.isEmpty)
-                                                  ? null
-                                                  : () => _openImageViewer(
-                                                        title: nombre,
-                                                        imagenPath: imagenPath,
-                                                        imagenUrl: imagenUrl,
-                                                      ),
-                                              child: _ProductoThumb(
-                                                imagenPath: imagenPath,
-                                                imagenUrl: imagenUrl,
-                                              ),
-                                            ),
-                                          ),
-                                          DataCell(
-                                            Text(
-                                              codigo.isEmpty ? '-' : codigo,
-                                              style: const TextStyle(fontWeight: FontWeight.w700),
-                                            ),
-                                          ),
-                                          DataCell(
-                                            SizedBox(
-                                              width: 240,
-                                              child: Text(
-                                                nombre.isEmpty ? '-' : nombre,
-                                                maxLines: 2,
-                                                overflow: TextOverflow.ellipsis,
-                                                style: const TextStyle(fontWeight: FontWeight.w700),
-                                              ),
-                                            ),
-                                          ),
-                                          DataCell(
-                                            SizedBox(
-                                              width: 320,
-                                              child: Text(
-                                                desc.trim().isEmpty ? '-' : desc.trim(),
-                                                maxLines: 2,
-                                                overflow: TextOverflow.ellipsis,
-                                                style: TextStyle(
-                                                  color: Palette.ink.withValues(alpha: 0.85),
+                                      return _ProductoCardMobile(
+                                        nombre: nombre,
+                                        codigo: p.codigo,
+                                        tipoItem: p.tipoItem,
+                                        unidadNombre: p.unidadNombre,
+                                        descripcion: p.descripcion,
+                                        stock: p.stock,
+                                        precio: p.precio,
+                                        imagenUrl: imagenUrl,
+                                        onTapImage: (imagenPath.isEmpty && imagenUrl.isEmpty)
+                                            ? null
+                                            : () => _openImageViewer(
+                                                  title: nombre,
+                                                  imagenPath: imagenPath,
+                                                  imagenUrl: imagenUrl,
                                                 ),
-                                              ),
-                                            ),
-                                          ),
-                                          DataCell(_ChipTipo(tipoItem: tipoItem)),
-                                          DataCell(Text(unidadNombre.isEmpty ? '-' : unidadNombre)),
-                                          DataCell(Text(stock.toString())),
-                                          DataCell(Text(precio.toStringAsFixed(2))),
-                                          DataCell(
-                                            Row(
-                                              children: [
-                                                IconButton(
-                                                  tooltip: 'Editar',
-                                                  onPressed: () => _openEditDialog(
-                                                    id: id,
-                                                    product: p,
-                                                    unidades: unidades,
-                                                    almacenes: almacenes,
-                                                  ),
-                                                  icon: Icon(Icons.edit_rounded, color: Palette.primary),
-                                                ),
-                                                IconButton(
-                                                  tooltip: 'Eliminar',
-                                                  onPressed: () => _deleteProducto(
-                                                    id,
-                                                    nombre,
-                                                    imagenPath: imagenPath,
-                                                  ),
-                                                  icon: Icon(
-                                                    Icons.delete_outline_rounded,
-                                                    color: Palette.statsDanger.withValues(alpha: 0.95),
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                        ],
+                                        onEdit: () => _openEditDialog(
+                                          id: id,
+                                          product: p,
+                                          unidades: unidades,
+                                          almacenes: almacenes,
+                                        ),
+                                        onDelete: () => _deleteProducto(
+                                          id,
+                                          nombre,
+                                          imagenPath: imagenPath,
+                                        ),
                                       );
-                                    }).toList(),
+                                    },
+                                  );
+                                }
+
+                                return Container(
+                                  decoration: BoxDecoration(
+                                    color: Palette.white,
+                                    borderRadius: BorderRadius.circular(18),
+                                    border: Border.all(
+                                      color: Palette.button.withValues(alpha: 0.35),
+                                    ),
                                   ),
-                                ),
-                              ),
-                            );
-                          },
-                        ),
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(18),
+                                    child: SingleChildScrollView(
+                                      child: DataTable(
+                                        headingRowHeight: 52,
+                                        dataRowMinHeight: 64,
+                                        dataRowMaxHeight: 84,
+                                        columnSpacing: 18,
+                                        headingTextStyle: const TextStyle(
+                                          fontWeight: FontWeight.w900,
+                                          color: Palette.ink,
+                                        ),
+                                        columns: const [
+                                          DataColumn(label: Text('Imagen')),
+                                          DataColumn(label: Text('Código')),
+                                          DataColumn(label: Text('Nombre')),
+                                          DataColumn(label: Text('Descripción')),
+                                          DataColumn(label: Text('Tipo')),
+                                          DataColumn(label: Text('Unidad')),
+                                          DataColumn(label: Text('Stock')),
+                                          DataColumn(label: Text('Precio')),
+                                          DataColumn(label: Text('Acciones')),
+                                        ],
+                                        rows: filtered.map((p) {
+                                          final id = p.id;
+                                          final nombre = p.nombre;
+                                          final tipoItem = p.tipoItem;
+                                          final unidadNombre = p.unidadNombre;
+                                          final desc = p.descripcion;
+                                          final stock = p.stock;
+                                          final precio = p.precio;
+                                          final imagenUrl = p.imagenUrl.trim();
+                                          final imagenPath = p.imagenPath.trim();
+
+                                          return DataRow(
+                                            cells: [
+                                              DataCell(
+                                                InkWell(
+                                                  onTap: (imagenPath.isEmpty && imagenUrl.isEmpty)
+                                                      ? null
+                                                      : () => _openImageViewer(
+                                                            title: nombre,
+                                                            imagenPath: imagenPath,
+                                                            imagenUrl: imagenUrl,
+                                                          ),
+                                                  child: _ProductoThumb(
+                                                    imagenPath: imagenPath,
+                                                    imagenUrl: imagenUrl,
+                                                  ),
+                                                ),
+                                              ),
+                                              DataCell(
+                                                Text(
+                                                  p.codigo.isEmpty ? '-' : p.codigo,
+                                                  style: const TextStyle(fontWeight: FontWeight.w700),
+                                                ),
+                                              ),
+                                              DataCell(
+                                                SizedBox(
+                                                  width: 240,
+                                                  child: Text(
+                                                    nombre.isEmpty ? '-' : nombre,
+                                                    maxLines: 2,
+                                                    overflow: TextOverflow.ellipsis,
+                                                    style: const TextStyle(fontWeight: FontWeight.w700),
+                                                  ),
+                                                ),
+                                              ),
+                                              DataCell(
+                                                SizedBox(
+                                                  width: 320,
+                                                  child: Text(
+                                                    desc.trim().isEmpty ? '-' : desc.trim(),
+                                                    maxLines: 2,
+                                                    overflow: TextOverflow.ellipsis,
+                                                    style: TextStyle(
+                                                      color: Palette.ink.withValues(alpha: 0.85),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                              DataCell(_ChipTipo(tipoItem: tipoItem)),
+                                              DataCell(Text(unidadNombre.isEmpty ? '-' : unidadNombre)),
+                                              DataCell(Text(stock.toString())),
+                                              DataCell(Text(precio.toStringAsFixed(2))),
+                                              DataCell(
+                                                Row(
+                                                  children: [
+                                                    IconButton(
+                                                      tooltip: 'Editar',
+                                                      onPressed: () => _openEditDialog(
+                                                        id: id,
+                                                        product: p,
+                                                        unidades: unidades,
+                                                        almacenes: almacenes,
+                                                      ),
+                                                      icon: Icon(Icons.edit_rounded, color: Palette.primary),
+                                                    ),
+                                                    IconButton(
+                                                      tooltip: 'Eliminar',
+                                                      onPressed: () => _deleteProducto(
+                                                        id,
+                                                        nombre,
+                                                        imagenPath: imagenPath,
+                                                      ),
+                                                      icon: Icon(
+                                                        Icons.delete_outline_rounded,
+                                                        color: Palette.statsDanger.withValues(alpha: 0.95),
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ],
+                                          );
+                                        }).toList(),
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
+                    ),
                   ),
                 );
               },
@@ -782,6 +599,282 @@ class _ProductosPageState extends State<ProductosPage> {
     );
   }
 }
+
+// ===================== BOTÓN PILL (FAB) =====================
+
+class _FloatingAddPill extends StatelessWidget {
+  final bool enabled;
+  final VoidCallback? onTap;
+
+  const _FloatingAddPill({required this.enabled, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: enabled ? onTap : null,
+        borderRadius: BorderRadius.circular(999),
+        child: AnimatedOpacity(
+          duration: const Duration(milliseconds: 160),
+          opacity: enabled ? 1 : 0.55,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              // ✅ un solo fondo
+              color: Palette.white.withValues(alpha: 0.92),
+              borderRadius: BorderRadius.circular(999),
+              // ✅ solo borde celeste
+              border: Border.all(
+                color: Palette.button.withValues(alpha: 0.95),
+                width: 3,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.12),
+                  blurRadius: 18,
+                  offset: const Offset(0, 10),
+                ),
+              ],
+            ),
+            child: _GradientIconText(compact: true, enabled: enabled),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _GradientIconText extends StatelessWidget {
+  final bool compact;
+  final bool enabled;
+
+  const _GradientIconText({required this.compact, required this.enabled});
+
+  @override
+  Widget build(BuildContext context) {
+    final gradient = LinearGradient(
+      begin: Alignment.centerLeft,
+      end: Alignment.centerRight,
+      colors: [
+        Palette.gradientStart.withValues(alpha: enabled ? 1 : 0.55),
+        Palette.secondary.withValues(alpha: enabled ? 1 : 0.55),
+      ],
+    );
+
+    return ShaderMask(
+      shaderCallback: (rect) => gradient.createShader(rect),
+      blendMode: BlendMode.srcIn,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.add_rounded, size: 20),
+          const SizedBox(width: 8),
+          Text(
+            compact ? 'Agregar' : 'Agregar producto',
+            style: const TextStyle(
+              fontWeight: FontWeight.w900,
+              fontSize: 14,
+              letterSpacing: 0.2,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ===================== HEADER =====================
+
+class _HeaderProductos extends StatelessWidget {
+  final bool compact;
+  final bool canAdd;
+  final VoidCallback onAdd;
+
+  const _HeaderProductos({
+    required this.compact,
+    required this.canAdd,
+    required this.onAdd,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+          colors: [
+            Palette.gradientStart.withValues(alpha: 0.95),
+            Palette.secondary.withValues(alpha: 0.90),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.08),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 54,
+            height: 54,
+            decoration: BoxDecoration(
+              color: Palette.white.withValues(alpha: 0.18),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Palette.white.withValues(alpha: 0.35)),
+            ),
+            child: const Icon(
+              Icons.inventory_2_rounded,
+              color: Palette.white,
+              size: 28,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Gestión de Productos',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: compact ? 18 : 22,
+                    fontWeight: FontWeight.w900,
+                    color: Palette.white,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Administra productos e insumos rápidamente',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: compact ? 12 : 13,
+                    color: Palette.white.withValues(alpha: 0.92),
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+
+          // ✅ botón del header: solo borde celeste + texto degradado
+          if (!compact)
+            InkWell(
+              onTap: canAdd ? onAdd : null,
+              borderRadius: BorderRadius.circular(999),
+              child: AnimatedOpacity(
+                duration: const Duration(milliseconds: 160),
+                opacity: canAdd ? 1 : 0.55,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: Palette.white.withValues(alpha: 0.22), // leve, para que no "corte"
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(
+                      color: Palette.button.withValues(alpha: 0.90),
+                      width: 2.4,
+                    ),
+                  ),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: Palette.white.withValues(alpha: 0.80),
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(
+                        color: Palette.button.withValues(alpha: 0.22),
+                        width: 1.4,
+                      ),
+                    ),
+                    child: _GradientIconText(compact: false, enabled: canAdd),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+// ===================== SEARCH BAR =====================
+
+class _SearchBarProductos extends StatelessWidget {
+  final TextEditingController controller;
+  const _SearchBarProductos({required this.controller});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 50,
+      decoration: BoxDecoration(
+        color: Palette.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Palette.button.withValues(alpha: 0.22)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 16,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      child: Row(
+        children: [
+          Icon(Icons.search_rounded, color: Palette.ink.withValues(alpha: 0.45)),
+          const SizedBox(width: 10),
+          Expanded(
+            child: TextField(
+              controller: controller,
+              decoration: InputDecoration(
+                hintText: 'Buscar por código o nombre…',
+                border: InputBorder.none,
+                hintStyle: TextStyle(
+                  color: Palette.ink.withValues(alpha: 0.35),
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              style: const TextStyle(
+                color: Palette.ink,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ),
+          ValueListenableBuilder<TextEditingValue>(
+            valueListenable: controller,
+            builder: (_, v, __) {
+              final has = v.text.trim().isNotEmpty;
+              if (!has) return const SizedBox(width: 10);
+              return InkWell(
+                onTap: () => controller.clear(),
+                borderRadius: BorderRadius.circular(12),
+                child: Padding(
+                  padding: const EdgeInsets.all(6),
+                  child: Icon(
+                    Icons.close_rounded,
+                    color: Palette.ink.withValues(alpha: 0.55),
+                  ),
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ===================== RESTO DE WIDGETS =====================
 
 class _ChipTipo extends StatelessWidget {
   final String tipoItem;
@@ -914,16 +1007,20 @@ class _ProductoCardMobile extends StatelessWidget {
                       child: imagenUrl.trim().isEmpty
                           ? Container(
                               color: Palette.fieldBg,
-                              child: Icon(Icons.image_outlined,
-                                  color: Palette.ink.withValues(alpha: 0.25)),
+                              child: Icon(
+                                Icons.image_outlined,
+                                color: Palette.ink.withValues(alpha: 0.25),
+                              ),
                             )
                           : Image.network(
                               imagenUrl,
                               fit: BoxFit.cover,
                               errorBuilder: (_, __, ___) => Container(
                                 color: Palette.fieldBg,
-                                child: Icon(Icons.broken_image_rounded,
-                                    color: Palette.statsDanger.withValues(alpha: 0.9)),
+                                child: Icon(
+                                  Icons.broken_image_rounded,
+                                  color: Palette.statsDanger.withValues(alpha: 0.9),
+                                ),
                               ),
                             ),
                     ),
@@ -971,7 +1068,6 @@ class _ProductoCardMobile extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 10),
-
             if (descripcion.trim().isNotEmpty)
               Text(
                 descripcion.trim(),
@@ -993,9 +1089,7 @@ class _ProductoCardMobile extends StatelessWidget {
                   fontSize: 12.5,
                 ),
               ),
-
             const SizedBox(height: 10),
-
             Wrap(
               spacing: 10,
               runSpacing: 8,
@@ -1005,9 +1099,7 @@ class _ProductoCardMobile extends StatelessWidget {
                 _MiniInfoChip(label: 'Precio', value: 'Bs ${precio.toStringAsFixed(2)}'),
               ],
             ),
-
             const SizedBox(height: 12),
-
             Row(
               children: [
                 Expanded(
@@ -1032,9 +1124,7 @@ class _ProductoCardMobile extends StatelessWidget {
                     label: const Text('Eliminar'),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: Palette.statsDanger.withValues(alpha: 0.95),
-                      side: BorderSide(
-                        color: Palette.statsDanger.withValues(alpha: 0.35),
-                      ),
+                      side: BorderSide(color: Palette.statsDanger.withValues(alpha: 0.35)),
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                       textStyle: const TextStyle(fontWeight: FontWeight.w900),
