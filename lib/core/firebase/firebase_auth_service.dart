@@ -8,6 +8,11 @@ class FirebaseAuthService implements AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
+  // ✅ Mantener una sola instancia
+  final GoogleSignIn _googleSignIn = GoogleSignIn(
+    scopes: ['email'],
+  );
+
   // ──────────────────────────────────────────────
   //  ESTADO DE LOGIN
   // ──────────────────────────────────────────────
@@ -60,7 +65,6 @@ class FirebaseAuthService implements AuthService {
         password: password,
       );
 
-      // ✅ Manual: NO guardamos name aquí
       await _db.collection('usuarios').doc(cred.user!.uid).set({
         'email': email.trim(),
         'role': 'cliente',
@@ -78,9 +82,15 @@ class FirebaseAuthService implements AuthService {
   @override
   Future<GoogleLoginResult> signInWithGoogle() async {
     try {
-      final google = GoogleSignIn();
-      final GoogleSignInAccount? googleUser = await google.signIn();
+      // ✅ Fuerza limpiar selección previa (ayuda a mostrar chooser)
+      try {
+        await _googleSignIn.signOut();
+      } catch (_) {}
+
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+
       if (googleUser == null) {
+        // cancelado por el usuario
         return const GoogleLoginResult(isNewUser: false);
       }
 
@@ -107,11 +117,9 @@ class FirebaseAuthService implements AuthService {
 
       final payload = <String, dynamic>{
         'email': userCred.user!.email,
-        // 👇 solo asignar role si NO existe
         if (!hasRole) 'role': 'cliente',
         'profile_completed': isProfileCompleted ? true : false,
-        if (userCred.user!.displayName != null)
-          'name': userCred.user!.displayName,
+        if (userCred.user!.displayName != null) 'name': userCred.user!.displayName,
         if (userCred.user!.photoURL != null) 'photo': userCred.user!.photoURL,
         if (!doc.exists) 'created_at': FieldValue.serverTimestamp(),
         'updated_at': FieldValue.serverTimestamp(),
@@ -126,6 +134,8 @@ class FirebaseAuthService implements AuthService {
       );
     } on FirebaseAuthException catch (e) {
       throw Exception(_firebaseError(e));
+    } catch (e) {
+      throw Exception('Error al iniciar con Google: $e');
     }
   }
 
@@ -134,8 +144,17 @@ class FirebaseAuthService implements AuthService {
   // ──────────────────────────────────────────────
   @override
   Future<void> logout() async {
-    await GoogleSignIn().signOut();
+    // ✅ Primero Firebase
     await _auth.signOut();
+
+    // ✅ Luego Google (disconnect fuerza mejor que vuelva a preguntar cuenta)
+    try {
+      await _googleSignIn.disconnect();
+    } catch (_) {
+      try {
+        await _googleSignIn.signOut();
+      } catch (_) {}
+    }
   }
 
   // ──────────────────────────────────────────────

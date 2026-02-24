@@ -3,6 +3,7 @@
 // ✅ Responsive:
 // - Desktop: sidebar por hover (igual que antes)
 // - Mobile: sidebar overlay (drawer) con botón ☰ y scrim, sin achicar el contenido
+// ✅ Incluye chat footer global para admin (tipo messenger)
 
 import 'dart:async';
 import 'dart:math' as math;
@@ -15,10 +16,10 @@ import 'package:quimisol_movil/features/features_admin/categorias/views/categori
 import 'package:quimisol_movil/features/features_admin/home/views/dashboard_page.dart';
 import 'package:quimisol_movil/features/features_admin/pedidos/views/pedidos.dart';
 import 'package:quimisol_movil/features/features_admin/productos/views/productos.dart';
+import 'package:quimisol_movil/features/features_admin/soporte/pages/admin_chat_footer_panel.dart';
 import 'package:quimisol_movil/features/features_admin/unidades/views/unidades.dart';
 import 'package:quimisol_movil/features/features_admin/usuarios/views/usuarios.dart';
-
-
+import 'package:quimisol_movil/shared/services/auth_service.dart';
 
 class SidebarShellPage extends StatefulWidget {
   const SidebarShellPage({super.key});
@@ -36,7 +37,6 @@ class _SidebarShellPageState extends State<SidebarShellPage> {
 
   Timer? _closeTimer;
 
-  // 🎨 Colores
   Color get _main => Palette.button; // rosa
   Color get _accent => Palette.primary; // morado
 
@@ -114,7 +114,6 @@ class _SidebarShellPageState extends State<SidebarShellPage> {
     });
   }
 
-  /// ✅ Mapea URL -> índice del sidebar
   int _indexFromPath(String path) {
     if (path.startsWith('/usuarios')) return 1;
     if (path.startsWith('/almacenes')) return 2;
@@ -136,6 +135,59 @@ class _SidebarShellPageState extends State<SidebarShellPage> {
   void _goTo(int index) {
     setState(() => _currentIndex = index);
     // ❌ No navegar aquí (tu decisión original)
+  }
+
+  Future<void> _logout() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      barrierDismissible: true,
+      builder: (ctx) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+          title: const Text(
+            'Cerrar sesión',
+            style: TextStyle(fontWeight: FontWeight.w800),
+          ),
+          content: const Text('¿Seguro que deseas cerrar sesión?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton.icon(
+              onPressed: () => Navigator.of(ctx).pop(true),
+              icon: const Icon(Icons.logout_rounded, size: 18),
+              label: const Text('Salir'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Palette.button,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirm != true) return;
+
+    try {
+      final auth = Modular.get<AuthService>();
+      await auth.logout();
+
+      if (!mounted) return;
+      Modular.to.navigate('/login');
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('No se pudo cerrar sesión: $e'),
+          backgroundColor: Colors.red.shade600,
+        ),
+      );
+    }
   }
 
   @override
@@ -181,36 +233,44 @@ class _SidebarShellPageState extends State<SidebarShellPage> {
     return LayoutBuilder(
       builder: (context, c) {
         final w = c.maxWidth;
-
-        // ✅ Breakpoint: aquí decides qué consideras "móvil"
         final isMobile = w < 900;
 
-        // ✅ Ancho del drawer en móvil (no ocupa todo)
         final double mobileSidebarW =
             math.min(288.0, (w * 0.82)).clamp(240.0, 320.0);
 
-        final body = Padding(
-          padding: EdgeInsets.all(isMobile ? 10 : 14),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(18),
-            child: Container(
-              color: Palette.white,
-              child: pages[_currentIndex],
+        // ✅ BODY con chat footer global admin
+        final body = Stack(
+          children: [
+            Positioned.fill(
+              child: Padding(
+                padding: EdgeInsets.all(isMobile ? 10 : 14),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(18),
+                  child: Container(
+                    color: Palette.white,
+                    child: pages[_currentIndex],
+                  ),
+                ),
+              ),
             ),
-          ),
+
+            // ✅ Chat footer global (izquierda)
+            Positioned(
+              left: isMobile ? 10 : 18,
+              bottom: isMobile ? 30 : 16,
+              child: const AdminChatFooterPanel(),
+            ),
+          ],
         );
 
-        // ===================== MOBILE =====================
         if (isMobile) {
           return Scaffold(
             backgroundColor: Palette.fieldBg,
             body: SafeArea(
               child: Stack(
                 children: [
-                  // BODY full width (ya no se achica)
                   Positioned.fill(child: body),
 
-                  // Botón flotante para abrir sidebar
                   Positioned(
                     top: 10,
                     left: 10,
@@ -247,7 +307,6 @@ class _SidebarShellPageState extends State<SidebarShellPage> {
                     ),
                   ),
 
-                  // Scrim (cerrar tocando afuera)
                   if (_sidebarOpen)
                     Positioned.fill(
                       child: GestureDetector(
@@ -259,7 +318,6 @@ class _SidebarShellPageState extends State<SidebarShellPage> {
                       ),
                     ),
 
-                  // Sidebar overlay
                   AnimatedPositioned(
                     duration: const Duration(milliseconds: 220),
                     curve: Curves.easeOutCubic,
@@ -269,15 +327,16 @@ class _SidebarShellPageState extends State<SidebarShellPage> {
                     child: Material(
                       color: Colors.transparent,
                       child: _Sidebar(
-                        isOpen: true, // overlay siempre abierto (labels visibles)
+                        isOpen: true,
                         currentIndex: _currentIndex,
                         items: _items,
                         mainColor: _main,
                         accentColor: _accent,
                         onChanged: (i) {
                           _goTo(i);
-                          _closeSidebar(); // ✅ en móvil se cierra al elegir
+                          _closeSidebar();
                         },
+                        onLogout: _logout,
                         openWidth: mobileSidebarW,
                         closedWidth: 86,
                       ),
@@ -289,12 +348,10 @@ class _SidebarShellPageState extends State<SidebarShellPage> {
           );
         }
 
-        // ===================== DESKTOP (igual que antes) =====================
         return Scaffold(
           backgroundColor: Palette.fieldBg,
           body: Row(
             children: [
-              /// 🔹 TRIGGER (borde izquierdo)
               MouseRegion(
                 onEnter: (_) {
                   _hoveringTrigger = true;
@@ -307,7 +364,6 @@ class _SidebarShellPageState extends State<SidebarShellPage> {
                 child: const SizedBox(width: 6, height: double.infinity),
               ),
 
-              /// 🔹 SIDEBAR (pegado a la izquierda)
               MouseRegion(
                 onEnter: (_) {
                   _hoveringSidebar = true;
@@ -324,12 +380,12 @@ class _SidebarShellPageState extends State<SidebarShellPage> {
                   mainColor: _main,
                   accentColor: _accent,
                   onChanged: _goTo,
+                  onLogout: _logout,
                   openWidth: 288,
                   closedWidth: 86,
                 ),
               ),
 
-              /// 🔹 BODY
               Expanded(child: body),
             ],
           ),
@@ -358,8 +414,8 @@ class _Sidebar extends StatelessWidget {
   final Color mainColor;
   final Color accentColor;
   final ValueChanged<int> onChanged;
+  final VoidCallback onLogout;
 
-  // ✅ ahora configurable para responsive
   final double openWidth;
   final double closedWidth;
 
@@ -370,6 +426,7 @@ class _Sidebar extends StatelessWidget {
     required this.mainColor,
     required this.accentColor,
     required this.onChanged,
+    required this.onLogout,
     required this.openWidth,
     required this.closedWidth,
   });
@@ -415,6 +472,10 @@ class _Sidebar extends StatelessWidget {
                 );
               },
             ),
+          ),
+          _LogoutTile(
+            open: isOpen,
+            onTap: onLogout,
           ),
           _SidebarFooter(open: isOpen),
         ],
@@ -519,7 +580,8 @@ class _SidebarItemTile extends StatelessWidget {
         color: bg,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: selected ? mainColor.withValues(alpha: 0.5) : Colors.transparent,
+          color:
+              selected ? mainColor.withValues(alpha: 0.5) : Colors.transparent,
         ),
       ),
       child: InkWell(
@@ -551,6 +613,60 @@ class _SidebarItemTile extends StatelessWidget {
                 ),
               ],
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _LogoutTile extends StatelessWidget {
+  final bool open;
+  final VoidCallback onTap;
+
+  const _LogoutTile({
+    required this.open,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(10, 4, 10, 6),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.red.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: Colors.red.withValues(alpha: 0.22),
+          ),
+        ),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(14),
+          child: Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: open ? 14 : 10,
+              vertical: 12,
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.logout_rounded, color: Colors.red.shade600, size: 21),
+                if (open) ...[
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Cerrar sesión',
+                      style: TextStyle(
+                        color: Colors.red.shade700,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13.2,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
           ),
         ),
       ),

@@ -138,7 +138,7 @@ class _PerfilPageState extends State<PerfilPage> {
                           ),
                           _QuickTile(
                             icon: Icons.support_agent_rounded,
-                            label: 'Ayuda',
+                            label: 'Soporte',
                             color: pink,
                             onTap: () {},
                           ),
@@ -153,13 +153,6 @@ class _PerfilPageState extends State<PerfilPage> {
                   const _SectionTitleX(title: 'Perfil'),
                   const SizedBox(height: 14),
 
-                  _MenuRowSimple(
-                    icon: Icons.restaurant_menu_rounded,
-                    label: 'Preferencias de comida',
-                    accent: pink,
-                    onTap: () {},
-                  ),
-                  const SizedBox(height: 18),
 
                   // ✅ Direcciones -> abre UbicacionesPage
                   _MenuRowSimple(

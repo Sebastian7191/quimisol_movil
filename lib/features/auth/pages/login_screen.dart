@@ -125,7 +125,10 @@ class _LoginScreenState extends State<LoginScreen> {
   void _showErrorSnack(String message) {
     final clean = message.replaceAll('Exception: ', '');
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(clean), backgroundColor: Colors.redAccent),
+      SnackBar(
+        content: Text(clean),
+        backgroundColor: Colors.redAccent,
+      ),
     );
   }
 
@@ -181,7 +184,7 @@ class _LoginScreenState extends State<LoginScreen> {
             Icon(
               FontAwesomeIcons.google,
               size: 18,
-              color: Palette.primary, // rojo Google
+              color: Palette.primary,
             ),
             SizedBox(width: 12),
             Text(
@@ -209,8 +212,7 @@ class _LoginScreenState extends State<LoginScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
             child: ConstrainedBox(
               constraints: BoxConstraints(
-                minHeight:
-                    media.size.height -
+                minHeight: media.size.height -
                     media.padding.top -
                     media.padding.bottom,
               ),
@@ -281,6 +283,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             child: TextButton(
                               onPressed: () {
                                 if (_isLoading) return;
+                                // TODO: implementar recuperación de contraseña
                               },
                               child: const Text(
                                 '¿Olvidaste tu contraseña?',
