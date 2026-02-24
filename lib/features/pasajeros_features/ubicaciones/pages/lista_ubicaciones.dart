@@ -137,7 +137,7 @@ class _UbicacionesPageState extends State<UbicacionesPage> {
                       child: Text(
                         'Inicia sesión para ver tus ubicaciones.',
                         style: TextStyle(
-                          color: ink.withOpacity(0.60),
+                          color: ink.withValues(alpha: 0.60),
                           fontWeight: FontWeight.w800,
                         ),
                       ),
@@ -170,14 +170,14 @@ class _UbicacionesPageState extends State<UbicacionesPage> {
                                   Icon(
                                     Icons.location_on_outlined,
                                     size: 54,
-                                    color: ink.withOpacity(0.28),
+                                    color: ink.withValues(alpha: 0.28),
                                   ),
                                   const SizedBox(height: 10),
                                   Text(
                                     'Aún no tienes ubicaciones guardadas.',
                                     textAlign: TextAlign.center,
                                     style: TextStyle(
-                                      color: ink.withOpacity(0.65),
+                                      color: ink.withValues(alpha: 0.65),
                                       fontWeight: FontWeight.w900,
                                     ),
                                   ),
@@ -186,7 +186,7 @@ class _UbicacionesPageState extends State<UbicacionesPage> {
                                     'Agrega una ubicación para entregas más rápidas.',
                                     textAlign: TextAlign.center,
                                     style: TextStyle(
-                                      color: ink.withOpacity(0.50),
+                                      color: ink.withValues(alpha: 0.50),
                                       fontWeight: FontWeight.w700,
                                     ),
                                   ),
@@ -321,7 +321,7 @@ class _DeptSectionHeader extends StatelessWidget {
             child: Text(
               title,
               style: TextStyle(
-                color: ink.withOpacity(0.85),
+                color: ink.withValues(alpha: 0.85),
                 fontWeight: FontWeight.w900,
                 fontSize: 13.2,
                 letterSpacing: 0.2,
@@ -331,7 +331,7 @@ class _DeptSectionHeader extends StatelessWidget {
           Container(
             height: 1,
             width: 90,
-            color: ink.withOpacity(0.10),
+            color: ink.withValues(alpha: 0.10),
           ),
         ],
       ),
@@ -375,10 +375,10 @@ class _UbicCardState extends State<_UbicCard> {
           decoration: BoxDecoration(
             color: Palette.white,
             borderRadius: BorderRadius.circular(22),
-            border: Border.all(color: ink.withOpacity(0.06)),
+            border: Border.all(color: ink.withValues(alpha: 0.06)),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.03),
+                color: Colors.black.withValues(alpha: 0.03),
                 blurRadius: 20,
                 offset: const Offset(0, 12),
               ),
@@ -391,7 +391,7 @@ class _UbicCardState extends State<_UbicCard> {
                 height: 52,
                 width: 52,
                 decoration: BoxDecoration(
-                  color: pink.withOpacity(0.12),
+                  color: pink.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(18),
                 ),
                 child: Icon(
@@ -421,7 +421,7 @@ class _UbicCardState extends State<_UbicCard> {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        color: ink.withOpacity(0.62),
+                        color: ink.withValues(alpha: 0.62),
                         fontWeight: FontWeight.w800,
                         fontSize: 13,
                         height: 1.25,
@@ -434,7 +434,7 @@ class _UbicCardState extends State<_UbicCard> {
               _SoftCircleBtn(
                 icon: Icons.delete_outline_rounded,
                 onTap: widget.onDelete,
-                fill: const Color(0xFFFF3B30).withOpacity(0.10),
+                fill: const Color(0xFFFF3B30).withValues(alpha: 0.10),
                 iconColor: const Color(0xFFFF3B30),
               ),
             ],
@@ -471,10 +471,10 @@ class _SoftCircleBtn extends StatelessWidget {
         decoration: BoxDecoration(
           color: fill,
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: Palette.ink.withOpacity(0.06)),
+          border: Border.all(color: Palette.ink.withValues(alpha: 0.06)),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.03),
+              color: Colors.black.withValues(alpha: 0.03),
               blurRadius: 18,
               offset: const Offset(0, 10),
             ),
@@ -519,7 +519,7 @@ class _PrimaryBigButtonState extends State<_PrimaryBigButton> {
             borderRadius: BorderRadius.circular(20),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.10),
+                color: Colors.black.withValues(alpha: 0.10),
                 blurRadius: 18,
                 offset: const Offset(0, 10),
               ),

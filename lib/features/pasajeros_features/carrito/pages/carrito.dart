@@ -348,13 +348,13 @@ class _CarritoPageState extends State<CarritoPage> {
                             Icon(
                               Icons.shopping_cart_outlined,
                               size: 52,
-                              color: ink.withOpacity(0.35),
+                              color: ink.withValues(alpha: 0.35),
                             ),
                             const SizedBox(height: 10),
                             Text(
                               'Tu carrito está vacío',
                               style: TextStyle(
-                                color: ink.withOpacity(0.65),
+                                color: ink.withValues(alpha: 0.65),
                                 fontWeight: FontWeight.w800,
                               ),
                             ),
@@ -382,7 +382,7 @@ class _CarritoPageState extends State<CarritoPage> {
                                 child: Text(
                                   'Verificando departamento del almacén...',
                                   style: TextStyle(
-                                    color: ink.withOpacity(0.65),
+                                    color: ink.withValues(alpha: 0.65),
                                     fontWeight: FontWeight.w800,
                                   ),
                                 ),
@@ -398,7 +398,7 @@ class _CarritoPageState extends State<CarritoPage> {
                             child: Text(
                               'Ubicaciones disponibles en: ${_allowedDeptos.join(", ")}',
                               style: TextStyle(
-                                color: ink.withOpacity(0.55),
+                                color: ink.withValues(alpha: 0.55),
                                 fontWeight: FontWeight.w800,
                               ),
                             ),
@@ -435,7 +435,7 @@ class _CarritoPageState extends State<CarritoPage> {
                         child: Text(
                           'Total a pagar',
                           style: TextStyle(
-                            color: ink.withOpacity(0.55),
+                            color: ink.withValues(alpha: 0.55),
                             fontWeight: FontWeight.w800,
                           ),
                         ),
@@ -567,13 +567,13 @@ class _UbicacionDropdown extends StatelessWidget {
             ink: ink,
             child: Row(
               children: [
-                Icon(Icons.place_outlined, color: ink.withOpacity(0.45)),
+                Icon(Icons.place_outlined, color: ink.withValues(alpha: 0.45)),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
                     'No hay ubicaciones para el departamento del almacén.',
                     style: TextStyle(
-                      color: ink.withOpacity(0.70),
+                      color: ink.withValues(alpha: 0.70),
                       fontWeight: FontWeight.w800,
                     ),
                   ),
@@ -648,7 +648,7 @@ class _UbicacionDropdown extends StatelessWidget {
                 child: Text(
                   dept,
                   style: TextStyle(
-                    color: ink.withOpacity(0.55),
+                    color: ink.withValues(alpha: 0.55),
                     fontWeight: FontWeight.w900,
                     fontSize: 12.4,
                   ),
@@ -716,7 +716,7 @@ class _UbicacionDropdown extends StatelessWidget {
                     isExpanded: true,
                     icon: Icon(
                       Icons.keyboard_arrow_down_rounded,
-                      color: ink.withOpacity(0.60),
+                      color: ink.withValues(alpha: 0.60),
                     ),
                     items: items,
                     selectedItemBuilder: (_) => selectedWidgets,
@@ -740,7 +740,7 @@ class _UbicacionDropdown extends StatelessWidget {
       decoration: BoxDecoration(
         color: Palette.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: ink.withOpacity(0.06)),
+        border: Border.all(color: ink.withValues(alpha: 0.06)),
       ),
       child: child,
     );
@@ -846,7 +846,7 @@ class _CartCard extends StatelessWidget {
               decoration: BoxDecoration(
                 color: Palette.white,
                 borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: ink.withOpacity(0.05)),
+                border: Border.all(color: ink.withValues(alpha: 0.05)),
               ),
               child: Row(
                 children: [
@@ -862,11 +862,11 @@ class _CartCard extends StatelessWidget {
                           errorBuilder: (_, __, ___) => Container(
                             height: 62,
                             width: 62,
-                            color: ink.withOpacity(0.06),
+                            color: ink.withValues(alpha: 0.06),
                             alignment: Alignment.center,
                             child: Icon(
                               Icons.image_not_supported_outlined,
-                              color: ink.withOpacity(0.45),
+                              color: ink.withValues(alpha: 0.45),
                             ),
                           ),
                         ),
@@ -885,7 +885,7 @@ class _CartCard extends StatelessWidget {
                               borderRadius: BorderRadius.circular(10),
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black.withOpacity(0.14),
+                                  color: Colors.black.withValues(alpha: 0.14),
                                   blurRadius: 10,
                                   offset: const Offset(0, 6),
                                 ),
@@ -933,7 +933,7 @@ class _CartCard extends StatelessWidget {
                                 child: Icon(
                                   Icons.delete_outline_rounded,
                                   size: 22,
-                                  color: ink.withOpacity(0.45),
+                                  color: ink.withValues(alpha: 0.45),
                                 ),
                               ),
                             ),
@@ -989,7 +989,7 @@ class _CartCard extends StatelessWidget {
                                     Text(
                                       'Bs. ${base.toStringAsFixed(2)}',
                                       style: TextStyle(
-                                        color: ink.withOpacity(0.45),
+                                        color: ink.withValues(alpha: 0.45),
                                         fontWeight: FontWeight.w800,
                                         fontSize: 12.2,
                                         decoration: TextDecoration.lineThrough,
@@ -1001,7 +1001,7 @@ class _CartCard extends StatelessWidget {
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                       style: TextStyle(
-                                        color: Colors.red.withOpacity(0.95),
+                                        color: Colors.red.withValues(alpha: 0.95),
                                         fontWeight: FontWeight.w900,
                                         fontSize: 12.0,
                                       ),
@@ -1095,9 +1095,9 @@ class _QtyPillState extends State<_QtyPill> {
         height: 40,
         padding: const EdgeInsets.symmetric(horizontal: 6),
         decoration: BoxDecoration(
-          color: widget.primary.withOpacity(0.10),
+          color: widget.primary.withValues(alpha: 0.10),
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: widget.primary.withOpacity(0.16)),
+          border: Border.all(color: widget.primary.withValues(alpha: 0.16)),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1187,7 +1187,7 @@ class _SummaryRow extends StatelessWidget {
         Text(
           left,
           style: TextStyle(
-            color: ink.withOpacity(0.55),
+            color: ink.withValues(alpha: 0.55),
             fontWeight: FontWeight.w800,
           ),
         ),

@@ -304,7 +304,7 @@ class _UbicacionesMiniSection extends StatelessWidget {
           Text(
             'Debes agregar al menos una ubicación',
             style: TextStyle(
-              color: ink.withOpacity(0.6),
+              color: ink.withValues(alpha: 0.6),
               fontWeight: FontWeight.w700,
             ),
           )
@@ -318,7 +318,7 @@ class _UbicacionesMiniSection extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: Palette.white,
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: ink.withOpacity(0.06)),
+                  border: Border.all(color: ink.withValues(alpha: 0.06)),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -333,7 +333,7 @@ class _UbicacionesMiniSection extends StatelessWidget {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        color: ink.withOpacity(0.65),
+                        color: ink.withValues(alpha: 0.65),
                         fontWeight: FontWeight.w700,
                         fontSize: 13,
                       ),

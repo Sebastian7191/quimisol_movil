@@ -267,7 +267,7 @@ class _DetallePedidoPageState extends State<DetallePedidoPage> {
                       child: Text(
                         'Inicia sesión para ver el pedido.',
                         style: TextStyle(
-                          color: purple.withOpacity(0.75),
+                          color: purple.withValues(alpha: 0.75),
                           fontWeight: FontWeight.w800,
                         ),
                       ),
@@ -288,7 +288,7 @@ class _DetallePedidoPageState extends State<DetallePedidoPage> {
                                 'Error al cargar el pedido.\n${snap.error}',
                                 textAlign: TextAlign.center,
                                 style: TextStyle(
-                                  color: purple.withOpacity(0.75),
+                                  color: purple.withValues(alpha: 0.75),
                                   fontWeight: FontWeight.w800,
                                 ),
                               ),
@@ -302,7 +302,7 @@ class _DetallePedidoPageState extends State<DetallePedidoPage> {
                             child: Text(
                               'Pedido no encontrado.',
                               style: TextStyle(
-                                color: purple.withOpacity(0.75),
+                                color: purple.withValues(alpha: 0.75),
                                 fontWeight: FontWeight.w800,
                               ),
                             ),
@@ -377,11 +377,11 @@ class _DetallePedidoPageState extends State<DetallePedidoPage> {
                                       color: Palette.card,
                                       borderRadius: BorderRadius.circular(18),
                                       border: Border.all(
-                                        color: Colors.white.withOpacity(0.65),
+                                        color: Colors.white.withValues(alpha: 0.65),
                                       ),
                                       boxShadow: [
                                         BoxShadow(
-                                          color: Colors.black.withOpacity(0.06),
+                                          color: Colors.black.withValues(alpha: 0.06),
                                           blurRadius: 18,
                                           offset: const Offset(0, 10),
                                         ),
@@ -428,7 +428,7 @@ class _DetallePedidoPageState extends State<DetallePedidoPage> {
                                               'Resumen',
                                               style: TextStyle(
                                                 color:
-                                                    purple.withOpacity(0.80),
+                                                    purple.withValues(alpha: 0.80),
                                                 fontWeight: FontWeight.w900,
                                               ),
                                             ),
@@ -461,7 +461,7 @@ class _DetallePedidoPageState extends State<DetallePedidoPage> {
 
                                         const SizedBox(height: 10),
                                         Divider(
-                                          color: purple.withOpacity(0.12),
+                                          color: purple.withValues(alpha: 0.12),
                                           height: 1,
                                         ),
                                         const SizedBox(height: 10),
@@ -483,7 +483,7 @@ class _DetallePedidoPageState extends State<DetallePedidoPage> {
                                         ),
                                         const SizedBox(height: 10),
                                         Divider(
-                                          color: purple.withOpacity(0.12),
+                                          color: purple.withValues(alpha: 0.12),
                                           height: 1,
                                         ),
                                         const SizedBox(height: 10),
@@ -504,7 +504,7 @@ class _DetallePedidoPageState extends State<DetallePedidoPage> {
                                     children: [
                                       Icon(
                                         Icons.shopping_bag_rounded,
-                                        color: purple.withOpacity(0.90),
+                                        color: purple.withValues(alpha: 0.90),
                                         size: 18,
                                       ),
                                       const SizedBox(width: 8),
@@ -520,7 +520,7 @@ class _DetallePedidoPageState extends State<DetallePedidoPage> {
                                       Text(
                                         '(${items.length})',
                                         style: TextStyle(
-                                          color: purple.withOpacity(0.75),
+                                          color: purple.withValues(alpha: 0.75),
                                           fontWeight: FontWeight.w800,
                                         ),
                                       ),
@@ -535,7 +535,7 @@ class _DetallePedidoPageState extends State<DetallePedidoPage> {
                                         child: Text(
                                           'Este pedido no tiene items.',
                                           style: TextStyle(
-                                            color: purple.withOpacity(0.75),
+                                            color: purple.withValues(alpha: 0.75),
                                             fontWeight: FontWeight.w800,
                                           ),
                                         ),
@@ -573,11 +573,11 @@ class _DetallePedidoPageState extends State<DetallePedidoPage> {
                                 color: Palette.white,
                                 border: Border(
                                   top: BorderSide(
-                                      color: purple.withOpacity(0.10)),
+                                      color: purple.withValues(alpha: 0.10)),
                                 ),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: Colors.black.withOpacity(0.06),
+                                    color: Colors.black.withValues(alpha: 0.06),
                                     blurRadius: 18,
                                     offset: const Offset(0, -10),
                                   ),
@@ -591,7 +591,7 @@ class _DetallePedidoPageState extends State<DetallePedidoPage> {
                                       Icon(
                                         Icons.route_rounded,
                                         size: 18,
-                                        color: purple.withOpacity(0.90),
+                                        color: purple.withValues(alpha: 0.90),
                                       ),
                                       const SizedBox(width: 8),
                                       Text(
@@ -605,7 +605,7 @@ class _DetallePedidoPageState extends State<DetallePedidoPage> {
                                       Text(
                                         badge.label,
                                         style: TextStyle(
-                                          color: purple.withOpacity(0.85),
+                                          color: purple.withValues(alpha: 0.85),
                                           fontWeight: FontWeight.w800,
                                           fontSize: 12,
                                         ),
@@ -663,7 +663,7 @@ class _ResumenRow extends StatelessWidget {
         Text(
           label,
           style: TextStyle(
-            color: purple.withOpacity(0.75),
+            color: purple.withValues(alpha: 0.75),
             fontWeight: FontWeight.w800,
             fontSize: 12.5,
           ),
@@ -710,7 +710,7 @@ class _PedidoItemRow extends StatelessWidget {
       decoration: BoxDecoration(
         color: Palette.card,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(0.65)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.65)),
       ),
       padding: const EdgeInsets.all(12),
       child: Row(
@@ -719,20 +719,20 @@ class _PedidoItemRow extends StatelessWidget {
             height: 54,
             width: 54,
             decoration: BoxDecoration(
-              color: Palette.white.withOpacity(0.75),
+              color: Palette.white.withValues(alpha: 0.75),
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: purple.withOpacity(0.10)),
+              border: Border.all(color: purple.withValues(alpha: 0.10)),
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(14),
               child: imageUrl.trim().isEmpty
-                  ? Icon(Icons.image_outlined, color: purple.withOpacity(0.55))
+                  ? Icon(Icons.image_outlined, color: purple.withValues(alpha: 0.55))
                   : Image.network(
                       imageUrl,
                       fit: BoxFit.cover,
                       errorBuilder: (_, __, ___) => Icon(
                         Icons.broken_image_outlined,
-                        color: purple.withOpacity(0.55),
+                        color: purple.withValues(alpha: 0.55),
                       ),
                     ),
             ),
@@ -771,7 +771,7 @@ class _PedidoItemRow extends StatelessWidget {
               Text(
                 'Subtotal',
                 style: TextStyle(
-                  color: purple.withOpacity(0.70),
+                  color: purple.withValues(alpha: 0.70),
                   fontWeight: FontWeight.w800,
                   fontSize: 11.2,
                 ),
@@ -803,14 +803,14 @@ class _Pill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: Palette.white.withOpacity(0.60),
+        color: Palette.white.withValues(alpha: 0.60),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: purple.withOpacity(0.10)),
+        border: Border.all(color: purple.withValues(alpha: 0.10)),
       ),
       child: Text(
         text,
         style: TextStyle(
-          color: purple.withOpacity(0.90),
+          color: purple.withValues(alpha: 0.90),
           fontWeight: FontWeight.w900,
           fontSize: 11.2,
         ),
@@ -859,8 +859,8 @@ class _TrackingRow extends StatelessWidget {
                 margin: const EdgeInsets.only(bottom: 18),
                 decoration: BoxDecoration(
                   color: (isFinished ? (i <= activeIndex) : (i < activeIndex))
-                      ? Palette.statsSuccess.withOpacity(0.85)
-                      : purple.withOpacity(0.12),
+                      ? Palette.statsSuccess.withValues(alpha: 0.85)
+                      : purple.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(999),
                 ),
               ),
@@ -898,7 +898,7 @@ class _TrackDot extends StatelessWidget {
       fg = Palette.white;
     } else {
       bg = Palette.white;
-      fg = purple.withOpacity(0.70);
+      fg = purple.withValues(alpha: 0.70);
     }
 
     return Column(
@@ -910,10 +910,10 @@ class _TrackDot extends StatelessWidget {
           decoration: BoxDecoration(
             color: bg,
             shape: BoxShape.circle,
-            border: Border.all(color: purple.withOpacity(0.12)),
+            border: Border.all(color: purple.withValues(alpha: 0.12)),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.05),
+                color: Colors.black.withValues(alpha: 0.05),
                 blurRadius: 12,
                 offset: const Offset(0, 8),
               ),
@@ -926,7 +926,7 @@ class _TrackDot extends StatelessWidget {
           label,
           textAlign: TextAlign.center,
           style: TextStyle(
-            color: purple.withOpacity(active || done ? 0.95 : 0.70),
+            color: purple.withValues(alpha: active || done ? 0.95 : 0.70),
             fontWeight: FontWeight.w800,
             fontSize: 10.5,
           ),
@@ -963,9 +963,9 @@ class _SpecialStateBanner extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: bg.withOpacity(0.12),
+        color: bg.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: bg.withOpacity(0.30)),
+        border: Border.all(color: bg.withValues(alpha: 0.30)),
       ),
       child: Row(
         children: [

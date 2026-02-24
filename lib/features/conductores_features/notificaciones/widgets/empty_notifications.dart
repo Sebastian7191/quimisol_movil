@@ -15,14 +15,14 @@ class EmptyNotifications extends StatelessWidget {
             Icon(
               Icons.notifications_none_rounded,
               size: 60,
-              color: Palette.ink.withOpacity(0.35),
+              color: Palette.ink.withValues(alpha: 0.35),
             ),
             const SizedBox(height: 10),
             Text(
               'Aún no tienes notificaciones',
               style: TextStyle(
                 fontWeight: FontWeight.w800,
-                color: Palette.ink.withOpacity(0.7),
+                color: Palette.ink.withValues(alpha: 0.7),
               ),
             ),
             const SizedBox(height: 6),
@@ -30,7 +30,7 @@ class EmptyNotifications extends StatelessWidget {
               'Cuando haya cambios en pedidos o avisos del sistema, aparecerán aquí.',
               textAlign: TextAlign.center,
               style: TextStyle(
-                color: Palette.ink.withOpacity(0.55),
+                color: Palette.ink.withValues(alpha: 0.55),
               ),
             ),
           ],

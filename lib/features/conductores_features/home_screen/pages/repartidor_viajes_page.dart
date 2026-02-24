@@ -154,7 +154,7 @@ class _RepartidorViajesPageState extends State<RepartidorViajesPage> {
               'No tienes pedidos asignados',
               style: TextStyle(
                 fontWeight: FontWeight.w700,
-                color: Palette.ink.withOpacity(0.6),
+                color: Palette.ink.withValues(alpha: 0.6),
               ),
             ),
           );
@@ -301,7 +301,7 @@ class _SectionHeader extends StatelessWidget {
             width: 10,
             height: 10,
             decoration: BoxDecoration(
-              color: Palette.primary.withOpacity(0.85),
+              color: Palette.primary.withValues(alpha: 0.85),
               borderRadius: BorderRadius.circular(999),
             ),
           ),
@@ -311,7 +311,7 @@ class _SectionHeader extends StatelessWidget {
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w900,
-              color: Palette.ink.withOpacity(0.88),
+              color: Palette.ink.withValues(alpha: 0.88),
             ),
           ),
         ],
@@ -329,16 +329,16 @@ class _EstadoChip extends StatelessWidget {
 
   Color _bg(String s) {
     final x = s.trim().toLowerCase();
-    if (x.contains('entreg')) return Palette.statsSuccess.withOpacity(0.18);
+    if (x.contains('entreg')) return Palette.statsSuccess.withValues(alpha: 0.18);
     if (x.contains('cancel') || x.contains('rechaz')) {
-      return Palette.statsDanger.withOpacity(0.18);
+      return Palette.statsDanger.withValues(alpha: 0.18);
     }
     if (x.contains('camino') || x.contains('ruta') || x.contains('proceso')) {
-      return Colors.orange.withOpacity(0.18);
+      return Colors.orange.withValues(alpha: 0.18);
     }
-    if (x.contains('acept')) return Palette.primary.withOpacity(0.14);
-    if (x.contains('pend')) return Colors.orange.withOpacity(0.14);
-    return Palette.primary.withOpacity(0.12);
+    if (x.contains('acept')) return Palette.primary.withValues(alpha: 0.14);
+    if (x.contains('pend')) return Colors.orange.withValues(alpha: 0.14);
+    return Palette.primary.withValues(alpha: 0.12);
   }
 
   Color _fg(String s) {
@@ -374,7 +374,7 @@ class _EstadoChip extends StatelessWidget {
       decoration: BoxDecoration(
         color: _bg(estado),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: Colors.black.withOpacity(0.06)),
+        border: Border.all(color: Colors.black.withValues(alpha: 0.06)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -425,7 +425,7 @@ class _PedidoCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(22),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.06),
+            color: Colors.black.withValues(alpha: 0.06),
             blurRadius: 18,
             offset: const Offset(0, 10),
           ),
@@ -477,7 +477,7 @@ class _PedidoCard extends StatelessWidget {
             ),
           ),
 
-          Divider(height: 1, color: Palette.ink.withOpacity(0.06)),
+          Divider(height: 1, color: Palette.ink.withValues(alpha: 0.06)),
 
           /// PRODUCTOS
           Padding(
@@ -519,7 +519,7 @@ class _PedidoCard extends StatelessWidget {
                               style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
-                                color: Palette.ink.withOpacity(0.65),
+                                color: Palette.ink.withValues(alpha: 0.65),
                               ),
                             ),
                             const SizedBox(height: 2),
@@ -527,7 +527,7 @@ class _PedidoCard extends StatelessWidget {
                               'Precio unitario: Bs ${price.toStringAsFixed(2)}',
                               style: TextStyle(
                                 fontSize: 12,
-                                color: Palette.ink.withOpacity(0.55),
+                                color: Palette.ink.withValues(alpha: 0.55),
                               ),
                             ),
                           ],
@@ -544,7 +544,7 @@ class _PedidoCard extends StatelessWidget {
             ),
           ),
 
-          Divider(height: 1, color: Palette.ink.withOpacity(0.06)),
+          Divider(height: 1, color: Palette.ink.withValues(alpha: 0.06)),
 
           /// TOTAL
           Padding(

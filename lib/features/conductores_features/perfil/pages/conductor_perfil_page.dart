@@ -304,16 +304,16 @@ class _SoftIconButton extends StatelessWidget {
         decoration: BoxDecoration(
           color: Palette.white,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: ink.withOpacity(0.06)),
+          border: Border.all(color: ink.withValues(alpha: 0.06)),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.04),
+              color: Colors.black.withValues(alpha: 0.04),
               blurRadius: 18,
               offset: const Offset(0, 10),
             ),
           ],
         ),
-        child: Icon(icon, color: ink.withOpacity(0.75), size: 23),
+        child: Icon(icon, color: ink.withValues(alpha: 0.75), size: 23),
       ),
     );
   }
@@ -344,10 +344,10 @@ class _ProfileCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Palette.white,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: ink.withOpacity(0.06)),
+        border: Border.all(color: ink.withValues(alpha: 0.06)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 22,
             offset: const Offset(0, 12),
           ),
@@ -360,7 +360,7 @@ class _ProfileCard extends StatelessWidget {
             width: 58,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: ink.withOpacity(0.06),
+              color: ink.withValues(alpha: 0.06),
               image: photoUrl.trim().isEmpty
                   ? null
                   : DecorationImage(
@@ -371,7 +371,7 @@ class _ProfileCard extends StatelessWidget {
             child: photoUrl.trim().isEmpty
                 ? Icon(
                     Icons.person_rounded,
-                    color: ink.withOpacity(0.40),
+                    color: ink.withValues(alpha: 0.40),
                     size: 30,
                   )
                 : null,
@@ -397,7 +397,7 @@ class _ProfileCard extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    color: ink.withOpacity(0.55),
+                    color: ink.withValues(alpha: 0.55),
                     fontWeight: FontWeight.w700,
                     fontSize: 13,
                   ),
@@ -407,9 +407,9 @@ class _ProfileCard extends StatelessWidget {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
                   decoration: BoxDecoration(
-                    color: pink.withOpacity(0.10),
+                    color: pink.withValues(alpha: 0.10),
                     borderRadius: BorderRadius.circular(999),
-                    border: Border.all(color: pink.withOpacity(0.25)),
+                    border: Border.all(color: pink.withValues(alpha: 0.25)),
                   ),
                   child: Text(
                     _prettyRole(role),
@@ -435,7 +435,7 @@ class _ProfileCard extends StatelessWidget {
               decoration: BoxDecoration(
                 color: Palette.card,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: ink.withOpacity(0.06)),
+                border: Border.all(color: ink.withValues(alpha: 0.06)),
               ),
               child: Icon(Icons.edit_rounded, color: Palette.primary, size: 23),
             ),
@@ -491,10 +491,10 @@ class _QuickTileState extends State<_QuickTile> {
           decoration: BoxDecoration(
             color: Palette.white,
             borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: ink.withOpacity(0.06)),
+            border: Border.all(color: ink.withValues(alpha: 0.06)),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.03),
+                color: Colors.black.withValues(alpha: 0.03),
                 blurRadius: 18,
                 offset: const Offset(0, 10),
               ),
@@ -508,7 +508,7 @@ class _QuickTileState extends State<_QuickTile> {
                 height: 40,
                 width: 40,
                 decoration: BoxDecoration(
-                  color: widget.color.withOpacity(0.12),
+                  color: widget.color.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(14),
                 ),
                 child: Icon(widget.icon, color: Palette.primary, size: 21),
@@ -520,7 +520,7 @@ class _QuickTileState extends State<_QuickTile> {
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  color: ink.withOpacity(0.75),
+                  color: ink.withValues(alpha: 0.75),
                   fontWeight: FontWeight.w900,
                   fontSize: 12,
                   height: 1.12,
@@ -576,7 +576,7 @@ class _MenuRowSimpleState extends State<_MenuRowSimple> {
                 child: Text(
                   widget.label,
                   style: TextStyle(
-                    color: ink.withOpacity(0.82),
+                    color: ink.withValues(alpha: 0.82),
                     fontWeight: FontWeight.w700,
                     fontSize: 15.5,
                   ),
@@ -584,7 +584,7 @@ class _MenuRowSimpleState extends State<_MenuRowSimple> {
               ),
               Icon(
                 Icons.chevron_right_rounded,
-                color: ink.withOpacity(0.48),
+                color: ink.withValues(alpha: 0.48),
                 size: 26,
               ),
             ],

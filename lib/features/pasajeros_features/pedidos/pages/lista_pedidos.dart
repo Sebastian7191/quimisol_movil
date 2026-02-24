@@ -133,10 +133,10 @@ class _MisPedidosPageState extends State<MisPedidosPage> {
     final ink = Palette.ink;
     final bg = Palette.fieldBg; // blanco
 
-    // Cards rosadas
-    final cardA = Palette.button.withOpacity(0.92);
-    final cardB = Palette.gradientEnd.withOpacity(0.90);
-    final chipBg = Palette.button.withOpacity(0.10);
+    // Cards non rosadas
+    final cardA = Palette.button.withValues(alpha: 0.92);
+    final cardB = Palette.gradientEnd.withValues(alpha: 0.90);
+    final chipBg = Palette.button.withValues(alpha: 0.10);
 
     return Scaffold(
       backgroundColor: bg,
@@ -171,10 +171,10 @@ class _MisPedidosPageState extends State<MisPedidosPage> {
                       decoration: BoxDecoration(
                         color: Palette.white,
                         borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: ink.withOpacity(0.06)),
+                        border: Border.all(color: ink.withValues(alpha: 0.06)),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.04),
+                            color: Colors.black.withValues(alpha: 0.04),
                             blurRadius: 16,
                             offset: const Offset(0, 10),
                           ),
@@ -182,7 +182,7 @@ class _MisPedidosPageState extends State<MisPedidosPage> {
                       ),
                       child: Icon(
                         Icons.search_rounded,
-                        color: purpleText.withOpacity(0.90),
+                        color: purpleText.withValues(alpha: 0.90),
                         size: 20,
                       ),
                     ),
@@ -265,7 +265,7 @@ class _MisPedidosPageState extends State<MisPedidosPage> {
                       child: Text(
                         'Inicia sesión para ver tus pedidos.',
                         style: TextStyle(
-                          color: purpleText.withOpacity(0.75),
+                          color: purpleText.withValues(alpha: 0.75),
                           fontWeight: FontWeight.w800,
                         ),
                       ),
@@ -287,7 +287,7 @@ class _MisPedidosPageState extends State<MisPedidosPage> {
                                 'Ocurrió un error al cargar pedidos.\n${snap.error}',
                                 textAlign: TextAlign.center,
                                 style: TextStyle(
-                                  color: purpleText.withOpacity(0.75),
+                                  color: purpleText.withValues(alpha: 0.75),
                                   fontWeight: FontWeight.w800,
                                 ),
                               ),
@@ -339,13 +339,13 @@ class _MisPedidosPageState extends State<MisPedidosPage> {
                                   Icon(
                                     Icons.receipt_long_rounded,
                                     size: 54,
-                                    color: purpleText.withOpacity(0.25),
+                                    color: purpleText.withValues(alpha: 0.25),
                                   ),
                                   const SizedBox(height: 10),
                                   Text(
                                     'No hay pedidos aquí.',
                                     style: TextStyle(
-                                      color: purpleText.withOpacity(0.75),
+                                      color: purpleText.withValues(alpha: 0.75),
                                       fontWeight: FontWeight.w900,
                                     ),
                                   ),
@@ -423,13 +423,13 @@ class _ChipTab extends StatelessWidget {
           color: active ? primary : bg,
           borderRadius: BorderRadius.circular(18),
           border: Border.all(
-            color: active ? primary : textColor.withOpacity(0.12),
+            color: active ? primary : textColor.withValues(alpha: 0.12),
           ),
         ),
         child: Text(
           text,
           style: TextStyle(
-            color: active ? Palette.white : textColor.withOpacity(0.92),
+            color: active ? Palette.white : textColor.withValues(alpha: 0.92),
             fontWeight: FontWeight.w900,
             fontSize: 12.5,
           ),
@@ -469,10 +469,10 @@ class _PedidoCard extends StatelessWidget {
             colors: [cardA, cardB],
           ),
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.white.withOpacity(0.25)),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.25)),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.08),
+              color: Colors.black.withValues(alpha: 0.08),
               blurRadius: 22,
               offset: const Offset(0, 12),
             ),
@@ -490,10 +490,10 @@ class _PedidoCard extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: Palette.white,
                     borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: purpleText.withOpacity(0.14)),
+                    border: Border.all(color: purpleText.withValues(alpha: 0.14)),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.06),
+                        color: Colors.black.withValues(alpha: 0.06),
                         blurRadius: 12,
                         offset: const Offset(0, 8),
                       ),
@@ -523,7 +523,7 @@ class _PedidoCard extends StatelessWidget {
                       Text(
                         pedido.dateText,
                         style: TextStyle(
-                          color: purpleText.withOpacity(0.75),
+                          color: purpleText.withValues(alpha: 0.75),
                           fontWeight: FontWeight.w700,
                           fontSize: 11.5,
                         ),
@@ -547,7 +547,7 @@ class _PedidoCard extends StatelessWidget {
                     Text(
                       '${pedido.itemsCount} articulo${pedido.itemsCount == 1 ? '' : 's'}',
                       style: TextStyle(
-                        color: purpleText.withOpacity(0.75),
+                        color: purpleText.withValues(alpha: 0.75),
                         fontWeight: FontWeight.w700,
                         fontSize: 11.5,
                       ),
@@ -557,7 +557,7 @@ class _PedidoCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 10),
-            Divider(color: Colors.white.withOpacity(0.35), height: 1),
+            Divider(color: Colors.white.withValues(alpha: 0.35), height: 1),
             const SizedBox(height: 10),
             Row(
               children: [
@@ -587,7 +587,7 @@ class _PedidoCard extends StatelessWidget {
                 Text(
                   status.actionText,
                   style: TextStyle(
-                    color: purpleText.withOpacity(0.95),
+                    color: purpleText.withValues(alpha: 0.95),
                     fontWeight: FontWeight.w800,
                     fontSize: 12,
                   ),
@@ -595,7 +595,7 @@ class _PedidoCard extends StatelessWidget {
                 const SizedBox(width: 6),
                 Icon(
                   Icons.chevron_right_rounded,
-                  color: purpleText.withOpacity(0.85),
+                  color: purpleText.withValues(alpha: 0.85),
                 ),
               ],
             ),

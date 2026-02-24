@@ -104,12 +104,12 @@ class _NotificacionesPageState extends State<NotificacionesPage> {
                 Icon(
                   Icons.access_time_rounded,
                   size: 18,
-                  color: Palette.ink.withOpacity(0.6),
+                  color: Palette.ink.withValues(alpha: 0.6),
                 ),
                 const SizedBox(width: 6),
                 Text(
                   _formatTime(n.createdAt),
-                  style: TextStyle(color: Palette.ink.withOpacity(0.7)),
+                  style: TextStyle(color: Palette.ink.withValues(alpha: 0.7)),
                 ),
               ],
             ),

@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
 import 'package:quimisol_movil/shared/services/auth_service.dart';
+import 'package:flutter/foundation.dart' show kIsWeb; //agregue esto no me preguntes por que, es para detectar si esta en web o no...jaja el maldito me respondió
 
 class FirebaseAuthService implements AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -78,43 +79,55 @@ class FirebaseAuthService implements AuthService {
   @override
   Future<GoogleLoginResult> signInWithGoogle() async {
     try {
-      final google = GoogleSignIn();
-      final GoogleSignInAccount? googleUser = await google.signIn();
-      if (googleUser == null) {
-        return const GoogleLoginResult(isNewUser: false);
+      UserCredential userCred;
+
+      if (kIsWeb) {
+        final provider = GoogleAuthProvider()
+          ..addScope('email')
+          ..setCustomParameters({'prompt': 'select_account'});
+
+        userCred = await _auth.signInWithPopup(provider);
+      } else {
+        final google = GoogleSignIn(scopes: ['email']);
+        final GoogleSignInAccount? googleUser = await google.signIn();
+
+        if (googleUser == null) {
+          return const GoogleLoginResult(isNewUser: false);
+        }
+
+        final googleAuth = await googleUser.authentication;
+
+        final credential = GoogleAuthProvider.credential(
+          accessToken: googleAuth.accessToken,
+          idToken: googleAuth.idToken,
+        );
+
+        userCred = await _auth.signInWithCredential(credential);
       }
 
-      final googleAuth = await googleUser.authentication;
-
-      final credential = GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
-        idToken: googleAuth.idToken,
-      );
-
-      final userCred = await _auth.signInWithCredential(credential);
       final uid = userCred.user!.uid;
 
       final ref = _db.collection('usuarios').doc(uid);
       final doc = await ref.get();
 
+      // COMPROBAR QUE EXISTE EN TU SISTEMA
+      if (!doc.exists) {
+        // Cierra sesión para que no quede logueado en Firebase
+        await _auth.signOut();
+        if (!kIsWeb) await GoogleSignIn().signOut();
+
+        throw Exception('Tu cuenta de Google no está registrada en el sistema.');
+      }
+
       final data = doc.data();
-      final bool isProfileCompleted =
-          doc.exists && data?['profile_completed'] == true;
+      final bool isProfileCompleted = data?['profile_completed'] == true;
 
-      // ✅ Si ya existe role, lo respetamos
-      final String? existingRole = data?['role'] as String?;
-      final bool hasRole = (existingRole != null && existingRole.isNotEmpty);
-
+      // (Opcional) actualizar datos básicos sin tocar role
       final payload = <String, dynamic>{
-        'email': userCred.user!.email,
-        // 👇 solo asignar role si NO existe
-        if (!hasRole) 'role': 'cliente',
-        'profile_completed': isProfileCompleted ? true : false,
-        if (userCred.user!.displayName != null)
-          'name': userCred.user!.displayName,
-        if (userCred.user!.photoURL != null) 'photo': userCred.user!.photoURL,
-        if (!doc.exists) 'created_at': FieldValue.serverTimestamp(),
         'updated_at': FieldValue.serverTimestamp(),
+        if (userCred.user!.displayName != null) 'name': userCred.user!.displayName,
+        if (userCred.user!.photoURL != null) 'photo': userCred.user!.photoURL,
+        if (userCred.user!.email != null) 'email': userCred.user!.email,
       };
 
       await ref.set(payload, SetOptions(merge: true));
@@ -126,6 +139,8 @@ class FirebaseAuthService implements AuthService {
       );
     } on FirebaseAuthException catch (e) {
       throw Exception(_firebaseError(e));
+    } catch (e) {
+      throw Exception('No se pudo iniciar sesión con Google: $e');
     }
   }
 
@@ -134,7 +149,9 @@ class FirebaseAuthService implements AuthService {
   // ──────────────────────────────────────────────
   @override
   Future<void> logout() async {
-    await GoogleSignIn().signOut();
+    if (!kIsWeb) {
+      await GoogleSignIn().signOut();
+    }
     await _auth.signOut();
   }
 

@@ -467,7 +467,7 @@ class _PedidoEnCursoPageState extends State<PedidoEnCursoPage> {
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.12),
+                      color: Colors.black.withValues(alpha: 0.12),
                       blurRadius: 24,
                       offset: const Offset(0, -10),
                     ),
@@ -482,7 +482,7 @@ class _PedidoEnCursoPageState extends State<PedidoEnCursoPage> {
                       height: 5,
                       margin: const EdgeInsets.only(bottom: 14),
                       decoration: BoxDecoration(
-                        color: Palette.ink.withOpacity(0.25),
+                        color: Palette.ink.withValues(alpha: 0.25),
                         borderRadius: BorderRadius.circular(99),
                       ),
                     ),
@@ -498,7 +498,7 @@ class _PedidoEnCursoPageState extends State<PedidoEnCursoPage> {
                       '$_etaMin min · ${_distanciaKm.toStringAsFixed(2)} km',
                       style: TextStyle(
                         fontSize: 13,
-                        color: Palette.ink.withOpacity(0.6),
+                        color: Palette.ink.withValues(alpha: 0.6),
                       ),
                     ),
                     const SizedBox(height: 14),

@@ -86,7 +86,7 @@ class _WishlistPageState extends State<WishlistPage> {
 
     final bg = Palette.fieldBg;
     final cardBg = Palette.white;
-    final chipBg = ink.withOpacity(0.06);
+    final chipBg = ink.withValues(alpha: 0.06);
 
     final total = _items.length;
 
@@ -130,10 +130,10 @@ class _WishlistPageState extends State<WishlistPage> {
                       decoration: BoxDecoration(
                         color: Palette.white,
                         borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: ink.withOpacity(0.06)),
+                        border: Border.all(color: ink.withValues(alpha: 0.06)),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.04),
+                            color: Colors.black.withValues(alpha: 0.04),
                             blurRadius: 16,
                             offset: const Offset(0, 10),
                           ),
@@ -141,7 +141,7 @@ class _WishlistPageState extends State<WishlistPage> {
                       ),
                       child: Icon(
                         Icons.shopping_cart_outlined,
-                        color: ink.withOpacity(0.75),
+                        color: ink.withValues(alpha: 0.75),
                         size: 20,
                       ),
                     ),
@@ -158,7 +158,7 @@ class _WishlistPageState extends State<WishlistPage> {
                   Text(
                     '$total artículos guardados',
                     style: TextStyle(
-                      color: ink.withOpacity(0.55),
+                      color: ink.withValues(alpha: 0.55),
                       fontWeight: FontWeight.w700,
                       fontSize: 12.5,
                     ),
@@ -222,7 +222,7 @@ class _WishlistPageState extends State<WishlistPage> {
                       child: Text(
                         'No tienes productos en tu lista de deseos.',
                         style: TextStyle(
-                          color: ink.withOpacity(0.55),
+                          color: ink.withValues(alpha: 0.55),
                           fontWeight: FontWeight.w800,
                         ),
                       ),
@@ -285,12 +285,12 @@ class _FilterChipX extends StatelessWidget {
         decoration: BoxDecoration(
           color: active ? primary : chipBg,
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: active ? primary : ink.withOpacity(0.06)),
+          border: Border.all(color: active ? primary : ink.withValues(alpha: 0.06)),
         ),
         child: Text(
           text,
           style: TextStyle(
-            color: active ? Colors.white : ink.withOpacity(0.70),
+            color: active ? Colors.white : ink.withValues(alpha: 0.70),
             fontWeight: FontWeight.w900,
             fontSize: 12.5,
           ),
@@ -379,7 +379,7 @@ class _WishCard extends StatelessWidget {
           decoration: BoxDecoration(
             color: cardBg,
             borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: ink.withOpacity(0.06)),
+            border: Border.all(color: ink.withValues(alpha: 0.06)),
           ),
           child: Column(
             children: [
@@ -393,10 +393,10 @@ class _WishCard extends StatelessWidget {
                         item.imageUrl,
                         fit: BoxFit.cover,
                         errorBuilder: (_, __, ___) => Container(
-                          color: ink.withOpacity(0.06),
+                          color: ink.withValues(alpha: 0.06),
                           child: Icon(
                             Icons.image_outlined,
-                            color: ink.withOpacity(0.35),
+                            color: ink.withValues(alpha: 0.35),
                           ),
                         ),
                       ),
@@ -418,7 +418,7 @@ class _WishCard extends StatelessWidget {
                           borderRadius: BorderRadius.circular(12),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.14),
+                              color: Colors.black.withValues(alpha: 0.14),
                               blurRadius: 12,
                               offset: const Offset(0, 8),
                             ),
@@ -442,7 +442,7 @@ class _WishCard extends StatelessWidget {
                       onTap: onRemove,
                       child: Icon(
                         Icons.delete_outline_rounded,
-                        color: ink.withOpacity(0.70),
+                        color: ink.withValues(alpha: 0.70),
                       ),
                     ),
                   ),
@@ -474,7 +474,7 @@ class _WishCard extends StatelessWidget {
                     'Bs. ${priceToShow.toStringAsFixed(2)}',
                     style: TextStyle(
                       color: soldOut
-                          ? ink.withOpacity(0.35)
+                          ? ink.withValues(alpha: 0.35)
                           : (hasDescuento ? Colors.red : primary),
                       fontWeight: FontWeight.w900,
                       fontSize: 16,
@@ -485,7 +485,7 @@ class _WishCard extends StatelessWidget {
                     Text(
                       'Bs. ${base.toStringAsFixed(2)}',
                       style: TextStyle(
-                        color: ink.withOpacity(0.45),
+                        color: ink.withValues(alpha: 0.45),
                         fontWeight: FontWeight.w800,
                         fontSize: 12.5,
                         decoration: TextDecoration.lineThrough,
@@ -504,7 +504,7 @@ class _WishCard extends StatelessWidget {
                       ? null
                       : () => onMoveToCart!(priceToShow),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: soldOut ? ink.withOpacity(0.10) : primary,
+                    backgroundColor: soldOut ? ink.withValues(alpha: 0.10) : primary,
                     elevation: 0,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(14),
@@ -513,7 +513,7 @@ class _WishCard extends StatelessWidget {
                   child: Text(
                     soldOut ? 'Agotado' : 'Mover al carrito',
                     style: TextStyle(
-                      color: soldOut ? ink.withOpacity(0.75) : Colors.white,
+                      color: soldOut ? ink.withValues(alpha: 0.75) : Colors.white,
                       fontWeight: FontWeight.w900,
                     ),
                   ),

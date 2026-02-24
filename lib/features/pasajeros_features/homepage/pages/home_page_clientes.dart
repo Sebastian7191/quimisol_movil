@@ -107,7 +107,7 @@ class _HomeClienteState extends State<HomeCliente> {
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 14,
-                  color: Palette.ink.withOpacity(0.7),
+                  color: Palette.ink.withValues(alpha: 0.7),
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -120,7 +120,7 @@ class _HomeClienteState extends State<HomeCliente> {
                       style: OutlinedButton.styleFrom(
                         foregroundColor: Palette.primary,
                         side: BorderSide(
-                          color: Palette.primary.withOpacity(0.4),
+                          color: Palette.primary.withValues(alpha: 0.4),
                         ),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(14),
@@ -277,7 +277,7 @@ class _HomeClienteState extends State<HomeCliente> {
                                 'view all',
                                 style: TextStyle(
                                   fontSize: 14,
-                                  color: Palette.ink.withOpacity(0.55),
+                                  color: Palette.ink.withValues(alpha: 0.55),
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
@@ -449,7 +449,7 @@ class _HomeClienteState extends State<HomeCliente> {
                                     color: Palette.white,
                                     borderRadius: BorderRadius.circular(18),
                                     border: Border.all(
-                                      color: Palette.button.withOpacity(0.25),
+                                      color: Palette.button.withValues(alpha: 0.25),
                                     ),
                                   ),
                                   child: Text(
@@ -457,7 +457,7 @@ class _HomeClienteState extends State<HomeCliente> {
                                         ? 'No hay productos para esta categoría.'
                                         : 'No hay productos para "$_selectedDepto" en esta categoría.',
                                     style: TextStyle(
-                                      color: Palette.ink.withOpacity(0.75),
+                                      color: Palette.ink.withValues(alpha: 0.75),
                                       fontWeight: FontWeight.w700,
                                     ),
                                   ),
@@ -719,7 +719,7 @@ class _PinkPedidosHeaderState extends State<_PinkPedidosHeader> {
                                   color: Colors.white70,
                                   width: 2,
                                 ),
-                                color: Colors.white.withOpacity(0.15),
+                                color: Colors.white.withValues(alpha: 0.15),
                                 image: photoUrl != null && photoUrl.isNotEmpty
                                     ? DecorationImage(
                                         image: NetworkImage(photoUrl),
@@ -730,7 +730,7 @@ class _PinkPedidosHeaderState extends State<_PinkPedidosHeader> {
                               child: photoUrl == null || photoUrl.isEmpty
                                   ? Icon(
                                       Icons.person_rounded,
-                                      color: Colors.white.withOpacity(0.9),
+                                      color: Colors.white.withValues(alpha: 0.9),
                                       size: 20,
                                     )
                                   : null,
@@ -754,14 +754,14 @@ class _PinkPedidosHeaderState extends State<_PinkPedidosHeader> {
                   children: [
                     Icon(
                       Icons.search_rounded,
-                      color: Palette.ink.withOpacity(0.50),
+                      color: Palette.ink.withValues(alpha: 0.50),
                     ),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
                         'Buscar productos',
                         style: TextStyle(
-                          color: Palette.ink.withOpacity(0.45),
+                          color: Palette.ink.withValues(alpha: 0.45),
                           fontWeight: FontWeight.w700,
                         ),
                       ),
@@ -897,7 +897,7 @@ class _DeptoPickerSheet extends StatelessWidget {
               height: 4,
               width: 44,
               decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.12),
+                color: Colors.black.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(99),
               ),
             ),
@@ -929,7 +929,7 @@ class _DeptoPickerSheet extends StatelessWidget {
                     ? Icon(Icons.check_circle, color: Palette.primary)
                     : Icon(
                         Icons.circle_outlined,
-                        color: Palette.ink.withOpacity(0.25),
+                        color: Palette.ink.withValues(alpha: 0.25),
                       ),
                 onTap: () => Navigator.pop(context, d),
               );
@@ -949,7 +949,7 @@ class _FurnitureBannerCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cardBg = Palette.white.withOpacity(0.92);
+    final cardBg = Palette.white.withValues(alpha: 0.92);
 
     return InkWell(
       onTap: onTap,
@@ -993,7 +993,7 @@ class _FurnitureBannerCard extends StatelessWidget {
                   Text(
                     banner.subtitle,
                     style: TextStyle(
-                      color: Palette.ink.withOpacity(0.55),
+                      color: Palette.ink.withValues(alpha: 0.55),
                       fontSize: 12.5,
                       fontWeight: FontWeight.w600,
                       height: 1.2,
@@ -1044,7 +1044,7 @@ class _TopIconButton extends StatelessWidget {
         height: 36,
         width: 36,
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.18),
+          color: Colors.white.withValues(alpha: 0.18),
           borderRadius: BorderRadius.circular(14),
         ),
         child: Icon(icon, color: Colors.white, size: 20),
@@ -1064,7 +1064,7 @@ class _Dot extends StatelessWidget {
       height: 6,
       width: active ? 20 : 6,
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(active ? 0.95 : 0.45),
+        color: Colors.white.withValues(alpha: active ? 0.95 : 0.45),
         borderRadius: BorderRadius.circular(10),
       ),
     );
@@ -1093,7 +1093,7 @@ class _CategoryPill extends StatelessWidget {
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 10,
             offset: const Offset(0, 6),
           ),
@@ -1104,7 +1104,7 @@ class _CategoryPill extends StatelessWidget {
         style: TextStyle(
           fontSize: 13,
           fontWeight: FontWeight.w700,
-          color: selected ? Palette.ink : Palette.ink.withOpacity(0.65),
+          color: selected ? Palette.ink : Palette.ink.withValues(alpha: 0.65),
         ),
       ),
     );
@@ -1210,7 +1210,7 @@ class _ProductCardState extends State<_ProductCard>
             borderRadius: BorderRadius.circular(24),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.05),
+                color: Colors.black.withValues(alpha: 0.05),
                 blurRadius: 18,
                 offset: const Offset(0, 12),
               ),
@@ -1276,7 +1276,7 @@ class _ProductCardState extends State<_ProductCard>
                                 borderRadius: BorderRadius.circular(12),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: Colors.black.withOpacity(0.12),
+                                    color: Colors.black.withValues(alpha: 0.12),
                                     blurRadius: 10,
                                     offset: const Offset(0, 6),
                                   ),
@@ -1334,7 +1334,7 @@ class _ProductCardState extends State<_ProductCard>
                               style: TextStyle(
                                 fontSize: 12.5,
                                 fontWeight: FontWeight.w800,
-                                color: Palette.ink.withOpacity(0.40),
+                                color: Palette.ink.withValues(alpha: 0.40),
                                 decoration: TextDecoration.lineThrough,
                               ),
                             ),
@@ -1354,7 +1354,7 @@ class _ProductCardState extends State<_ProductCard>
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w800,
-                        color: Palette.ink.withOpacity(0.65),
+                        color: Palette.ink.withValues(alpha: 0.65),
                       ),
                     ),
                   ],
@@ -1381,7 +1381,7 @@ class _ProductCardState extends State<_ProductCard>
                   style: TextStyle(
                     fontSize: 12.5,
                     fontWeight: FontWeight.w800,
-                    color: Palette.ink.withOpacity(0.55),
+                    color: Palette.ink.withValues(alpha: 0.55),
                   ),
                 ),
               ],
@@ -1445,7 +1445,7 @@ class _LikeButtonSmooth extends StatelessWidget {
                   height: 20 + (fade.value * 14),
                   width: 20 + (fade.value * 14),
                   decoration: BoxDecoration(
-                    color: Palette.button.withOpacity(0.16),
+                    color: Palette.button.withValues(alpha: 0.16),
                     shape: BoxShape.circle,
                   ),
                 ),
@@ -1476,7 +1476,7 @@ class _LikeButtonSmooth extends StatelessWidget {
                     size: 18,
                     color: liked
                         ? Palette.button
-                        : Palette.ink.withOpacity(0.75),
+                        : Palette.ink.withValues(alpha: 0.75),
                   ),
                 ),
               ),
@@ -1498,7 +1498,7 @@ class _NoImage extends StatelessWidget {
       child: Center(
         child: Icon(
           Icons.image_outlined,
-          color: Palette.ink.withOpacity(0.25),
+          color: Palette.ink.withValues(alpha: 0.25),
           size: 34,
         ),
       ),

@@ -215,9 +215,7 @@ class _DetalleProductoPageState extends State<DetalleProductoPage> {
                                     Positioned.fill(
                                       child: (p.imageUrl.trim().isEmpty)
                                           ? Container(
-                                              color: Colors.white.withOpacity(
-                                                0.22,
-                                              ),
+                                              color: Colors.white.withValues(alpha: 0.22),
                                               child: const Center(
                                                 child: Icon(
                                                   Icons.image_outlined,
@@ -232,7 +230,7 @@ class _DetalleProductoPageState extends State<DetalleProductoPage> {
                                               errorBuilder: (_, __, ___) {
                                                 return Container(
                                                   color: Colors.white
-                                                      .withOpacity(0.22),
+                                                      .withValues(alpha: 0.22),
                                                   child: const Center(
                                                     child: Icon(
                                                       Icons.image_outlined,
@@ -261,7 +259,7 @@ class _DetalleProductoPageState extends State<DetalleProductoPage> {
                                             ),
                                             boxShadow: <BoxShadow>[
                                               BoxShadow(
-                                                color: Colors.black.withOpacity(
+                                                color: Colors.black.withValues(alpha: 
                                                   0.16,
                                                 ),
                                                 blurRadius: 12,
@@ -302,7 +300,7 @@ class _DetalleProductoPageState extends State<DetalleProductoPage> {
                       ),
                       boxShadow: <BoxShadow>[
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.06),
+                          color: Colors.black.withValues(alpha: 0.06),
                           blurRadius: 22,
                           offset: const Offset(0, -8),
                         ),
@@ -351,7 +349,7 @@ class _DetalleProductoPageState extends State<DetalleProductoPage> {
                                     style: TextStyle(
                                       fontSize: 12.5,
                                       fontWeight: FontWeight.w800,
-                                      color: Palette.ink.withOpacity(0.40),
+                                      color: Palette.ink.withValues(alpha: 0.40),
                                       decoration: TextDecoration.lineThrough,
                                     ),
                                   ),
@@ -373,7 +371,7 @@ class _DetalleProductoPageState extends State<DetalleProductoPage> {
                                   Text(
                                     'Producto',
                                     style: TextStyle(
-                                      color: Palette.ink.withOpacity(0.45),
+                                      color: Palette.ink.withValues(alpha: 0.45),
                                       fontWeight: FontWeight.w700,
                                     ),
                                   ),
@@ -389,7 +387,7 @@ class _DetalleProductoPageState extends State<DetalleProductoPage> {
                                     style: TextStyle(
                                       fontSize: 13,
                                       fontWeight: FontWeight.w800,
-                                      color: Palette.ink.withOpacity(0.65),
+                                      color: Palette.ink.withValues(alpha: 0.65),
                                     ),
                                   ),
                                 ],
@@ -402,10 +400,10 @@ class _DetalleProductoPageState extends State<DetalleProductoPage> {
                                   vertical: 7,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: Palette.statsSuccess.withOpacity(0.15),
+                                  color: Palette.statsSuccess.withValues(alpha: 0.15),
                                   borderRadius: BorderRadius.circular(999),
                                   border: Border.all(
-                                    color: Palette.statsSuccess.withOpacity(
+                                    color: Palette.statsSuccess.withValues(alpha: 
                                       0.25,
                                     ),
                                   ),
@@ -413,7 +411,7 @@ class _DetalleProductoPageState extends State<DetalleProductoPage> {
                                 child: Text(
                                   'Stock: ${p.stock}',
                                   style: TextStyle(
-                                    color: Palette.statsSuccess.withOpacity(
+                                    color: Palette.statsSuccess.withValues(alpha: 
                                       0.95,
                                     ),
                                     fontWeight: FontWeight.w900,
@@ -430,10 +428,10 @@ class _DetalleProductoPageState extends State<DetalleProductoPage> {
                             width: double.infinity,
                             padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
                             decoration: BoxDecoration(
-                              color: Colors.red.withOpacity(0.06),
+                              color: Colors.red.withValues(alpha: 0.06),
                               borderRadius: BorderRadius.circular(16),
                               border: Border.all(
-                                color: Colors.red.withOpacity(0.14),
+                                color: Colors.red.withValues(alpha: 0.14),
                               ),
                             ),
                             child: Row(
@@ -442,7 +440,7 @@ class _DetalleProductoPageState extends State<DetalleProductoPage> {
                                   height: 34,
                                   width: 34,
                                   decoration: BoxDecoration(
-                                    color: Colors.red.withOpacity(0.14),
+                                    color: Colors.red.withValues(alpha: 0.14),
                                     shape: BoxShape.circle,
                                   ),
                                   child: const Icon(
@@ -471,7 +469,7 @@ class _DetalleProductoPageState extends State<DetalleProductoPage> {
                                       Text(
                                         'Ahorras Bs. ${ahorro.toStringAsFixed(2)} por unidad',
                                         style: TextStyle(
-                                          color: Palette.ink.withOpacity(0.60),
+                                          color: Palette.ink.withValues(alpha: 0.60),
                                           fontWeight: FontWeight.w700,
                                           fontSize: 12.5,
                                         ),
@@ -550,7 +548,7 @@ class _DetalleProductoPageState extends State<DetalleProductoPage> {
                         Text.rich(
                           TextSpan(
                             style: TextStyle(
-                              color: Palette.ink.withOpacity(0.55),
+                              color: Palette.ink.withValues(alpha: 0.55),
                               fontWeight: FontWeight.w600,
                               height: 1.35,
                             ),
@@ -676,7 +674,7 @@ class _SlidingCartBarState extends State<_SlidingCartBar> {
           ),
           boxShadow: <BoxShadow>[
             BoxShadow(
-              color: Colors.black.withOpacity(0.10),
+              color: Colors.black.withValues(alpha: 0.10),
               blurRadius: 22,
               offset: const Offset(0, -10),
             ),
@@ -697,7 +695,7 @@ class _SlidingCartBarState extends State<_SlidingCartBar> {
                   height: 4,
                   width: 44,
                   decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.12),
+                    color: Colors.black.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(99),
                   ),
                 ),
@@ -753,7 +751,7 @@ class _SlidingCartBarState extends State<_SlidingCartBar> {
                       color: Palette.fieldBg,
                       borderRadius: BorderRadius.circular(18),
                       border: Border.all(
-                        color: Palette.button.withOpacity(0.12),
+                        color: Palette.button.withValues(alpha: 0.12),
                       ),
                     ),
                     child: Column(
@@ -768,7 +766,7 @@ class _SlidingCartBarState extends State<_SlidingCartBar> {
                             left: 'Precio original',
                             right: 'Bs. ${widget.basePrice.toStringAsFixed(2)}',
                             rightStyle: TextStyle(
-                              color: Palette.ink.withOpacity(0.45),
+                              color: Palette.ink.withValues(alpha: 0.45),
                               fontWeight: FontWeight.w800,
                               decoration: TextDecoration.lineThrough,
                             ),
@@ -851,7 +849,7 @@ class _RowLine extends StatelessWidget {
             style:
                 leftStyle ??
                 TextStyle(
-                  color: Palette.ink.withOpacity(0.65),
+                  color: Palette.ink.withValues(alpha: 0.65),
                   fontWeight: FontWeight.w700,
                 ),
           ),
@@ -884,7 +882,7 @@ class _TopCircleButton extends StatelessWidget {
         height: 38,
         width: 38,
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.25),
+          color: Colors.white.withValues(alpha: 0.25),
           shape: BoxShape.circle,
         ),
         child: Icon(icon, color: Colors.white, size: 18),
@@ -920,7 +918,7 @@ class _TabChip extends StatelessWidget {
         child: Text(
           text,
           style: TextStyle(
-            color: active ? Colors.white : Palette.ink.withOpacity(0.55),
+            color: active ? Colors.white : Palette.ink.withValues(alpha: 0.55),
             fontWeight: FontWeight.w900,
             fontSize: 13,
           ),
@@ -992,7 +990,7 @@ class _QtyBtn extends StatelessWidget {
           color: Palette.white,
           borderRadius: BorderRadius.circular(18),
           border: Border.all(
-            color: Palette.button.withOpacity(0.25),
+            color: Palette.button.withValues(alpha: 0.25),
             width: 1.2,
           ),
         ),

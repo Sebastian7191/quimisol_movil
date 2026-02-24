@@ -701,7 +701,7 @@ class _AgregadoUbicacionPageState extends State<AgregadoUbicacionPage> {
                       width: 10,
                       height: 10,
                       decoration: BoxDecoration(
-                        color: Palette.button.withOpacity(0.18),
+                        color: Palette.button.withValues(alpha: 0.18),
                         shape: BoxShape.circle,
                       ),
                     ),
@@ -747,7 +747,7 @@ class _AgregadoUbicacionPageState extends State<AgregadoUbicacionPage> {
                 _error!,
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  color: Colors.black.withOpacity(0.75),
+                  color: Colors.black.withValues(alpha: 0.75),
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -815,7 +815,7 @@ class _ProAppBar extends StatelessWidget implements PreferredSizeWidget {
             color: Colors.white,
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.05),
+                color: Colors.black.withValues(alpha: 0.05),
                 blurRadius: 14,
                 offset: const Offset(0, 6),
               ),
@@ -876,7 +876,7 @@ class _SearchBar extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Palette.button.withOpacity(0.20)),
+          border: Border.all(color: Palette.button.withValues(alpha: 0.20)),
         ),
         child: Row(
           children: [
@@ -903,7 +903,7 @@ class _SearchBar extends StatelessWidget {
                 onPressed: onClear,
                 icon: Icon(
                   Icons.close_rounded,
-                  color: Colors.black.withOpacity(0.55),
+                  color: Colors.black.withValues(alpha: 0.55),
                 ),
               ),
           ],
@@ -944,7 +944,7 @@ class _SearchResults extends StatelessWidget {
           padding: EdgeInsets.zero,
           itemCount: hits.length,
           separatorBuilder: (_, __) =>
-              Divider(height: 1, color: Colors.black.withOpacity(0.06)),
+              Divider(height: 1, color: Colors.black.withValues(alpha: 0.06)),
           itemBuilder: (context, i) {
             final h = hits[i];
             return ListTile(
@@ -999,10 +999,10 @@ class _BottomPanel extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
-          border: Border.all(color: Palette.button.withOpacity(0.20)),
+          border: Border.all(color: Palette.button.withValues(alpha: 0.20)),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.06),
+              color: Colors.black.withValues(alpha: 0.06),
               blurRadius: 18,
               offset: const Offset(0, -6),
             ),
@@ -1016,7 +1016,7 @@ class _BottomPanel extends StatelessWidget {
               height: 5,
               margin: const EdgeInsets.only(bottom: 10),
               decoration: BoxDecoration(
-                color: Palette.button.withOpacity(0.35),
+                color: Palette.button.withValues(alpha: 0.35),
                 borderRadius: BorderRadius.circular(20),
               ),
             ),
@@ -1062,7 +1062,7 @@ class _BottomPanel extends StatelessWidget {
                                 child: Text(
                                   'Actualizando dirección...',
                                   style: TextStyle(
-                                    color: Colors.black.withOpacity(0.75),
+                                    color: Colors.black.withValues(alpha: 0.75),
                                     fontWeight: FontWeight.w700,
                                   ),
                                 ),
@@ -1088,7 +1088,7 @@ class _BottomPanel extends StatelessWidget {
                 style: FilledButton.styleFrom(
                   backgroundColor: canUse
                       ? Palette.button
-                      : Palette.button.withOpacity(0.45),
+                      : Palette.button.withValues(alpha: 0.45),
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(

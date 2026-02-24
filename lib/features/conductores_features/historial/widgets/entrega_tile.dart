@@ -42,15 +42,15 @@ class EntregaTile extends StatelessWidget {
   // ✅ Color por estado
   Color _stateBg(String s) {
     final x = s.trim().toLowerCase();
-    if (x.contains('entreg')) return Palette.statsSuccess.withOpacity(0.18);
+    if (x.contains('entreg')) return Palette.statsSuccess.withValues(alpha: 0.18);
     if (x.contains('cancel') || x.contains('rechaz')) {
-      return Palette.statsDanger.withOpacity(0.18);
+      return Palette.statsDanger.withValues(alpha: 0.18);
     }
     if (x.contains('camino') || x.contains('ruta') || x.contains('proceso')) {
-      return Colors.orange.withOpacity(0.18);
+      return Colors.orange.withValues(alpha: 0.18);
     }
-    if (x.contains('pend')) return Colors.orange.withOpacity(0.14);
-    return Palette.primary.withOpacity(0.12);
+    if (x.contains('pend')) return Colors.orange.withValues(alpha: 0.14);
+    return Palette.primary.withValues(alpha: 0.12);
   }
 
   Color _stateText(String s) {
@@ -70,7 +70,7 @@ class EntregaTile extends StatelessWidget {
       decoration: BoxDecoration(
         color: _stateBg(estado),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: Colors.black.withOpacity(0.06)),
+        border: Border.all(color: Colors.black.withValues(alpha: 0.06)),
       ),
       child: Text(
         estado,
@@ -102,12 +102,12 @@ class EntregaTile extends StatelessWidget {
           color: Palette.white,
           borderRadius: BorderRadius.circular(18),
           border: Border.all(
-            color: Colors.black.withOpacity(0.06),
+            color: Colors.black.withValues(alpha: 0.06),
             width: 1.2,
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withValues(alpha: 0.05),
               blurRadius: 12,
               offset: const Offset(0, 6),
             ),
@@ -126,7 +126,7 @@ class EntregaTile extends StatelessWidget {
               ),
               child: Icon(
                 Icons.receipt_long_rounded,
-                color: Palette.primary.withOpacity(0.85),
+                color: Palette.primary.withValues(alpha: 0.85),
               ),
             ),
             const SizedBox(width: 12),
@@ -147,7 +147,7 @@ class EntregaTile extends StatelessWidget {
                           style: TextStyle(
                             fontWeight: FontWeight.w900,
                             fontSize: 14,
-                            color: Palette.ink.withOpacity(0.9),
+                            color: Palette.ink.withValues(alpha: 0.9),
                           ),
                         ),
                       ),
@@ -156,7 +156,7 @@ class EntregaTile extends StatelessWidget {
                         timeText,
                         style: TextStyle(
                           fontSize: 12,
-                          color: Palette.ink.withOpacity(0.55),
+                          color: Palette.ink.withValues(alpha: 0.55),
                         ),
                       ),
                     ],
@@ -177,7 +177,7 @@ class EntregaTile extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         fontSize: 13,
-                        color: Palette.ink.withOpacity(0.7),
+                        color: Palette.ink.withValues(alpha: 0.7),
                       ),
                     ),
 
@@ -193,7 +193,7 @@ class EntregaTile extends StatelessWidget {
                             color: Palette.fieldBg,
                             borderRadius: BorderRadius.circular(999),
                             border: Border.all(
-                              color: Colors.black.withOpacity(0.06),
+                              color: Colors.black.withValues(alpha: 0.06),
                             ),
                           ),
                           child: Text(
@@ -201,7 +201,7 @@ class EntregaTile extends StatelessWidget {
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w800,
-                              color: Palette.primary.withOpacity(0.85),
+                              color: Palette.primary.withValues(alpha: 0.85),
                             ),
                           ),
                         ),
@@ -213,7 +213,7 @@ class EntregaTile extends StatelessWidget {
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w700,
-                            color: Palette.ink.withOpacity(0.55),
+                            color: Palette.ink.withValues(alpha: 0.55),
                           ),
                         ),
                     ],
@@ -229,7 +229,7 @@ class EntregaTile extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 13,
                         fontStyle: FontStyle.italic,
-                        color: Palette.ink.withOpacity(0.68),
+                        color: Palette.ink.withValues(alpha: 0.68),
                       ),
                     ),
                   ],

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:quimisol/core/theme/palette.dart';
+import 'package:quimisol_movil/core/theme/palette.dart';
 
 class ConfirmDeleteDialog extends StatelessWidget {
   final String title;
@@ -63,7 +63,7 @@ class ConfirmDeleteDialog extends StatelessWidget {
               message,
               style: TextStyle(
                 fontSize: 15,
-                color: Palette.primary.withOpacity(0.8),
+                color: Palette.primary.withValues(alpha: 0.8),
                 height: 1.5,
               ),
               textAlign: TextAlign.center,
@@ -79,7 +79,7 @@ class ConfirmDeleteDialog extends StatelessWidget {
                   child: OutlinedButton(
                     onPressed: () => Navigator.pop(context),
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: Palette.primary.withOpacity(0.7),
+                      foregroundColor: Palette.primary.withValues(alpha: 0.7),
                       side: BorderSide(color: Palette.card, width: 1.5),
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(

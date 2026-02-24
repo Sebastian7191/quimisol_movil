@@ -132,8 +132,8 @@ class _HomeScreenConductorState extends State<HomeScreenConductor> {
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [
-                Palette.gradientStart.withOpacity(0.45),
-                Palette.gradientEnd.withOpacity(0.65),
+                Palette.gradientStart.withValues(alpha: 0.45),
+                Palette.gradientEnd.withValues(alpha: 0.65),
               ],
             ),
           ),
@@ -176,7 +176,7 @@ class _OcupadoEmptyState extends StatelessWidget {
             Icon(
               Icons.do_not_disturb_on_rounded,
               size: 64,
-              color: Palette.ink.withOpacity(0.55),
+              color: Palette.ink.withValues(alpha: 0.55),
             ),
             const SizedBox(height: 12),
             Text(
@@ -185,7 +185,7 @@ class _OcupadoEmptyState extends StatelessWidget {
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w900,
-                color: Palette.ink.withOpacity(0.9),
+                color: Palette.ink.withValues(alpha: 0.9),
               ),
             ),
             const SizedBox(height: 6),
@@ -195,7 +195,7 @@ class _OcupadoEmptyState extends StatelessWidget {
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
-                color: Palette.ink.withOpacity(0.65),
+                color: Palette.ink.withValues(alpha: 0.65),
                 height: 1.25,
               ),
             ),
@@ -230,7 +230,7 @@ class _StatusSwitch extends StatelessWidget {
           color: Palette.fieldBg,
           borderRadius: BorderRadius.circular(999),
           border: Border.all(
-            color: Palette.primary.withOpacity(0.2),
+            color: Palette.primary.withValues(alpha: 0.2),
           ),
         ),
         child: Stack(
@@ -246,7 +246,7 @@ class _StatusSwitch extends StatelessWidget {
                   borderRadius: BorderRadius.circular(999),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.18),
+                      color: Colors.black.withValues(alpha: 0.18),
                       blurRadius: 10,
                       offset: const Offset(0, 4),
                     ),
@@ -265,7 +265,7 @@ class _StatusSwitch extends StatelessWidget {
                         fontSize: 12,
                         color: !isOnline
                             ? Colors.white
-                            : Palette.ink.withOpacity(0.6),
+                            : Palette.ink.withValues(alpha: 0.6),
                       ),
                     ),
                   ),
@@ -279,7 +279,7 @@ class _StatusSwitch extends StatelessWidget {
                         fontSize: 12,
                         color: isOnline
                             ? Colors.white
-                            : Palette.ink.withOpacity(0.6),
+                            : Palette.ink.withValues(alpha: 0.6),
                       ),
                     ),
                   ),

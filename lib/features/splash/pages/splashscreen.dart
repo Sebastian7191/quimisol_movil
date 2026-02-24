@@ -116,7 +116,7 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
                         borderRadius: BorderRadius.circular(26),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.18),
+                            color: Colors.black.withValues(alpha: 0.18),
                             blurRadius: 22,
                             offset: const Offset(0, 10),
                           ),
@@ -188,7 +188,7 @@ class _ShinePainter extends CustomPainter {
         end: Alignment.bottomRight,
         colors: [
           Colors.transparent,
-          Colors.white.withOpacity(0.14),
+          Colors.white.withValues(alpha: 0.14),
           Colors.transparent,
         ],
         stops: const [0.0, 0.5, 1.0],
@@ -224,7 +224,7 @@ class _ThreeDotsLoading extends StatelessWidget {
           height: active ? 10 : 7,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: active ? Colors.white : Colors.white.withOpacity(0.35),
+            color: active ? Colors.white : Colors.white.withValues(alpha: 0.35),
           ),
         );
       }),
@@ -252,7 +252,7 @@ class _RedTulipStickerPainter extends CustomPainter {
   void paint(Canvas canvas, Size s) {
     // (SIN CAMBIOS – exactamente igual a tu versión)
     final outline = Paint()
-      ..color = Colors.black.withOpacity(0.9)
+      ..color = Colors.black.withValues(alpha: 0.9)
       ..style = PaintingStyle.stroke
       ..strokeWidth = s.width * 0.07
       ..strokeJoin = StrokeJoin.round
@@ -266,7 +266,7 @@ class _RedTulipStickerPainter extends CustomPainter {
     final greenDark = Paint()..color = const Color(0xFF1D6B3E);
 
     final shadow = Paint()
-      ..color = Colors.black.withOpacity(0.10)
+      ..color = Colors.black.withValues(alpha: 0.10)
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5);
 
     final cx = s.width * 0.5;

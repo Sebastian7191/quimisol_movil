@@ -15,14 +15,14 @@ class EmptyHistorial extends StatelessWidget {
             Icon(
               Icons.history_rounded,
               size: 60,
-              color: Palette.ink.withOpacity(0.35),
+              color: Palette.ink.withValues(alpha: 0.35),
             ),
             const SizedBox(height: 10),
             Text(
               'Aún no tienes entregas',
               style: TextStyle(
                 fontWeight: FontWeight.w800,
-                color: Palette.ink.withOpacity(0.7),
+                color: Palette.ink.withValues(alpha: 0.7),
               ),
             ),
             const SizedBox(height: 6),
@@ -30,7 +30,7 @@ class EmptyHistorial extends StatelessWidget {
               'Cuando completes pedidos, aparecerán aquí con su calificación.',
               textAlign: TextAlign.center,
               style: TextStyle(
-                color: Palette.ink.withOpacity(0.55),
+                color: Palette.ink.withValues(alpha: 0.55),
               ),
             ),
           ],
