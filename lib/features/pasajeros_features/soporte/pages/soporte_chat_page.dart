@@ -6,6 +6,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:quimisol_movil/core/services/notifications/fcm_token_service.dart';
 import 'package:quimisol_movil/core/theme/palette.dart';
 
 class SoporteChatPage extends StatefulWidget {
@@ -15,7 +16,8 @@ class SoporteChatPage extends StatefulWidget {
   State<SoporteChatPage> createState() => _SoporteChatPageState();
 }
 
-class _SoporteChatPageState extends State<SoporteChatPage> {
+class _SoporteChatPageState extends State<SoporteChatPage>
+    with WidgetsBindingObserver {
   final TextEditingController _messageCtrl = TextEditingController();
   final ScrollController _scrollCtrl = ScrollController();
   final FocusNode _inputFocus = FocusNode();
@@ -52,6 +54,7 @@ class _SoporteChatPageState extends State<SoporteChatPage> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
 
     final user = _auth.currentUser;
     _clientUid = user?.uid;
@@ -71,10 +74,43 @@ class _SoporteChatPageState extends State<SoporteChatPage> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    // no await en dispose
+    _setClientChatPresence(false);
+
     _messageCtrl.dispose();
     _scrollCtrl.dispose();
     _inputFocus.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Si la app se minimiza o pierde foco, ya no está "viendo" esta página
+    if (state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached) {
+      _setClientChatPresence(false);
+      return;
+    }
+
+    // Si vuelve a primer plano, marcar presencia
+    if (state == AppLifecycleState.resumed) {
+      _setClientChatPresence(true);
+    }
+  }
+
+  Future<void> _setClientChatPresence(bool isOpen) async {
+    if (_chatId == null || _clientUid == null) return;
+
+    try {
+      await _db.collection('support_chats').doc(_chatId).set({
+        'clientInSupportChatPage': isOpen,
+        'clientInSupportChatPageAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    } catch (_) {
+      // silencioso para no romper UI
+    }
   }
 
   Future<void> _bootstrapChat() async {
@@ -110,6 +146,7 @@ class _SoporteChatPageState extends State<SoporteChatPage> {
         _chatRejected = false;
 
         await _loadMessagesFromFirestore();
+        await _setClientChatPresence(true);
 
         setState(() {
           _loadingChat = false;
@@ -123,6 +160,7 @@ class _SoporteChatPageState extends State<SoporteChatPage> {
       await _createPendingChatWithPreMessages();
 
       await _loadMessagesFromFirestore();
+      await _setClientChatPresence(true);
 
       setState(() {
         _chatCreated = true; // ya existe doc de ticket (pendiente de confirmación)
@@ -169,7 +207,6 @@ class _SoporteChatPageState extends State<SoporteChatPage> {
         .get();
 
     final loaded = <_ChatMessage>[];
-
     bool hasOpenQuestion = false;
 
     for (final doc in query.docs) {
@@ -233,7 +270,6 @@ class _SoporteChatPageState extends State<SoporteChatPage> {
     final status = (data['status'] ?? '').toString();
     _chatStatus = status;
 
-    // draft = prechat creado, pendiente de respuesta sí/no
     _awaitingOpenTicketAnswer = status == 'draft' && hasOpenQuestion;
     _chatRejected = status == 'cancelled_by_client';
     _chatCreated = true;
@@ -264,7 +300,7 @@ class _SoporteChatPageState extends State<SoporteChatPage> {
       'senderRole': 'system',
       'senderName': 'Soporte Quimisol',
       'type': 'text',
-      'metaType': metaType, // open_ticket_question, ticket_created_info, etc.
+      'metaType': metaType,
       'text': text,
       'imageUrl': null,
       'storagePath': null,
@@ -305,7 +341,7 @@ class _SoporteChatPageState extends State<SoporteChatPage> {
       'senderRole': 'client',
       'senderName': _clientName ?? 'Cliente',
       'type': 'text',
-      'metaType': metaType, // open_ticket_answer
+      'metaType': metaType,
       'text': text,
       'imageUrl': null,
       'storagePath': null,
@@ -333,7 +369,6 @@ class _SoporteChatPageState extends State<SoporteChatPage> {
 
     final chatRef = _db.collection('support_chats').doc(chatId);
 
-    // draft = prechat creado pero aún no confirmó Sí
     await chatRef.set({
       'chatId': chatId,
       'clientUid': user.uid,
@@ -359,6 +394,11 @@ class _SoporteChatPageState extends State<SoporteChatPage> {
       'isActive': true,
       'lastReadAtClient': FieldValue.serverTimestamp(),
       'lastReadAtSupport': null,
+      // Presence flags
+      'clientInSupportChatPage': false,
+      'clientInSupportChatPageAt': null,
+      'supportInChatPage': false,
+      'supportInChatPageAt': null,
     }, SetOptions(merge: true));
 
     await _addSystemMessage(
@@ -382,7 +422,6 @@ class _SoporteChatPageState extends State<SoporteChatPage> {
   }
 
   void _toggleEmojiPicker() {
-    // Solo habilitar si ticket ya está realmente abierto (pending / in_progress / completed)
     final canUse = _chatStatus == 'pending' ||
         _chatStatus == 'in_progress' ||
         _chatStatus == 'completed';
@@ -456,7 +495,6 @@ class _SoporteChatPageState extends State<SoporteChatPage> {
 
     final answerText = yes ? 'Sí' : 'No';
 
-    // UI inmediata
     setState(() {
       _messages.add(
         _ChatMessage.text(
@@ -472,7 +510,6 @@ class _SoporteChatPageState extends State<SoporteChatPage> {
     _scrollToBottom();
 
     try {
-      // Guardar respuesta del cliente en Firestore (sí/no)
       await _addClientTextMessage(
         text: answerText,
         metaType: 'open_ticket_answer',
@@ -495,7 +532,6 @@ class _SoporteChatPageState extends State<SoporteChatPage> {
           countAsLastMessage: false,
         );
 
-        // Recargar desde Firestore para que todo quede consistente
         await _loadMessagesFromFirestore();
 
         setState(() {
@@ -507,7 +543,9 @@ class _SoporteChatPageState extends State<SoporteChatPage> {
         return;
       }
 
-      // Si responde "Sí", activar ticket
+      // ✅ Asegurar token FCM solo si aún no existe
+      await FcmTokenService.ensureTokenIfMissingForCurrentUser();
+
       await chatRef.set({
         'status': 'pending',
         'updatedAt': FieldValue.serverTimestamp(),
@@ -525,6 +563,7 @@ class _SoporteChatPageState extends State<SoporteChatPage> {
       );
 
       await _loadMessagesFromFirestore();
+      await _setClientChatPresence(true);
 
       if (!mounted) return;
       setState(() {
@@ -538,7 +577,6 @@ class _SoporteChatPageState extends State<SoporteChatPage> {
     } catch (e) {
       if (!mounted) return;
 
-      // Guardar también el error como mensaje de sistema (si ya existe chat)
       try {
         await _addSystemMessage(
           text: '❌ No se pudo crear el ticket. Intenta nuevamente más tarde.',
@@ -888,7 +926,10 @@ class _SoporteChatPageState extends State<SoporteChatPage> {
                 children: [
                   Container(
                     margin: const EdgeInsets.fromLTRB(12, 10, 12, 6),
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
                     decoration: BoxDecoration(
                       color: Palette.white,
                       borderRadius: BorderRadius.circular(14),
@@ -923,7 +964,6 @@ class _SoporteChatPageState extends State<SoporteChatPage> {
                       ],
                     ),
                   ),
-
                   Expanded(
                     child: ListView.builder(
                       controller: _scrollCtrl,
@@ -969,7 +1009,6 @@ class _SoporteChatPageState extends State<SoporteChatPage> {
                       },
                     ),
                   ),
-
                   if (_creatingChat)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 6),
@@ -995,7 +1034,6 @@ class _SoporteChatPageState extends State<SoporteChatPage> {
                         ],
                       ),
                     ),
-
                   SafeArea(
                     top: false,
                     child: Column(
@@ -1024,7 +1062,9 @@ class _SoporteChatPageState extends State<SoporteChatPage> {
                               Expanded(
                                 child: Container(
                                   decoration: BoxDecoration(
-                                    color: _inputEnabled ? Palette.fieldBg : Colors.grey.shade100,
+                                    color: _inputEnabled
+                                        ? Palette.fieldBg
+                                        : Colors.grey.shade100,
                                     borderRadius: BorderRadius.circular(24),
                                     border: Border.all(
                                       color: Palette.button.withOpacity(0.18),
@@ -1050,7 +1090,8 @@ class _SoporteChatPageState extends State<SoporteChatPage> {
                                           enabled: _inputEnabled,
                                           minLines: 1,
                                           maxLines: 4,
-                                          textCapitalization: TextCapitalization.sentences,
+                                          textCapitalization:
+                                              TextCapitalization.sentences,
                                           onChanged: _handleTyping,
                                           onTap: () {
                                             if (_showEmojiPicker) {
@@ -1119,7 +1160,6 @@ class _SoporteChatPageState extends State<SoporteChatPage> {
                             ],
                           ),
                         ),
-
                         if (_showEmojiPicker && _inputEnabled)
                           _SimpleEmojiPanel(
                             emojis: _emojis,
@@ -1300,9 +1340,7 @@ class _MessageBubble extends StatelessWidget {
               border: isMine
                   ? null
                   : Border.all(
-                      color: message.isBotQuestion
-                          ? Palette.button.withOpacity(0.18)
-                          : Palette.button.withOpacity(0.18),
+                      color: Palette.button.withOpacity(0.18),
                     ),
               boxShadow: [
                 BoxShadow(

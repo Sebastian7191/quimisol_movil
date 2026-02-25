@@ -6,6 +6,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:quimisol_movil/core/services/notifications/fcm_token_service.dart';
 import 'package:quimisol_movil/core/theme/palette.dart';
 
 class AdminSupportChatPage extends StatefulWidget {
@@ -22,7 +23,8 @@ class AdminSupportChatPage extends StatefulWidget {
   State<AdminSupportChatPage> createState() => _AdminSupportChatPageState();
 }
 
-class _AdminSupportChatPageState extends State<AdminSupportChatPage> {
+class _AdminSupportChatPageState extends State<AdminSupportChatPage>
+    with WidgetsBindingObserver {
   final TextEditingController _messageCtrl = TextEditingController();
   final ScrollController _scrollCtrl = ScrollController();
   final FocusNode _inputFocus = FocusNode();
@@ -50,9 +52,16 @@ class _AdminSupportChatPageState extends State<AdminSupportChatPage> {
   bool _takingOnOpen = false; // evita doble “take”
   bool _greetingPrefilled = false; // evita re-escribir input
 
+  DocumentReference<Map<String, dynamic>> get _chatRef =>
+      _db.collection('support_chats').doc(widget.chatId);
+
+  CollectionReference<Map<String, dynamic>> get _messagesRef =>
+      _chatRef.collection('messages');
+
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
 
     final user = _auth.currentUser;
     _adminUid = user?.uid;
@@ -73,27 +82,56 @@ class _AdminSupportChatPageState extends State<AdminSupportChatPage> {
       if (!_scrollCtrl.hasClients) return;
       final max = _scrollCtrl.position.maxScrollExtent;
       final pos = _scrollCtrl.position.pixels;
-      // “cerca del fondo” con tolerancia
       final near = (max - pos) < 180;
       if (near != _userIsNearBottom) setState(() => _userIsNearBottom = near);
     });
+
+    // ✅ Asegura token FCM del admin al entrar al chat (por si aún no existe)
+    // Esto permite que le llegue push cuando NO está en la pantalla.
+    FcmTokenService.ensureTokenIfMissingForCurrentUser();
+
+    // ✅ Marca presencia del soporte en este chat
+    _setSupportChatPresence(true);
 
     _markSupportRead(); // una vez al abrir
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+
+    // no await en dispose
+    _setSupportChatPresence(false);
+
     _messageCtrl.dispose();
     _scrollCtrl.dispose();
     _inputFocus.dispose();
     super.dispose();
   }
 
-  DocumentReference<Map<String, dynamic>> get _chatRef =>
-      _db.collection('support_chats').doc(widget.chatId);
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // si la app se minimiza o pierde foco, ya no está "viendo" el chat
+    if (state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached) {
+      _setSupportChatPresence(false);
+      return;
+    }
 
-  CollectionReference<Map<String, dynamic>> get _messagesRef =>
-      _chatRef.collection('messages');
+    if (state == AppLifecycleState.resumed) {
+      _setSupportChatPresence(true);
+    }
+  }
+
+  Future<void> _setSupportChatPresence(bool isOpen) async {
+    try {
+      await _chatRef.set({
+        'supportInChatPage': isOpen,
+        'supportInChatPageAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+    } catch (_) {}
+  }
 
   Future<void> _markSupportRead() async {
     try {
@@ -106,11 +144,11 @@ class _AdminSupportChatPageState extends State<AdminSupportChatPage> {
 
   /// ✅ Prefill del saludo EN EL INPUT (NO se envía solo)
   void _prefillGreetingMessage() {
-    // no sobrescribir si ya escribió algo
     if (_messageCtrl.text.trim().isNotEmpty) return;
     if (_greetingPrefilled) return;
 
-    final greeting = 'Hola, soy ${_adminName ?? 'Soporte'}, ¿En qué puedo ayudarle?';
+    final greeting =
+        'Hola, soy ${_adminName ?? 'Soporte'}, ¿En qué puedo ayudarle?';
 
     _messageCtrl.text = greeting;
     _messageCtrl.selection = TextSelection.fromPosition(
@@ -120,14 +158,10 @@ class _AdminSupportChatPageState extends State<AdminSupportChatPage> {
     _greetingPrefilled = true;
     setState(() => _isTyping = true);
 
-    // (opcional) enfocar teclado
     _inputFocus.requestFocus();
   }
 
   /// ✅ Tomar ticket al abrir si NO tiene asignado
-  /// - Asigna a este admin
-  /// - Cambia a in_progress
-  /// - Pre-escribe el saludo en el input
   Future<void> _takeTicketOnOpenIfNeeded() async {
     if (_takingOnOpen) return;
     if (_adminUid == null) return;
@@ -141,7 +175,6 @@ class _AdminSupportChatPageState extends State<AdminSupportChatPage> {
         final data = snap.data() ?? {};
         final assignedUid = (data['assignedSupportUid'] ?? '').toString().trim();
 
-        // si nadie lo tomó todavía, lo tomamos nosotros
         if (assignedUid.isEmpty) {
           tx.set(
             _chatRef,
@@ -157,9 +190,6 @@ class _AdminSupportChatPageState extends State<AdminSupportChatPage> {
         }
       });
 
-      // Si al final quedó asignado a mí, prefill
-      // (OJO: esto se verifica en el builder con assignedToOther/canReply,
-      // aquí solo “sugerimos” el saludo)
       _prefillGreetingMessage();
     } catch (_) {
       // silencioso
@@ -204,7 +234,6 @@ class _AdminSupportChatPageState extends State<AdminSupportChatPage> {
     setState(() => _sending = true);
 
     try {
-      // si estaba completed, lo reabrimos
       if (_status == 'completed') {
         await _ensureInProgressIfNeeded();
       }
@@ -249,7 +278,7 @@ class _AdminSupportChatPageState extends State<AdminSupportChatPage> {
       await batch.commit();
 
       _messageCtrl.clear();
-      _greetingPrefilled = false; // para futuros tickets, no “bloquear”
+      _greetingPrefilled = false;
       _scrollToBottom(force: true);
     } catch (e) {
       if (!mounted) return;
@@ -290,13 +319,14 @@ class _AdminSupportChatPageState extends State<AdminSupportChatPage> {
 
       setState(() => _sending = true);
 
-      // si estaba completed, lo reabrimos
       if (_status == 'completed') {
         await _ensureInProgressIfNeeded();
       }
 
       final msgRef = _messagesRef.doc();
-      final ext = file.name.contains('.') ? file.name.split('.').last.toLowerCase() : 'jpg';
+      final ext = file.name.contains('.')
+          ? file.name.split('.').last.toLowerCase()
+          : 'jpg';
 
       final storagePath = 'support_chats/${widget.chatId}/${msgRef.id}.$ext';
       final storageRef = FirebaseStorage.instance.ref().child(storagePath);
@@ -398,7 +428,6 @@ class _AdminSupportChatPageState extends State<AdminSupportChatPage> {
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
 
-      // Mensaje del sistema guardado en BD (neutral, sin amarillo)
       final msgRef = _messagesRef.doc();
       await msgRef.set({
         'messageId': msgRef.id,
@@ -458,7 +487,8 @@ class _AdminSupportChatPageState extends State<AdminSupportChatPage> {
         final chatData = chatSnap.data?.data() ?? {};
 
         _status = (chatData['status'] ?? 'pending').toString();
-        _assignedSupportUid = (chatData['assignedSupportUid'] ?? '').toString().trim();
+        _assignedSupportUid =
+            (chatData['assignedSupportUid'] ?? '').toString().trim();
         _assignedSupportName =
             (chatData['assignedSupportName'] ?? '').toString().trim().isEmpty
                 ? null
@@ -539,7 +569,9 @@ class _AdminSupportChatPageState extends State<AdminSupportChatPage> {
             actions: [
               IconButton(
                 tooltip: 'Marcar completado',
-                onPressed: (_status == 'completed' || !canReply) ? null : _markCompleted,
+                onPressed: (_status == 'completed' || !canReply)
+                    ? null
+                    : _markCompleted,
                 icon: const Icon(Icons.check_circle_outline_rounded),
                 color: Colors.green,
               ),
@@ -580,7 +612,6 @@ class _AdminSupportChatPageState extends State<AdminSupportChatPage> {
                   ],
                 ),
               ),
-
               Expanded(
                 child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
                   stream: _messagesRef
@@ -588,7 +619,8 @@ class _AdminSupportChatPageState extends State<AdminSupportChatPage> {
                       .limit(300)
                       .snapshots(),
                   builder: (context, snap) {
-                    if (snap.connectionState == ConnectionState.waiting && !snap.hasData) {
+                    if (snap.connectionState == ConnectionState.waiting &&
+                        !snap.hasData) {
                       return Center(
                         child: CircularProgressIndicator(color: Palette.primary),
                       );
@@ -602,9 +634,6 @@ class _AdminSupportChatPageState extends State<AdminSupportChatPage> {
 
                     final docs = snap.data?.docs ?? [];
 
-                    // ✅ Solo autoscroll cuando:
-                    // - es la primera vez al abrir, o
-                    // - llegó 1+ mensaje nuevo y el usuario está cerca del fondo
                     final newCount = docs.length;
                     final hasNewMessages = newCount > _lastMsgCount;
                     _lastMsgCount = newCount;
@@ -616,7 +645,7 @@ class _AdminSupportChatPageState extends State<AdminSupportChatPage> {
                         _forceScrollToBottomOnce = false;
                         _scrollToBottom(force: true);
                       } else if (hasNewMessages) {
-                        _scrollToBottom(force: false); // respeta si el user está scrolleando arriba
+                        _scrollToBottom(force: false);
                       }
                     });
 
@@ -663,7 +692,6 @@ class _AdminSupportChatPageState extends State<AdminSupportChatPage> {
                   },
                 ),
               ),
-
               SafeArea(
                 top: false,
                 child: Container(
@@ -874,7 +902,9 @@ class _AdminMessageBubble extends StatelessWidget {
               ),
               border: isSystem
                   ? Border.all(color: Palette.button.withOpacity(0.12))
-                  : (isMine ? null : Border.all(color: Palette.button.withOpacity(0.18))),
+                  : (isMine
+                      ? null
+                      : Border.all(color: Palette.button.withOpacity(0.18))),
             ),
             child: Column(
               crossAxisAlignment:

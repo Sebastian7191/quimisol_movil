@@ -9,6 +9,7 @@ import '../../../../../shared/widgets/rounded_card.dart';
 import '../../../../../shared/buttons/app_button.dart';
 
 import 'package:quimisol_movil/shared/services/auth_service.dart';
+import 'package:quimisol_movil/core/services/notifications/fcm_token_service.dart';
 
 // Header con logo + “BIENVENIDOS”
 import '../widgets/login_header.dart';
@@ -63,6 +64,9 @@ class _LoginScreenState extends State<LoginScreen> {
         await _authService.signInWithEmail(email, password);
       }
 
+      // ✅ Asegurar token FCM si no existe (solo una vez / idempotente)
+      await FcmTokenService.ensureTokenIfMissingForCurrentUser();
+
       await _redirectByRole();
     } catch (e) {
       _showErrorSnack(e.toString());
@@ -76,6 +80,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
     try {
       final res = await _authService.signInWithGoogle();
+
+      // ✅ Asegurar token FCM si no existe (también para Google)
+      await FcmTokenService.ensureTokenIfMissingForCurrentUser();
 
       if (!mounted) return;
 
