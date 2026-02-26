@@ -5,9 +5,7 @@ import 'package:quimisol_movil/core/theme/palette.dart';
 
 import '../../data/pedido_row.dart';
 
-// ==========================
-// Helpers
-// ==========================
+// HELPERS
 
 String normalizeEstado(dynamic v) {
   final s = (v ?? '').toString().trim();
@@ -76,7 +74,7 @@ Widget statusPill(String estado) {
   );
 }
 
-/// ✅ FIX: ahora no revienta si el texto es largo
+/// FIX: ahora no revienta si el texto es largo
 Widget miniPill(IconData icon, String text) {
   final ink = Palette.ink;
 
@@ -259,15 +257,30 @@ class EmptyState extends StatelessWidget {
   }
 }
 
-// ==========================
-// ✅ PEDIDO CARD (FIX OVERFLOW + MEJOR RESPONSIVE)
-// ==========================
+// PEDIDO CARD (FIX OVERFLOW + MEJOR RESPONSIVE)
 
 class PedidoCard extends StatelessWidget {
   const PedidoCard({super.key, required this.pedido, required this.onTap});
 
   final PedidoRow pedido;
   final VoidCallback onTap;
+
+  int countItems(PedidoRow p) {
+    final d = p as dynamic;
+
+    // 1) Si tu modelo tiene contador directo
+    final direct = d.itemsCount ?? d.cantidadItems ?? d.itemsLength ?? d.detalleCount;
+
+    if (direct is int) return direct;
+    if (direct is num) return direct.toInt();
+
+    // 2) Si tu modelo tiene lista de items/detalles
+    final list = d.items ?? d.detalle ?? d.detalles ?? d.productos ?? d.carrito;
+
+    if (list is List) return list.length;
+
+    return 0;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -277,10 +290,11 @@ class PedidoCard extends StatelessWidget {
     final estado = normalizeEstado(p.estado);
     final barColor = statusColor(estado);
 
-    final code = (p.codigo ?? '').toString().trim();
-    final address = (p.direccion ?? '').toString().trim();
-    final depto = (p.departamento ?? '').toString().trim();
-    int _countItems(PedidoRow p) {
+    final code = p.codigo.trim();
+    final address = p.direccion.trim();
+    final depto = p.departamento.trim();
+    
+  /*  int _countItems(PedidoRow p) {
       // 1) Si tu modelo tiene alguna propiedad "cantidad"
       //    (ajusta aquí si tú sabes el nombre exacto)
       final dynamic direct =
@@ -304,9 +318,9 @@ class PedidoCard extends StatelessWidget {
       if (list is List) return list.length;
 
       return 0;
-    }
+    }*/
 
-    final conteo = _countItems(p);
+    final conteo = countItems(p);
     final fecha = formatDateTime(p.createdAt);
 
     return LayoutBuilder(

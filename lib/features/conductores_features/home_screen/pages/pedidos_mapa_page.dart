@@ -1,4 +1,3 @@
-// lib/features/conductores_features/home_screen/pages/pedidos_mapa_page.dart
 import 'dart:async';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
@@ -79,8 +78,8 @@ class _PedidosMapaPageState extends State<PedidosMapaPage> {
             : doc.id;
 
         final estado = (data['estado'] ?? '').toString();
-        final direccion =
-            (u['direccion'] ?? data['direccion'] ?? '').toString();
+        final direccion = (u['direccion'] ?? data['direccion'] ?? '')
+            .toString();
         final uid = (u['uid'] ?? '').toString();
 
         _items[doc.id] = _PedidoMapaItem(
@@ -102,8 +101,9 @@ class _PedidosMapaPageState extends State<PedidosMapaPage> {
           .toSet()
           .toList();
 
-      final missingUids =
-          uids.where((uid) => !_userPhotoCache.containsKey(uid)).toList();
+      final missingUids = uids
+          .where((uid) => !_userPhotoCache.containsKey(uid))
+          .toList();
 
       if (missingUids.isNotEmpty) {
         await Future.wait(missingUids.map(_fetchAndCacheUserPhoto));
@@ -112,8 +112,9 @@ class _PedidosMapaPageState extends State<PedidosMapaPage> {
       // 3) Asignar fotoUrl a cada pedido desde cache
       for (final entry in _items.entries.toList()) {
         final it = entry.value;
-        final photo =
-            it.usuarioUid.trim().isEmpty ? null : _userPhotoCache[it.usuarioUid];
+        final photo = it.usuarioUid.trim().isEmpty
+            ? null
+            : _userPhotoCache[it.usuarioUid];
         _items[entry.key] = it.copyWith(fotoUrl: photo);
       }
 
@@ -133,21 +134,25 @@ class _PedidosMapaPageState extends State<PedidosMapaPage> {
   Future<void> _fetchAndCacheUserPhoto(String uid) async {
     try {
       // ✅ intento 1: /usuarios/{uid}
-      final usuariosDoc =
-          await FirebaseFirestore.instance.collection('usuarios').doc(uid).get();
+      final usuariosDoc = await FirebaseFirestore.instance
+          .collection('usuarios')
+          .doc(uid)
+          .get();
 
       if (usuariosDoc.exists) {
-        final data = usuariosDoc.data() as Map<String, dynamic>?;
+        final data = usuariosDoc.data(); //as Map<String, dynamic>?;
         _userPhotoCache[uid] = _pickPhotoUrl(data);
         return;
       }
 
       // ✅ intento 2: /users/{uid}
-      final usersDoc =
-          await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      final usersDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .get();
 
       if (usersDoc.exists) {
-        final data = usersDoc.data() as Map<String, dynamic>?;
+        final data = usersDoc.data(); //as Map<String, dynamic>?;
         _userPhotoCache[uid] = _pickPhotoUrl(data);
         return;
       }
@@ -203,7 +208,10 @@ class _PedidosMapaPageState extends State<PedidosMapaPage> {
       if (cached != null && cachedKey == key) {
         bytes = cached;
       } else {
-        bytes = await _buildMarkerBytes(codigo: item.codigo, fotoUrl: item.fotoUrl);
+        bytes = await _buildMarkerBytes(
+          codigo: item.codigo,
+          fotoUrl: item.fotoUrl,
+        );
         _markerCache[item.id] = bytes;
         _markerKeyCache[item.id] = key;
       }
@@ -354,7 +362,10 @@ class _PedidosMapaPageState extends State<PedidosMapaPage> {
         avatar.width.toDouble(),
         avatar.height.toDouble(),
       );
-      final dst = Rect.fromCircle(center: const Offset(cx, cy), radius: circleR);
+      final dst = Rect.fromCircle(
+        center: const Offset(cx, cy),
+        radius: circleR,
+      );
       canvas.drawImageRect(avatar, src, dst, Paint());
     } else {
       canvas.drawRect(
@@ -362,8 +373,9 @@ class _PedidosMapaPageState extends State<PedidosMapaPage> {
         Paint()..color = Palette.primary.withValues(alpha: 0.95),
       );
 
-      final initial =
-          codigo.trim().isNotEmpty ? codigo.trim()[0].toUpperCase() : '?';
+      final initial = codigo.trim().isNotEmpty
+          ? codigo.trim()[0].toUpperCase()
+          : '?';
 
       final tp = TextPainter(
         text: TextSpan(
@@ -398,10 +410,7 @@ class _PedidosMapaPageState extends State<PedidosMapaPage> {
       Paint()..color = Colors.black.withValues(alpha: 0.16),
     );
 
-    canvas.drawRRect(
-      rrect,
-      Paint()..color = Palette.button,
-    );
+    canvas.drawRRect(rrect, Paint()..color = Palette.button);
 
     // texto codigo
     final codePainter = TextPainter(
@@ -463,10 +472,7 @@ class _PedidosMapaPageState extends State<PedidosMapaPage> {
         ),
         title: Text(
           'Mapa de pedidos (${_items.length})',
-          style: TextStyle(
-            color: Palette.ink,
-            fontWeight: FontWeight.w900,
-          ),
+          style: TextStyle(color: Palette.ink, fontWeight: FontWeight.w900),
         ),
         actions: [
           IconButton(
@@ -484,8 +490,8 @@ class _PedidosMapaPageState extends State<PedidosMapaPage> {
             cameraOptions: mb.CameraOptions(zoom: 12),
             onMapCreated: (map) async {
               _map = map;
-              _pointManager =
-                  await map.annotations.createPointAnnotationManager();
+              _pointManager = await map.annotations
+                  .createPointAnnotationManager();
               _mapReady = true;
 
               await _renderMarkers();
@@ -563,8 +569,10 @@ class _PedidosMapaPageState extends State<PedidosMapaPage> {
           Row(
             children: [
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: Palette.button.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(999),
@@ -613,7 +621,9 @@ class _PedidosMapaPageState extends State<PedidosMapaPage> {
                   onPressed: () => setState(() => _selected = null),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: Palette.ink,
-                    side: BorderSide(color: Palette.ink.withValues(alpha: 0.18)),
+                    side: BorderSide(
+                      color: Palette.ink.withValues(alpha: 0.18),
+                    ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(14),
                     ),

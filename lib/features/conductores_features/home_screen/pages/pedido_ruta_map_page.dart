@@ -1,7 +1,6 @@
-// lib/features/conductores_features/home_screen/pages/pedido_ruta_map_page.dart
 import 'dart:async';
 import 'dart:convert';
-import 'dart:math' as Math;
+import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
@@ -190,7 +189,7 @@ class _PedidoRutaMapPageState extends State<PedidoRutaMapPage> {
     // sombra pro
     final shadowPath = ui.Path()
       ..addOval(Rect.fromCircle(center: center, radius: _bubbleRadius));
-    canvas.drawShadow(shadowPath, Colors.black.withOpacity(0.30), 14, true);
+    canvas.drawShadow(shadowPath, Colors.black.withValues(alpha: 0.30), 14, true);
 
     // fondo
     final fillPaint = ui.Paint()
@@ -247,7 +246,7 @@ class _PedidoRutaMapPageState extends State<PedidoRutaMapPage> {
         final v = event.snapshot.value;
 
         if (v is Map) {
-          final map = Map<String, dynamic>.from(v as Map);
+          final map = Map<String, dynamic>.from(v);
 
           final lat = _toDouble(map['lat'] ?? map['latitude']);
           final lng = _toDouble(map['lng'] ?? map['longitude']);
@@ -294,8 +293,13 @@ class _PedidoRutaMapPageState extends State<PedidoRutaMapPage> {
       _pedidoEstado = (data['estado'] ?? '').toString().trim();
       if (_pedidoEstado!.isEmpty) _pedidoEstado = null;
 
-      final ubicacion = (data['ubicacion'] as Map?) ?? {};
-      final u = Map<String, dynamic>.from(ubicacion as Map);
+      /*final ubicacion = (data['ubicacion'] as Map?) ?? {};
+      final u = Map<String, dynamic>.from(ubicacion as Map);*/
+
+      final ubicacion = data['ubicacion'];
+      final u = (ubicacion is Map)
+          ? Map<String, dynamic>.from(ubicacion)
+          : <String, dynamic>{};
 
       _pedidoDireccion = (u['direccion'] ?? data['direccion'] ?? '')
           .toString()
@@ -380,7 +384,7 @@ class _PedidoRutaMapPageState extends State<PedidoRutaMapPage> {
           lineJoin: mb.LineJoin.ROUND,
           lineCap: mb.LineCap.ROUND,
           lineWidth: _routeWidth,
-          lineColor: Palette.button.value, // ✅ solo rosa
+          lineColor: Palette.button.toARGB32(),
         ),
       );
     }
@@ -543,19 +547,19 @@ class _PedidoRutaMapPageState extends State<PedidoRutaMapPage> {
     return (lat1 - lat2).abs() > 1e-6 || (lng1 - lng2).abs() > 1e-6;
   }
 
-  double _deg2rad(double deg) => deg * (Math.pi / 180.0);
+  double _deg2rad(double deg) => deg * (math.pi / 180.0);
 
   double _haversineMeters(double lat1, double lon1, double lat2, double lon2) {
     const R = 6371000.0; // metros
     final dLat = _deg2rad(lat2 - lat1);
     final dLon = _deg2rad(lon2 - lon1);
 
-    final a = (Math.sin(dLat / 2) * Math.sin(dLat / 2)) +
-        Math.cos(_deg2rad(lat1)) *
-            Math.cos(_deg2rad(lat2)) *
-            (Math.sin(dLon / 2) * Math.sin(dLon / 2));
+    final a = (math.sin(dLat / 2) * math.sin(dLat / 2)) +
+        math.cos(_deg2rad(lat1)) *
+            math.cos(_deg2rad(lat2)) *
+            (math.sin(dLon / 2) * math.sin(dLon / 2));
 
-    final c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    final c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
     return R * c;
   }
 
@@ -671,6 +675,7 @@ class _PedidoRutaMapPageState extends State<PedidoRutaMapPage> {
         await _stopRealtime();
       }
 
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Estado actualizado: $next'),
@@ -783,16 +788,16 @@ class _InfoBar extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: Palette.white.withOpacity(0.94),
+        color: Palette.white.withValues(alpha: 0.94),
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.10),
+            color: Colors.black.withValues(alpha: 0.10),
             blurRadius: 16,
             offset: const Offset(0, 8),
           ),
         ],
-        border: Border.all(color: Palette.primary.withOpacity(0.10)),
+        border: Border.all(color: Palette.primary.withValues(alpha: 0.10)),
       ),
       child: Row(
         children: [
@@ -816,7 +821,7 @@ class _InfoBar extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     fontWeight: FontWeight.w900,
-                    color: Palette.ink.withOpacity(0.88),
+                    color: Palette.ink.withValues(alpha: 0.88),
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -827,7 +832,7 @@ class _InfoBar extends StatelessWidget {
                   style: TextStyle(
                     fontWeight: FontWeight.w700,
                     fontSize: 12,
-                    color: Palette.ink.withOpacity(0.65),
+                    color: Palette.ink.withValues(alpha: 0.65),
                   ),
                 ),
               ],
@@ -840,7 +845,7 @@ class _InfoBar extends StatelessWidget {
               onPressed: (changingEstado || isEntregado) ? null : onToggleEstado,
               style: ElevatedButton.styleFrom(
                 backgroundColor: Palette.button,
-                disabledBackgroundColor: Palette.ink.withOpacity(0.15),
+                disabledBackgroundColor: Palette.ink.withValues(alpha: 0.15),
                 foregroundColor: Colors.white, // ✅ texto en blanco
                 elevation: 0,
                 shape: RoundedRectangleBorder(

@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:developer' as dev;
 
+import 'package:flutter/foundation.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:geolocator/geolocator.dart';
 
@@ -22,38 +24,50 @@ class RepartidorLocationService {
 
   DatabaseReference get _ref => _db.ref().child('repartidores');
 
+  void _log(String message, {Object? error, StackTrace? stackTrace}) {
+      if (!kDebugMode) return;
+      dev.log(
+        message,
+        name: 'RepartidorLocationService',
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
+
   Future<void> start({required String uid}) async {
     stop();
-    print('🚀 START tracking repartidor: $uid');
+    _log('🚀 START tracking repartidor: $uid');
 
     // reset de estado interno
     _lastSentPos = null;
     _lastSentAtMs = 0;
 
     final enabled = await Geolocator.isLocationServiceEnabled();
-    print('GPS enabled: $enabled');
+    _log('GPS enabled: $enabled');
     if (!enabled) return;
 
     var perm = await Geolocator.checkPermission();
-    print('Permission: $perm');
+    _log('Permission: $perm');
 
     if (perm == LocationPermission.denied) {
       perm = await Geolocator.requestPermission();
-      print('Permission after request: $perm');
+      _log('Permission after request: $perm');
     }
 
     if (perm == LocationPermission.denied ||
         perm == LocationPermission.deniedForever) {
-      print('❌ Permiso GPS denegado');
+      _log('❌ Permiso GPS denegado');
       return;
     }
 
-    print('📡 Permisos OK, iniciando timer');
+    _log('📡 Permisos OK, iniciando timer');
 
     _timer = Timer.periodic(_tick, (_) async {
       try {
         final pos = await Geolocator.getCurrentPosition(
-          desiredAccuracy: LocationAccuracy.best,
+          //desiredAccuracy: LocationAccuracy.best,
+           locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.best)
         );
 
         final nowMs = DateTime.now().millisecondsSinceEpoch;
@@ -74,7 +88,7 @@ class RepartidorLocationService {
             pos.longitude,
           );
           byDistance = d >= _minMeters;
-          // print('📏 Distancia desde último envío: ${d.toStringAsFixed(1)}m');
+          // _log('📏 Distancia desde último envío: ${d.toStringAsFixed(1)}m');
         }
 
         if (!byTime && !byDistance) {
@@ -82,7 +96,7 @@ class RepartidorLocationService {
           return;
         }
 
-        print(
+        _log(
           '📤 Enviando por ${byTime ? "TIEMPO" : ""}${(byTime && byDistance) ? " + " : ""}${byDistance ? "DISTANCIA" : ""}'
           ' | 📍 ${pos.latitude}, ${pos.longitude}',
         );
@@ -97,15 +111,15 @@ class RepartidorLocationService {
         _lastSentPos = pos;
         _lastSentAtMs = nowMs;
 
-        print('✅ Ubicación enviada a RTDB');
+        _log('✅ Ubicación enviada a RTDB');
       } catch (e) {
-        print('❌ Error GPS/RTDB: $e');
+        _log('❌ Error GPS/RTDB: $e');
       }
     });
   }
 
   void stop() {
-    print('⏹️ STOP tracking');
+    _log('⏹️ STOP tracking');
     _timer?.cancel();
     _timer = null;
   }

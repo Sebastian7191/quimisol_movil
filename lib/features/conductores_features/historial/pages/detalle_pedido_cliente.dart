@@ -1,22 +1,3 @@
-// lib/features/pedidos/detalle_pedido_cliente.dart
-//
-// ✅ Detalle realtime del pedido (RAÍZ: /pedidos/{pedidoId})
-// ✅ Muestra TODOS los productos con: imagen + nombre + cantidad + precio + subtotal
-// ✅ Muestra costo_envio:
-//    - si 0 => "Gratis"
-//    - si >0 => "Bs. X.XX"
-// ✅ Total final = subtotal productos + costo_envio (si el campo "total" no viene o viene 0, se calcula igual)
-// ✅ ENTREGA:
-//    - si fecha_entrega != null => muestra fecha_entrega (con hora)
-//    - si fecha_entrega == null y fecha_envio != null => muestra fecha_envio (con hora)
-//    - si ambos null => "En revisión" (PERO SOLO EN LA FECHA, NO CAMBIA EL ESTADO)
-// ✅ CLIENTE:
-//    - obtiene uid desde data['uid'] o data['ubicacion']['uid']
-//    - lee /usuarios/{uid} y muestra NOMBRE y CORREO separados
-// ✅ ARRIBA: muestra 'Pedido #<codigo>' usando:
-//    - widget.pedidoCode si viene
-//    - si viene vacío -> usa data['codigo'] del doc
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -340,9 +321,13 @@ class _DetallePedidoClientePageState extends State<DetallePedidoClientePage> {
                         final totalFinal =
                             totalProductos + (costoEnvio > 0 ? costoEnvio : 0);
 
-                        final showSpecial = false;
+                       /* final showSpecial = false;
+                        final isCancelled = step == _TrackStep.cancelado;
+                        final isDelayed = step == _TrackStep.retrasado;*/
+
                         final isCancelled = step == _TrackStep.cancelado;
                         final isDelayed = step == _TrackStep.retrasado;
+                        final showSpecial = isCancelled || isDelayed;
 
                         return Column(
                           children: [

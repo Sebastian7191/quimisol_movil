@@ -1,23 +1,3 @@
-// lib/features/perfil/agregado_ubicacion.dart
-//
-// ✅ flutter_map ^8.2.2 + OSM tiles
-// ✅ Inicia en ubicación actual (Geolocator)
-// ✅ Pin fijo al centro
-// ✅ Reverse geocoding con debounce 1.5s (Mapbox REST)
-// ✅ Buscador avanzado tipo Google Maps:
-//    - Mapbox Search Box API (suggest + retrieve) con session_token
-//    - fallback a Geocoding clásico si SearchBox no está disponible
-// ✅ UI muestra SOLO dirección (sin "Departamento...")
-// ✅ Departamento interno (SIN "Departamento de ...", guardado como "Cochabamba", "La paz", etc.)
-// ✅ Panel inferior pegado abajo; SOLO sube al enfocar "Nombre"
-// ✅ Botón deshabilitado hasta terminar de cargar
-// ✅ AppBar rosa profesional (Palette.button)
-// ✅ GUARDA EN FIRESTORE (Base de datos) al presionar "Guardar mi Ubicación"
-//
-// Requiere:
-// cloud_firestore: ^5.x
-// firebase_auth: ^5.x
-
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
@@ -189,8 +169,14 @@ class _AgregadoUbicacionPageState extends State<AgregadoUbicacionPage> {
         return;
       }
 
-      final pos = await geo.Geolocator.getCurrentPosition(
+      /*final pos = await geo.Geolocator.getCurrentPosition(
         desiredAccuracy: geo.LocationAccuracy.high,
+      );*/
+      
+      final pos = await geo.Geolocator.getCurrentPosition(
+        locationSettings: const geo.LocationSettings(
+          accuracy: geo.LocationAccuracy.high,
+        ),
       );
 
       final start = LatLng(pos.latitude, pos.longitude);

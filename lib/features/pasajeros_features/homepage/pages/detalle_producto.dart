@@ -11,8 +11,7 @@ import 'package:quimisol_movil/features/pasajeros_features/carrito/pages/carrito
 import 'package:quimisol_movil/features/pasajeros_features/carrito/pages/carrito_store.dart';
 
 class DetalleProductoPage extends StatefulWidget {
-  const DetalleProductoPage({Key? key, required this.product})
-    : super(key: key);
+  const DetalleProductoPage({super.key, required this.product});
 
   final ProductModel product;
 
@@ -307,7 +306,7 @@ class _DetalleProductoPageState extends State<DetalleProductoPage> {
                       ],
                     ),
 
-                    // ✅ ListView = scroll de TODO el contenido
+                    //  ListView = scroll de todo el contenido
                     child: ListView(
                       physics: const BouncingScrollPhysics(),
                       padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
