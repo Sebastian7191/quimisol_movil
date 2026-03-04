@@ -24,7 +24,7 @@ class ProductosController {
   CollectionReference<Map<String, dynamic>> get almacenesRef =>
       _db.collection('almacenes');
 
-  // ✅ NUEVO: banners
+  // ✅ banners
   CollectionReference<Map<String, dynamic>> get bannersRef =>
       _db.collection('banners');
 
@@ -68,7 +68,7 @@ class ProductosController {
       almacenId: (data['almacenId'] ?? '').toString(),
       almacenNombre: (data['almacenNombre'] ?? '').toString(),
 
-      // ✅ NUEVO: categoría (si en Firestore no existe, queda '')
+      // ✅ categoría
       categoriaId: (data['categoriaId'] ?? '').toString(),
       categoriaNombre: (data['categoriaNombre'] ?? '').toString(),
     );
@@ -93,8 +93,9 @@ class ProductosController {
     }).toList();
   }
 
- 
+  // ===========================================================================
   // IMÁGENES
+  // ===========================================================================
   String sanitizeFilename(String name) {
     final cleaned = name.trim().replaceAll(RegExp(r'\s+'), '_');
     if (cleaned.isEmpty) return 'imagen.png';
@@ -102,23 +103,23 @@ class ProductosController {
   }
 
   String guessExtFromBytes(Uint8List bytes) {
-  if (bytes.length >= 3 &&
-      bytes[0] == 0xFF &&
-      bytes[1] == 0xD8 &&
-      bytes[2] == 0xFF) {
-    return 'jpg';
-  }
+    if (bytes.length >= 3 &&
+        bytes[0] == 0xFF &&
+        bytes[1] == 0xD8 &&
+        bytes[2] == 0xFF) {
+      return 'jpg';
+    }
 
-  if (bytes.length >= 4 &&
-      bytes[0] == 0x89 &&
-      bytes[1] == 0x50 &&
-      bytes[2] == 0x4E &&
-      bytes[3] == 0x47) {
+    if (bytes.length >= 4 &&
+        bytes[0] == 0x89 &&
+        bytes[1] == 0x50 &&
+        bytes[2] == 0x4E &&
+        bytes[3] == 0x47) {
+      return 'png';
+    }
+
     return 'png';
   }
-
-  return 'png';
-}
 
   Future<Map<String, String>> uploadImage({
     required String productId,
@@ -157,7 +158,7 @@ class ProductosController {
   }) async {
     final ref = _descuentoActivoRef(productId);
 
-    // Si no hay descuento => lo marcamos inactivo y limpiamos campos
+    // Si no hay descuento => marcar inactivo y limpiar campos
     if (descuento == null || !descuento.isValid) {
       await ref.set({
         'activo': false,
@@ -184,6 +185,52 @@ class ProductosController {
     await ref.set(base, SetOptions(merge: true));
   }
 
+  // ✅ NUEVO: leer estado real para hidratar el diálogo al editar
+  Future<Map<String, dynamic>> obtenerEstadoEdicion(String productId) async {
+    final descuentoSnap = await _descuentoActivoRef(productId).get();
+    final bannerSnap = await bannersRef.doc(productId).get();
+
+    String? agregarDescuento;
+    String? descuentoTipo;
+    String? descuentoValor;
+    bool promoBannerEnabled = false;
+
+    if (descuentoSnap.exists) {
+      final data = descuentoSnap.data() ?? {};
+      final activo = data['activo'] == true;
+
+      if (activo) {
+        agregarDescuento = 'SI';
+        descuentoTipo =
+            (data['tipo'] ?? 'PORCENTAJE').toString().trim().toUpperCase();
+
+        final rawValor = data['valor'];
+        if (rawValor is num) {
+          descuentoValor = rawValor % 1 == 0
+              ? rawValor.toStringAsFixed(0)
+              : rawValor.toString();
+        } else if (rawValor != null) {
+          descuentoValor = rawValor.toString();
+        }
+      } else {
+        agregarDescuento = 'NO';
+      }
+    }
+
+    if (bannerSnap.exists) {
+      final data = bannerSnap.data() ?? {};
+      promoBannerEnabled =
+          ((data['estado'] ?? '').toString().trim().toUpperCase() == 'ACTIVO');
+    }
+
+    return {
+      'agregarDescuento': agregarDescuento,
+      'descuentoTipo': descuentoTipo,
+      'descuentoValor': descuentoValor,
+      'promoBannerEnabled': promoBannerEnabled,
+    };
+  }
+
   // ===========================================================================
   // ✅ BANNER PROMO (colección banners)
   // Doc: banners/{productoId}
@@ -208,35 +255,42 @@ class ProductosController {
   }) async {
     final ref = bannersRef.doc(productoId);
 
-    // OFF: marcar INACTIVO solo si existe (no crear doc nuevo)
+    // OFF: marcar INACTIVO solo si existe
     if (!enabled) {
       final snap = await ref.get();
       if (snap.exists) {
-        await ref.set({'estado': 'INACTIVO'}, SetOptions(merge: true));
+        await ref.set(
+          {
+            'estado': 'INACTIVO',
+            'updatedAt': FieldValue.serverTimestamp(),
+          },
+          SetOptions(merge: true),
+        );
       }
       return;
     }
 
-    // ON: crear/actualizar con todos los campos
-    await ref.set({
+    final snap = await ref.get();
+
+    final data = <String, dynamic>{
       'titulo': titulo.trim(),
       'subtitulo': _bannerSubtitleFrom(descuento),
       'imagen': imagenUrl.trim(),
       'estado': 'ACTIVO',
       'idproducto': productoId,
       'updatedAt': FieldValue.serverTimestamp(),
+    };
 
-      // con merge:true no "pisa" si ya existe
-      'createdAt': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
+    // ✅ createdAt solo cuando el doc no existía
+    if (!snap.exists) {
+      data['createdAt'] = FieldValue.serverTimestamp();
+    }
+
+    await ref.set(data, SetOptions(merge: true));
   }
 
   // ===========================================================================
   // ✅ CREAR / ACTUALIZAR con descuento + banner + categoría
-  // IMPORTANTE: para que se guarde categoriaId/categoriaNombre,
-  // tu ProductoFormResult debe tener estos campos:
-  //   final String? categoriaId;
-  //   final String? categoriaNombre;
   // ===========================================================================
   Future<void> crearProducto(
     ProductoFormResult r, {
@@ -277,7 +331,7 @@ class ProductosController {
       'updatedAt': FieldValue.serverTimestamp(),
     };
 
-    // ✅ categoría (solo si eligió una)
+    // ✅ categoría
     if (r.categoriaId != null && r.categoriaId!.trim().isNotEmpty) {
       data['categoriaId'] = r.categoriaId!.trim();
       data['categoriaNombre'] = (r.categoriaNombre ?? '').trim();
@@ -288,7 +342,7 @@ class ProductosController {
     // ✅ descuento
     await _upsertDescuento(productId: id, descuento: descuento);
 
-    // ✅ banner (usa url final)
+    // ✅ banner
     await _syncBanner(
       productoId: id,
       titulo: r.nombre,
@@ -351,7 +405,7 @@ class ProductosController {
     // ✅ descuento
     await _upsertDescuento(productId: id, descuento: descuento);
 
-    // ✅ banner (usa url final)
+    // ✅ banner
     await _syncBanner(
       productoId: id,
       titulo: r.nombre,
@@ -370,12 +424,18 @@ class ProductosController {
       await _descuentoActivoRef(id).delete();
     } catch (_) {}
 
-    // opcional: marcar banner inactivo (o borrar)
+    // opcional: marcar banner inactivo
     try {
       final ref = bannersRef.doc(id);
       final snap = await ref.get();
       if (snap.exists) {
-        await ref.set({'estado': 'INACTIVO'}, SetOptions(merge: true));
+        await ref.set(
+          {
+            'estado': 'INACTIVO',
+            'updatedAt': FieldValue.serverTimestamp(),
+          },
+          SetOptions(merge: true),
+        );
       }
     } catch (_) {}
   }

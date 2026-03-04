@@ -117,6 +117,8 @@ class _ProductosPageState extends State<ProductosPage> {
     required List<UnidadOption> unidades,
     required List<AlmacenOption> almacenes,
   }) async {
+    final estadoEdicion = await controller.obtenerEstadoEdicion(id);
+
     final res = await showDialog<ProductoDialogResult>(
       context: context,
       barrierDismissible: false,
@@ -134,6 +136,17 @@ class _ProductosPageState extends State<ProductosPage> {
         initialImagenUrl: product.imagenUrl,
         initialImagenPath: product.imagenPath,
         initialAlmacenId: product.almacenId,
+
+        // ✅ mantener categoría al editar
+        initialCategoriaId: product.categoriaId,
+        initialCategoriaNombre: product.categoriaNombre,
+
+        // ✅ hidratar descuento + banner
+        initialAgregarDescuento: estadoEdicion['agregarDescuento'] as String?,
+        initialDescuentoTipo: estadoEdicion['descuentoTipo'] as String?,
+        initialDescuentoValor: estadoEdicion['descuentoValor'] as String?,
+        initialPromoBannerEnabled:
+            (estadoEdicion['promoBannerEnabled'] as bool?) ?? false,
       ),
     );
 
@@ -149,20 +162,18 @@ class _ProductosPageState extends State<ProductosPage> {
         promoBannerEnabled: res.promoBannerEnabled,
       );
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Producto actualizado')),
-        );
-      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Producto actualizado')),
+      );
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error al actualizar producto: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error al actualizar producto: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 

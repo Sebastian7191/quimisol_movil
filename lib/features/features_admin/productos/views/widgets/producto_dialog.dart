@@ -1,15 +1,14 @@
 // lib/features/admin/productos/widgets/dialog/producto_dialog.dart
 import 'package:flutter/material.dart';
 import 'package:quimisol_movil/core/theme/palette.dart';
-import 'package:quimisol_movil/features/features_admin/productos/controllers/producto_dialog_controller.dart' as ctrl;
+import 'package:quimisol_movil/features/features_admin/productos/controllers/producto_dialog_controller.dart'
+    as ctrl;
 import 'package:quimisol_movil/features/features_admin/productos/data/almacen_option.dart';
 import 'package:quimisol_movil/features/features_admin/productos/data/unidad_option.dart';
 import 'package:quimisol_movil/features/features_admin/productos/views/widgets/dialogs/producto_dialog_form.dart';
 import 'package:quimisol_movil/features/features_admin/productos/views/widgets/dialogs/producto_dialog_preview_panel.dart';
 import 'package:quimisol_movil/features/features_admin/productos/views/widgets/dialogs/producto_dialog_top_bar.dart';
 import 'package:quimisol_movil/features/features_admin/productos/views/widgets/dialogs/producto_dialog_ui.dart';
-
-
 
 class ProductoDialog extends StatefulWidget {
   final String title;
@@ -28,9 +27,15 @@ class ProductoDialog extends StatefulWidget {
   final String? initialImagenPath;
   final String? initialAlmacenId;
 
-  // ✅ NUEVO: categoría (para EDITAR)
+  // ✅ categoría (para editar)
   final String? initialCategoriaId;
   final String? initialCategoriaNombre;
+
+  // ✅ descuento + banner (para editar)
+  final String? initialAgregarDescuento; // 'SI' | 'NO' | null
+  final String? initialDescuentoTipo; // 'PORCENTAJE' | 'MONTO'
+  final String? initialDescuentoValor;
+  final bool initialPromoBannerEnabled;
 
   const ProductoDialog({
     super.key,
@@ -49,6 +54,10 @@ class ProductoDialog extends StatefulWidget {
     this.initialAlmacenId,
     this.initialCategoriaId,
     this.initialCategoriaNombre,
+    this.initialAgregarDescuento,
+    this.initialDescuentoTipo,
+    this.initialDescuentoValor,
+    this.initialPromoBannerEnabled = false,
   });
 
   @override
@@ -57,8 +66,6 @@ class ProductoDialog extends StatefulWidget {
 
 class _ProductoDialogState extends State<ProductoDialog> {
   final _formKey = GlobalKey<FormState>();
-
-  /// ✅ ahora lo usamos como scroll GENERAL en móvil
   final ScrollController _scrollCtrl = ScrollController();
 
   late final ctrl.ProductoDialogController c;
@@ -79,12 +86,17 @@ class _ProductoDialogState extends State<ProductoDialog> {
       initialStock: widget.initialStock,
       initialAlmacenId: widget.initialAlmacenId,
 
-      // ✅ NUEVO
+      // ✅ categoría
       initialCategoriaId: widget.initialCategoriaId,
       initialCategoriaNombre: widget.initialCategoriaNombre,
+
+      // ✅ descuento + banner
+      initialAgregarDescuento: widget.initialAgregarDescuento,
+      initialDescuentoTipo: widget.initialDescuentoTipo,
+      initialDescuentoValor: widget.initialDescuentoValor,
+      initialPromoBannerEnabled: widget.initialPromoBannerEnabled,
     );
 
-    // defaults si vienen null y hay listas
     if (c.unidadId == null && widget.unidades.isNotEmpty) {
       c.setUnidadId(widget.unidades.first.id);
     }
@@ -139,14 +151,11 @@ class _ProductoDialogState extends State<ProductoDialog> {
                   onClose: () => Navigator.pop(context),
                 ),
                 const SizedBox(height: 14),
-
-                /// ✅ CONTENIDO
                 Expanded(
                   child: LayoutBuilder(
                     builder: (context, box) {
                       final isWide = box.maxWidth >= 980;
 
-                      // ====== DESKTOP/TABLET (igual que antes) ======
                       if (isWide) {
                         final formScrollable = Scrollbar(
                           controller: _scrollCtrl,
@@ -181,11 +190,6 @@ class _ProductoDialogState extends State<ProductoDialog> {
                         );
                       }
 
-                      // ====== MÓVIL (FIX OVERFLOW) ======
-                      // ✅ Un SOLO scroll que contiene:
-                      //   1) formulario (arriba)
-                      //   2) preview teléfono (abajo)
-                      // ✅ botones quedan fijos abajo (fuera del scroll)
                       return Scrollbar(
                         controller: _scrollCtrl,
                         thumbVisibility: true,
@@ -202,15 +206,15 @@ class _ProductoDialogState extends State<ProductoDialog> {
                                 almacenes: widget.almacenes,
                               ),
                               const SizedBox(height: 14),
-
-                              // ✅ preview al final, abajo
                               Center(
                                 child: ConstrainedBox(
-                                  constraints: const BoxConstraints(maxWidth: 380),
-                                  child: ProductoDialogPreviewPanel(controller: c),
+                                  constraints:
+                                      const BoxConstraints(maxWidth: 380),
+                                  child: ProductoDialogPreviewPanel(
+                                    controller: c,
+                                  ),
                                 ),
                               ),
-
                               const SizedBox(height: 10),
                             ],
                           ),
@@ -219,15 +223,13 @@ class _ProductoDialogState extends State<ProductoDialog> {
                     },
                   ),
                 ),
-
                 const SizedBox(height: 12),
-
-                /// ✅ BOTONES (quedan fijos, ya no los tapa el teléfono)
                 Row(
                   children: [
                     Expanded(
                       child: OutlinedButton(
-                        onPressed: c.saving ? null : () => Navigator.pop(context),
+                        onPressed:
+                            c.saving ? null : () => Navigator.pop(context),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: Palette.ink,
                           side: BorderSide(
@@ -237,7 +239,9 @@ class _ProductoDialogState extends State<ProductoDialog> {
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(14),
                           ),
-                          textStyle: const TextStyle(fontWeight: FontWeight.w900),
+                          textStyle: const TextStyle(
+                            fontWeight: FontWeight.w900,
+                          ),
                         ),
                         child: const Text('Cancelar'),
                       ),
@@ -254,13 +258,17 @@ class _ProductoDialogState extends State<ProductoDialog> {
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(14),
                           ),
-                          textStyle: const TextStyle(fontWeight: FontWeight.w900),
+                          textStyle: const TextStyle(
+                            fontWeight: FontWeight.w900,
+                          ),
                         ),
                         child: c.saving
                             ? const SizedBox(
                                 height: 18,
                                 width: 18,
-                                child: CircularProgressIndicator(strokeWidth: 2),
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
                               )
                             : const Text('Guardar'),
                       ),

@@ -22,13 +22,19 @@ class ProductoDialogController extends ChangeNotifier {
     required String? initialAlmacenId,
     String? initialCategoriaId,
     String? initialCategoriaNombre,
+
+    // ✅ NUEVOS: para hidratar descuento y banner al editar
+    String? initialAgregarDescuento,
+    String? initialDescuentoTipo,
+    String? initialDescuentoValor,
+    bool initialPromoBannerEnabled = false,
   })  : existingImageUrl = initialImagenUrl.trim(),
         codigoCtrl = TextEditingController(text: initialCodigo ?? ''),
         nombreCtrl = TextEditingController(text: initialNombre ?? ''),
         descCtrl = TextEditingController(text: initialDescripcion ?? ''),
         precioCtrl = TextEditingController(text: initialPrecio ?? '0'),
         stockCtrl = TextEditingController(text: initialStock ?? '0'),
-        descuentoCtrl = TextEditingController(text: ''),
+        descuentoCtrl = TextEditingController(text: initialDescuentoValor ?? ''),
         promoTitleCtrl = TextEditingController(text: 'New Collection'),
         promoSubtitleCtrl = TextEditingController(
           text: 'Discount 50% for\nthe first transaction',
@@ -54,6 +60,18 @@ class ProductoDialogController extends ChangeNotifier {
     categoriaNombre = (initialCategoriaNombre?.trim().isNotEmpty ?? false)
         ? initialCategoriaNombre!.trim()
         : null;
+
+    // ✅ NUEVO: hidratar descuento al editar
+    agregarDescuento = (initialAgregarDescuento?.trim().isNotEmpty ?? false)
+        ? initialAgregarDescuento!.trim().toUpperCase()
+        : null;
+
+    descuentoTipo = (initialDescuentoTipo?.trim().isNotEmpty ?? false)
+        ? initialDescuentoTipo!.trim().toUpperCase()
+        : 'PORCENTAJE';
+
+    // ✅ NUEVO: hidratar banner al editar
+    promoBannerEnabled = initialPromoBannerEnabled;
 
     nombreCtrl.addListener(_bumpPreview);
     precioCtrl.addListener(_bumpPreview);
@@ -92,7 +110,7 @@ class ProductoDialogController extends ChangeNotifier {
   String? almacenId;
 
   Uint8List? pickedBytes;
-  String? pickedName; // ✅ opcional: guardar nombre real del archivo
+  String? pickedName;
   final String existingImageUrl;
 
   bool saving = false;
@@ -155,24 +173,30 @@ class ProductoDialogController extends ChangeNotifier {
     _bumpPreview();
   }
 
-  String get promoTitleSafe =>
-      promoTitleCtrl.text.trim().isEmpty ? 'New Collection' : promoTitleCtrl.text.trim();
+  String get promoTitleSafe => promoTitleCtrl.text.trim().isEmpty
+      ? 'New Collection'
+      : promoTitleCtrl.text.trim();
 
   String get promoSubtitleSafe => promoSubtitleCtrl.text.trim().isEmpty
       ? 'Discount 50% for\nthe first transaction'
       : promoSubtitleCtrl.text;
 
-  String get promoButtonTextSafe =>
-      promoButtonTextCtrl.text.trim().isEmpty ? 'Shop Now' : promoButtonTextCtrl.text.trim();
+  String get promoButtonTextSafe => promoButtonTextCtrl.text.trim().isEmpty
+      ? 'Shop Now'
+      : promoButtonTextCtrl.text.trim();
 
   String? get promoImageUrlSafe {
     final v = promoImageUrlCtrl.text.trim();
     return v.isEmpty ? null : v;
   }
 
-  double parsePrecio(String v) => double.tryParse(v.replaceAll(',', '.').trim()) ?? 0.0;
+  double parsePrecio(String v) =>
+      double.tryParse(v.replaceAll(',', '.').trim()) ?? 0.0;
+
   int parseStock(String v) => int.tryParse(v.trim()) ?? 0;
-  double parseDouble(String v) => double.tryParse(v.replaceAll(',', '.').trim()) ?? 0.0;
+
+  double parseDouble(String v) =>
+      double.tryParse(v.replaceAll(',', '.').trim()) ?? 0.0;
 
   double precioBaseNow() => parsePrecio(precioCtrl.text);
 
@@ -204,19 +228,17 @@ class ProductoDialogController extends ChangeNotifier {
       if (pct <= 0) return null;
       return DescuentoDraft(tipo: 'PORCENTAJE', valor: pct.toDouble());
     }
+
     return DescuentoDraft(tipo: 'MONTO', valor: val);
   }
 
-  // --------------------
-  // ✅ image (móvil + web con SOLO image_picker)
-  // --------------------
   Future<void> pickImage(BuildContext context) async {
     try {
       final picker = ImagePicker();
 
       final XFile? xfile = await picker.pickImage(
         source: ImageSource.gallery,
-        imageQuality: 85, // opcional
+        imageQuality: 85,
       );
 
       if (xfile == null) return;
@@ -225,7 +247,7 @@ class ProductoDialogController extends ChangeNotifier {
       if (bytes.isEmpty) return;
 
       pickedBytes = bytes;
-      pickedName = xfile.name; // ✅ en web suele venir bien, en móvil también
+      pickedName = xfile.name;
 
       _bumpPreview();
       notifyListeners();
@@ -272,13 +294,14 @@ class ProductoDialogController extends ChangeNotifier {
         precio: parsePrecio(precioCtrl.text),
         stock: parseStock(stockCtrl.text),
         imageBytes: pickedBytes,
-        imageName: pickedName, // ✅ ahora sí mandamos nombre si lo usas
+        imageName: pickedName,
         almacenId: almacen.id,
         almacenNombre: almacen.label,
         categoriaId: categoriaId,
         categoriaNombre: categoriaNombre,
       ),
       descuento: buildDescuentoDraft(),
+      promoBannerEnabled: promoBannerEnabled, // ✅ FALTABA ESTO
     );
   }
 
