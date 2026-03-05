@@ -1,18 +1,4 @@
-// lib/features/perfil/ubicaciones_page.dart
-//
-// ✅ Lista de ubicaciones (Firestore)
-// ✅ usuarios/{uid}/ubicaciones
-// ✅ Muestra SOLO: nombre + dirección
-// ✅ Separado por secciones de departamento
-// ✅ Botón “Agregar nueva ubicación”
-//    -> Abre mapa (AgregadoUbicacionPage)
-//    -> ✅ YA NO GUARDA AQUÍ (para evitar duplicados)
-// ✅ Eliminar ubicación
-//
-// Nota:
-// - Si un doc no trae "direccion", se muestra fallback con coords.
-
-import 'dart:math' as math;
+//import 'dart:math' as math;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';

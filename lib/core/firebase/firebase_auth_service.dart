@@ -1,13 +1,17 @@
+import 'package:flutter/foundation.dart' show kIsWeb; //agregue esto no me preguntes por que, es para detectar si esta en web o no...jaja la app se respondio sola
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
 import 'package:quimisol_movil/shared/services/auth_service.dart';
-import 'package:flutter/foundation.dart' show kIsWeb; //agregue esto no me preguntes por que, es para detectar si esta en web o no...jaja la app se respondio sola
 
 class FirebaseAuthService implements AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _db = FirebaseFirestore.instance;
+
+  // Una sola instancia en móvil
+  final GoogleSignIn _googleSignIn = GoogleSignIn(scopes: ['email']);
 
   // ──────────────────────────────────────────────
   //  ESTADO DE LOGIN
@@ -49,14 +53,13 @@ class FirebaseAuthService implements AuthService {
         password: cleanPass,
       );
     } on FirebaseAuthException catch (e) {
-      // Mensaje para el caso típico: "Me registré con Google, pero intento entrar con contraseña"
+      // Caso típico en web: intentan entrar con password pero la cuenta es Google-only
       if (_looksLikeGoogleOnlyAccount(e)) {
         throw Exception(
           'Este correo parece estar registrado con Google. '
           'Usa "Continuar con Google" o crea una contraseña con "¿Olvidaste tu contraseña?".',
         );
       }
-
       throw Exception(_firebaseError(e));
     }
   }
@@ -88,7 +91,6 @@ class FirebaseAuthService implements AuthService {
         'updated_at': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
     } on FirebaseAuthException catch (e) {
-      // Si el correo ya existe (por Google u otro), guía al usuario
       if (e.code == 'email-already-in-use') {
         throw Exception(
           'Este correo ya está registrado. '
@@ -100,9 +102,10 @@ class FirebaseAuthService implements AuthService {
   }
 
   // ──────────────────────────────────────────────
-  //  LOGIN GOOGLE (WEB + MÓVIL) Requiere que el usuario exista en Firestore (usuarios/{uid})
-  //  WEB: signInWithPopup
-  //  MÓVIL: google_sign_in
+  //  LOGIN GOOGLE (WEB + MÓVIL)
+  //  ✅ WEB: signInWithPopup
+  //  ✅ MÓVIL: _googleSignIn (una sola instancia)
+  //  ✅ Valida que exista en Firestore (usuarios/{uid})
   // ──────────────────────────────────────────────
   @override
   Future<GoogleLoginResult> signInWithGoogle() async {
@@ -125,9 +128,12 @@ class FirebaseAuthService implements AuthService {
           rethrow;
         }
       } else {
-        final google = GoogleSignIn(scopes: ['email']);
-        final GoogleSignInAccount? googleUser = await google.signIn();
+        // ✅ Forzar chooser (como tu compa)
+        try {
+          await _googleSignIn.signOut();
+        } catch (_) {}
 
+        final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
         if (googleUser == null) {
           return const GoogleLoginResult(isNewUser: false);
         }
@@ -147,23 +153,39 @@ class FirebaseAuthService implements AuthService {
       final ref = _db.collection('usuarios').doc(uid);
       final doc = await ref.get();
 
-      // Solo deja entrar si existe en tu sistema
+      // ✅ Solo deja entrar si existe en tu sistema
       if (!doc.exists) {
         await _auth.signOut();
-        if (!kIsWeb) await GoogleSignIn().signOut();
+        if (!kIsWeb) {
+          try {
+            await _googleSignIn.disconnect();
+          } catch (_) {
+            try {
+              await _googleSignIn.signOut();
+            } catch (_) {}
+          }
+        }
         throw Exception('Tu cuenta de Google no está registrada en el sistema.');
       }
 
       final data = doc.data();
       final bool isProfileCompleted = data?['profile_completed'] == true;
 
-      // Actualizar básicos
-      await ref.set({
-        'updated_at': FieldValue.serverTimestamp(),
+      // ✅ Respeta role existente
+      final String? existingRole = data?['role'] as String?;
+      final bool hasRole = (existingRole != null && existingRole.isNotEmpty);
+
+      // ✅ Actualiza básicos (y role solo si no existe)
+      final payload = <String, dynamic>{
+        'email': userCred.user!.email,
+        if (!hasRole) 'role': 'cliente',
+        'profile_completed': isProfileCompleted ? true : false,
         if (userCred.user!.displayName != null) 'name': userCred.user!.displayName,
         if (userCred.user!.photoURL != null) 'photo': userCred.user!.photoURL,
-        if (userCred.user!.email != null) 'email': userCred.user!.email,
-      }, SetOptions(merge: true));
+        'updated_at': FieldValue.serverTimestamp(),
+      };
+
+      await ref.set(payload, SetOptions(merge: true));
 
       return GoogleLoginResult(
         isNewUser: !isProfileCompleted,
@@ -178,7 +200,7 @@ class FirebaseAuthService implements AuthService {
   }
 
   // ──────────────────────────────────────────────
-  //  RESET PASSWORD (para que puedan entrar por email/clave)
+  //  RESET PASSWORD
   // ──────────────────────────────────────────────
   Future<void> sendPasswordReset(String email) async {
     final cleanEmail = email.trim();
@@ -194,10 +216,19 @@ class FirebaseAuthService implements AuthService {
   // ──────────────────────────────────────────────
   @override
   Future<void> logout() async {
-    if (!kIsWeb) {
-      await GoogleSignIn().signOut();
-    }
+    // ✅ Primero Firebase
     await _auth.signOut();
+
+    // ✅ Luego Google (en móvil) para que vuelva a preguntar cuenta
+    if (!kIsWeb) {
+      try {
+        await _googleSignIn.disconnect();
+      } catch (_) {
+        try {
+          await _googleSignIn.signOut();
+        } catch (_) {}
+      }
+    }
   }
 
   // ──────────────────────────────────────────────
@@ -215,6 +246,10 @@ class FirebaseAuthService implements AuthService {
         return 'El correo no es válido.';
       case 'weak-password':
         return 'La contraseña es muy débil.';
+      case 'too-many-requests':
+        return 'Demasiados intentos. Intenta más tarde.';
+      case 'operation-not-allowed':
+        return 'Este método de inicio de sesión no está habilitado.';
       default:
         return e.message ?? 'Error desconocido.';
     }

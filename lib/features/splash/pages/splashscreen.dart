@@ -1,5 +1,4 @@
-// lib/features/splash/splash_page.dart
-import 'dart:math' as math;
+//import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_modular/flutter_modular.dart';

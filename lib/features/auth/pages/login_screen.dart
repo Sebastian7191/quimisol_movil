@@ -9,6 +9,7 @@ import '../../../../../shared/widgets/rounded_card.dart';
 import '../../../../../shared/buttons/app_button.dart';
 
 import 'package:quimisol_movil/shared/services/auth_service.dart';
+import 'package:quimisol_movil/core/services/notifications/fcm_token_service.dart';
 
 // Header con logo + “BIENVENIDOS”
 import '../widgets/login_header.dart';
@@ -63,6 +64,9 @@ class _LoginScreenState extends State<LoginScreen> {
         await _authService.signInWithEmail(email, password);
       }
 
+      // ✅ Asegurar token FCM si no existe (solo una vez / idempotente)
+      await FcmTokenService.ensureTokenIfMissingForCurrentUser();
+
       await _redirectByRole();
     } catch (e) {
       _showErrorSnack(e.toString());
@@ -76,6 +80,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
     try {
       final res = await _authService.signInWithGoogle();
+
+      // ✅ Asegurar token FCM si no existe (también para Google)
+      await FcmTokenService.ensureTokenIfMissingForCurrentUser();
 
       if (!mounted) return;
 
@@ -125,7 +132,10 @@ class _LoginScreenState extends State<LoginScreen> {
   void _showErrorSnack(String message) {
     final clean = message.replaceAll('Exception: ', '');
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(clean), backgroundColor: Colors.redAccent),
+      SnackBar(
+        content: Text(clean),
+        backgroundColor: Colors.redAccent,
+      ),
     );
   }
 
@@ -181,7 +191,7 @@ class _LoginScreenState extends State<LoginScreen> {
             Icon(
               FontAwesomeIcons.google,
               size: 18,
-              color: Palette.primary, // rojo Google
+              color: Palette.primary,
             ),
             SizedBox(width: 12),
             Text(
@@ -209,8 +219,7 @@ class _LoginScreenState extends State<LoginScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
             child: ConstrainedBox(
               constraints: BoxConstraints(
-                minHeight:
-                    media.size.height -
+                minHeight: media.size.height -
                     media.padding.top -
                     media.padding.bottom,
               ),
@@ -281,6 +290,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             child: TextButton(
                               onPressed: () {
                                 if (_isLoading) return;
+                                // TODO: implementar recuperación de contraseña
                               },
                               child: const Text(
                                 '¿Olvidaste tu contraseña?',

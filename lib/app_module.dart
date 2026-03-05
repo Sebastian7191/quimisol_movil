@@ -2,7 +2,7 @@ import 'package:flutter_modular/flutter_modular.dart';
 
 // === SERVICES ===
 import 'package:quimisol_movil/core/firebase/firebase_auth_service.dart';
-import 'package:quimisol_movil/features/features_admin/sidebar/pages/sidebar.dart';
+import 'package:quimisol_movil/features/admin_features/sidebar/pages/sidebar.dart';
 import 'package:quimisol_movil/shared/services/auth_service.dart';
 
 // === STORES ===
@@ -15,7 +15,7 @@ import 'package:quimisol_movil/features/auth/pages/completar_perfil.dart';
 
 // === NAVBARS ===
 import 'package:quimisol_movil/features/pasajeros_features/navbar/pages/nav_bar_pasajeros.dart';
-import 'package:quimisol_movil/features/conductores_features/navbar/pages/nav_bar_repartidores.dart';
+import 'package:quimisol_movil/features/conductor_features/navbar/pages/nav_bar_repartidores.dart';
 
 // === ADMIN SHELL (SIDEBAR) ===
 // ✅ Ajusta este import a tu estructura real.

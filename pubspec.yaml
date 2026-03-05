@@ -38,6 +38,7 @@ dependencies:
   google_sign_in: ^6.3.0
   firebase_auth: ^6.0.2
   cloud_firestore: ^6.1.0
+  cloud_functions: ^6.0.6 #xd
   firebase_core: ^4.2.1
   mapbox_maps_flutter: ^2.17.0
   latlong2: ^0.9.0

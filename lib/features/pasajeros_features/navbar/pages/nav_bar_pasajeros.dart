@@ -5,7 +5,7 @@ import 'package:quimisol_movil/features/pasajeros_features/homepage/pages/home_p
 import 'package:quimisol_movil/features/pasajeros_features/pedidos/pages/lista_pedidos.dart';
 import 'package:quimisol_movil/features/pasajeros_features/perfil/pages/perfil.dart';
 import 'package:quimisol_movil/features/pasajeros_features/wishlist/pages/wishlist.dart';
-
+import 'package:quimisol_movil/features/pasajeros_features/soporte/pages/soporte_chat_page.dart'; // ✅ chat soporte
 
 class Navbar extends StatefulWidget {
   const Navbar({super.key});
@@ -23,7 +23,8 @@ class _NavbarState extends State<Navbar> {
       const HomeCliente(),
       const WishlistPage(),
       const MisPedidosPage(),
-      const PerfilPage(), // ✅ AQUI
+      const SoporteChatPage(), // ✅ Soporte (chat)
+      const PerfilPage(),
     ];
 
     return Scaffold(
@@ -54,24 +55,25 @@ class _BottomPillNavbarAnimated extends StatelessWidget {
       _NavItem(icon: Icons.storefront_rounded, label: 'Principal'),
       _NavItem(icon: Icons.favorite_rounded, label: 'Deseados'),
       _NavItem(icon: Icons.shopping_cart_outlined, label: 'Pedidos'),
+      _NavItem(icon: Icons.support_agent_rounded, label: 'Soporte'), // ✅ NUEVO
       _NavItem(icon: Icons.person_outline_rounded, label: 'Perfil'),
     ];
 
     final w = MediaQuery.of(context).size.width;
-    final barWidth = math.min(w - 28, 520.0);
+    final barWidth = math.min(w - 28, 560.0);
     const barHeight = 64.0;
 
     const bubbleSize = 58.0;
     final notchRadius = bubbleSize * 0.52;
 
-    // ✅ Colores nuevos
+    // ✅ Colores
     final barBg = Palette.white;
     final borderColor = Palette.button; // rosado borde
     final labelColor = Palette.primary; // morado texto
     final iconUnselected = Palette.ink.withValues(alpha: 0.45);
     final iconSelected = Palette.primary;
 
-    final bubbleColor = Palette.button; // burbuja rosada mantiene
+    final bubbleColor = Palette.button;
     final bubbleIconColor = Palette.white;
 
     final unit = barWidth / items.length;
@@ -94,7 +96,7 @@ class _BottomPillNavbarAnimated extends StatelessWidget {
               return Stack(
                 clipBehavior: Clip.none,
                 children: [
-                  // Fondo pill + notch animado (ahora blanco + borde rosa)
+                  // Fondo pill + notch animado
                   CustomPaint(
                     painter: _PillNotchPainterMove(
                       fillColor: barBg,
@@ -132,13 +134,19 @@ class _BottomPillNavbarAnimated extends StatelessWidget {
                                     AnimatedDefaultTextStyle(
                                       duration: const Duration(milliseconds: 180),
                                       style: TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                                        fontSize: 11.5,
+                                        fontWeight: isSelected
+                                            ? FontWeight.w700
+                                            : FontWeight.w500,
                                         color: isSelected
                                             ? labelColor
                                             : labelColor.withValues(alpha: 0.65),
                                       ),
-                                      child: Text(items[i].label),
+                                      child: Text(
+                                        items[i].label,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
                                     ),
                                   ],
                                 ),
@@ -150,7 +158,7 @@ class _BottomPillNavbarAnimated extends StatelessWidget {
                     ),
                   ),
 
-                  // Burbuja flotante animada (rosada)
+                  // Burbuja flotante animada
                   AnimatedPositioned(
                     duration: const Duration(milliseconds: 420),
                     curve: Curves.easeOutBack,
