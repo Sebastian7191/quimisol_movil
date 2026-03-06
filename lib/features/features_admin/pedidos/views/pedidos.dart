@@ -11,7 +11,12 @@ import 'widgets/micro_widgets.dart';
 import 'widgets/stagger_in.dart';
 
 class PedidosPage extends StatefulWidget {
-  const PedidosPage({super.key});
+  const PedidosPage({
+    super.key,
+    this.initialPedidoId,
+  });
+
+  final String? initialPedidoId;
 
   @override
   State<PedidosPage> createState() => _PedidosPageState();
@@ -24,6 +29,9 @@ class _PedidosPageState extends State<PedidosPage> with TickerProviderStateMixin
 
   final controller = PedidosController();
   late final AnimationController _bgCtrl;
+
+  // ✅ para abrir el pedido de la notificación solo una vez
+  bool _openedInitialPedido = false;
 
   @override
   void initState() {
@@ -251,6 +259,23 @@ class _PedidosPageState extends State<PedidosPage> with TickerProviderStateMixin
 
                   final docs = snap.data?.docs ?? [];
                   final idToDoc = {for (final d in docs) d.id: d};
+
+                  // ✅ si entró desde la push, abrir ese pedido una sola vez
+                  if (!_openedInitialPedido &&
+                      widget.initialPedidoId != null &&
+                      widget.initialPedidoId!.trim().isNotEmpty &&
+                      idToDoc.containsKey(widget.initialPedidoId)) {
+                    _openedInitialPedido = true;
+
+                    WidgetsBinding.instance.addPostFrameCallback((_) async {
+                      if (!mounted) return;
+                      await showPedidoDetalleDialog(
+                        context,
+                        widget.initialPedidoId!,
+                      );
+                      if (mounted) setState(() {});
+                    });
+                  }
 
                   final pedidos = docs.map((d) => controller.parsePedidoRow(d)).toList();
 

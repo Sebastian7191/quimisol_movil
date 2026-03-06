@@ -5,32 +5,173 @@ import 'package:quimisol_movil/features/pasajeros_features/homepage/pages/home_p
 import 'package:quimisol_movil/features/pasajeros_features/pedidos/pages/lista_pedidos.dart';
 import 'package:quimisol_movil/features/pasajeros_features/perfil/pages/perfil.dart';
 import 'package:quimisol_movil/features/pasajeros_features/wishlist/pages/wishlist.dart';
-import 'package:quimisol_movil/features/pasajeros_features/soporte/pages/soporte_chat_page.dart'; // ✅ chat soporte
+import 'package:quimisol_movil/features/pasajeros_features/soporte/pages/soporte_chat_page.dart';
+import 'package:quimisol_movil/features/pasajeros_features/pedidos/services/pedido_review_service.dart';
+import 'package:quimisol_movil/features/pasajeros_features/pedidos/widgets/review_entrega_sheet.dart';
+import 'package:quimisol_movil/features/pasajeros_features/pedidos/widgets/review_productos_sheet.dart';
 
 class Navbar extends StatefulWidget {
-  const Navbar({super.key});
+  final int initialIndex;
+  final int initialPedidosTab;
+
+  const Navbar({
+    super.key,
+    this.initialIndex = 0,
+    this.initialPedidosTab = 0,
+  });
 
   @override
   State<Navbar> createState() => _NavbarState();
 }
 
 class _NavbarState extends State<Navbar> {
-  int _currentIndex = 0;
+  late int _currentIndex;
+
+  final PedidoReviewService _reviewService = PedidoReviewService();
+
+  bool _checkingReview = false;
+  bool _reviewFlowDone = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentIndex = widget.initialIndex.clamp(0, 4);
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkPendingReviewFlow();
+    });
+  }
+
+  Future<void> _checkPendingReviewFlow() async {
+    if (!mounted || _checkingReview || _reviewFlowDone) return;
+
+    _checkingReview = true;
+
+    try {
+      final doc = await _reviewService.findPendingDeliveredOrder();
+
+      if (!mounted || doc == null || !doc.exists) {
+        _reviewFlowDone = true;
+        return;
+      }
+
+      final data = doc.data() ?? {};
+      final pedidoId = doc.id;
+      final pedidoCode = (data['codigo'] ?? pedidoId).toString().trim();
+
+      final itemsRaw = (data['items'] as List?) ?? [];
+      final items = itemsRaw
+          .whereType<Map>()
+          .map((e) => Map<String, dynamic>.from(e))
+          .toList();
+
+      if (items.isEmpty) {
+        _reviewFlowDone = true;
+        return;
+      }
+
+      final entregaResult = await showModalBottomSheet<Map<String, dynamic>>(
+        context: context,
+        isDismissible: false,
+        enableDrag: false,
+        isScrollControlled: true,
+        backgroundColor: Palette.white,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        builder: (_) => ReviewEntregaSheet(
+          pedidoCode: pedidoCode,
+        ),
+      );
+
+      if (!mounted || entregaResult == null) {
+        _reviewFlowDone = true;
+        return;
+      }
+
+      await _reviewService.saveEntregaReview(
+        pedidoId: pedidoId,
+        rating: (entregaResult['rating'] ?? 5) as int,
+        comentario: (entregaResult['comentario'] ?? '').toString(),
+      );
+
+      if (!mounted) {
+        _reviewFlowDone = true;
+        return;
+      }
+
+      final productResult =
+          await showModalBottomSheet<List<Map<String, dynamic>>>(
+        context: context,
+        isDismissible: false,
+        enableDrag: false,
+        isScrollControlled: true,
+        backgroundColor: Palette.white,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        builder: (_) => ReviewProductosSheet(items: items),
+      );
+
+      if (!mounted || productResult == null) {
+        _reviewFlowDone = true;
+        return;
+      }
+
+      await _reviewService.saveProductReviews(
+        pedidoId: pedidoId,
+        reviews: productResult,
+      );
+
+      if (!mounted) {
+        _reviewFlowDone = true;
+        return;
+      }
+
+      setState(() {
+        _currentIndex = 2;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Gracias por calificar tu pedido y productos.'),
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: Palette.statsSuccess,
+        ),
+      );
+
+      _reviewFlowDone = true;
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error al mostrar la calificación: $e'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } finally {
+      _checkingReview = false;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final pages = <Widget>[
       const HomeCliente(),
       const WishlistPage(),
-      const MisPedidosPage(),
-      const SoporteChatPage(), // ✅ Soporte (chat)
+      MisPedidosPage(initialTab: widget.initialPedidosTab),
+      const SoporteChatPage(),
       const PerfilPage(),
     ];
 
     return Scaffold(
       backgroundColor: Palette.fieldBg,
       extendBody: true,
-      body: pages[_currentIndex],
+      body: IndexedStack(
+        index: _currentIndex,
+        children: pages,
+      ),
       bottomNavigationBar: _BottomPillNavbarAnimated(
         currentIndex: _currentIndex,
         onChanged: (i) => setState(() => _currentIndex = i),
@@ -39,7 +180,6 @@ class _NavbarState extends State<Navbar> {
   }
 }
 
-/// Navbar: mismo diseño + estilos nuevos (blanco + borde rosa + letras moradas)
 class _BottomPillNavbarAnimated extends StatelessWidget {
   final int currentIndex;
   final ValueChanged<int> onChanged;
@@ -55,7 +195,7 @@ class _BottomPillNavbarAnimated extends StatelessWidget {
       _NavItem(icon: Icons.storefront_rounded, label: 'Principal'),
       _NavItem(icon: Icons.favorite_rounded, label: 'Deseados'),
       _NavItem(icon: Icons.shopping_cart_outlined, label: 'Pedidos'),
-      _NavItem(icon: Icons.support_agent_rounded, label: 'Soporte'), // ✅ NUEVO
+      _NavItem(icon: Icons.support_agent_rounded, label: 'Soporte'),
       _NavItem(icon: Icons.person_outline_rounded, label: 'Perfil'),
     ];
 
@@ -66,13 +206,11 @@ class _BottomPillNavbarAnimated extends StatelessWidget {
     const bubbleSize = 58.0;
     final notchRadius = bubbleSize * 0.52;
 
-    // ✅ Colores
     final barBg = Palette.white;
     final borderColor = Palette.button;
     final labelColor = Palette.primary;
     final iconUnselected = Palette.ink.withOpacity(0.45);
     final iconSelected = Palette.primary;
-
     final bubbleColor = Palette.button;
     final bubbleIconColor = Palette.white;
 
@@ -96,7 +234,6 @@ class _BottomPillNavbarAnimated extends StatelessWidget {
               return Stack(
                 clipBehavior: Clip.none,
                 children: [
-                  // Fondo pill + notch animado
                   CustomPaint(
                     painter: _PillNotchPainterMove(
                       fillColor: barBg,
@@ -121,18 +258,22 @@ class _BottomPillNavbarAnimated extends StatelessWidget {
                               child: AnimatedContainer(
                                 duration: const Duration(milliseconds: 260),
                                 curve: Curves.easeOut,
-                                padding: EdgeInsets.only(top: isSelected ? 4 : 12),
+                                padding:
+                                    EdgeInsets.only(top: isSelected ? 4 : 12),
                                 child: Column(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
                                     Icon(
                                       items[i].icon,
                                       size: 24,
-                                      color: isSelected ? iconSelected : iconUnselected,
+                                      color: isSelected
+                                          ? iconSelected
+                                          : iconUnselected,
                                     ),
                                     const SizedBox(height: 4),
                                     AnimatedDefaultTextStyle(
-                                      duration: const Duration(milliseconds: 180),
+                                      duration:
+                                          const Duration(milliseconds: 180),
                                       style: TextStyle(
                                         fontSize: 11.5,
                                         fontWeight: isSelected
@@ -157,8 +298,6 @@ class _BottomPillNavbarAnimated extends StatelessWidget {
                       ),
                     ),
                   ),
-
-                  // Burbuja flotante animada
                   AnimatedPositioned(
                     duration: const Duration(milliseconds: 420),
                     curve: Curves.easeOutBack,
@@ -207,10 +346,13 @@ class _BottomPillNavbarAnimated extends StatelessWidget {
 class _NavItem {
   final IconData icon;
   final String label;
-  const _NavItem({required this.icon, required this.label});
+
+  const _NavItem({
+    required this.icon,
+    required this.label,
+  });
 }
 
-/// Painter ORIGINAL (sin límites del notch) + relleno blanco + borde rosado
 class _PillNotchPainterMove extends CustomPainter {
   final Color fillColor;
   final Color borderColor;
@@ -232,7 +374,6 @@ class _PillNotchPainterMove extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final w = size.width;
     final h = size.height;
-
     final cx = notchCenterX;
 
     final leftEdge = 0.0;

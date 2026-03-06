@@ -7,6 +7,9 @@
 // ✅ La imagen NO se achica por el descuento (AspectRatio fijo)
 // ✅ Banners desde Firestore (collection: banners) SOLO estado ACTIVO
 // ✅ FIX: ya NO parpadea al tocar categorías (streams cacheados)
+// ✅ NUEVO: Banner "Ver más" abre DetalleProductoPage del producto del banner
+// ✅ NUEVO: Arranca en depto detectado por ubicación (con match inteligente)
+// ✅ NUEVO: Card muestra promedio real + total de reseñas
 
 import 'dart:math' as math;
 
@@ -14,6 +17,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_modular/flutter_modular.dart';
+
+import 'package:geocoding/geocoding.dart' as geo;
+import 'package:geolocator/geolocator.dart';
 
 import 'package:quimisol_movil/core/theme/palette.dart';
 import 'package:quimisol_movil/features/pasajeros_features/carrito/pages/carrito.dart';
@@ -32,18 +38,16 @@ class HomeCliente extends StatefulWidget {
 class _HomeClienteState extends State<HomeCliente> {
   late final AuthService _authService;
 
-  // ✅ Departamento seleccionado
-  String _selectedDepto = 'Todos';
+  String _selectedDepto = '';
+  String _detectedDepto = '';
+  bool _autoDeptoApplied = false;
 
-  // ✅ Categoría seleccionada (id)
   String _selectedCategoriaId = 'Todos';
 
-  // ✅ Streams cacheados (evita parpadeo)
   late final Stream<QuerySnapshot<Map<String, dynamic>>> _almacenes$;
   late final Stream<QuerySnapshot<Map<String, dynamic>>> _productos$;
   late final Stream<QuerySnapshot<Map<String, dynamic>>> _categorias$;
 
-  // ✅ Wishlist store
   final WishlistStore _wishlist = WishlistStore.I;
 
   @override
@@ -52,19 +56,132 @@ class _HomeClienteState extends State<HomeCliente> {
     _authService = Modular.get<AuthService>();
     _wishlist.bind();
 
-    _almacenes$ = FirebaseFirestore.instance
-        .collection('almacenes')
-        .snapshots();
-    _productos$ = FirebaseFirestore.instance
-        .collection('productos')
-        .snapshots();
-
-    // 🔧 Ajusta si tu colección se llama distinto
+    _almacenes$ = FirebaseFirestore.instance.collection('almacenes').snapshots();
+    _productos$ = FirebaseFirestore.instance.collection('productos').snapshots();
     _categorias$ = FirebaseFirestore.instance
         .collection('categorias')
-        // si tu campo no es 'nombre', cambia esto o quita orderBy
         .orderBy('nombre')
         .snapshots();
+
+    _initUserDeptoFromLocation();
+  }
+
+  String _s(dynamic v) => (v ?? '').toString().trim();
+
+  double _toDouble(dynamic v) {
+    if (v is num) return v.toDouble();
+    return double.tryParse(v?.toString() ?? '') ?? 0.0;
+  }
+
+  Future<void> _initUserDeptoFromLocation() async {
+    try {
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        _detectedDepto = '';
+        return;
+      }
+
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        _detectedDepto = '';
+        return;
+      }
+
+      final position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+
+      final placemarks = await geo.placemarkFromCoordinates(
+        position.latitude,
+        position.longitude,
+      );
+
+      if (placemarks.isEmpty) {
+        _detectedDepto = '';
+        return;
+      }
+
+      final p = placemarks.first;
+
+      final raw = (p.administrativeArea?.trim().isNotEmpty ?? false)
+          ? p.administrativeArea!.trim()
+          : (p.subAdministrativeArea?.trim().isNotEmpty ?? false)
+              ? p.subAdministrativeArea!.trim()
+              : (p.locality?.trim().isNotEmpty ?? false)
+                  ? p.locality!.trim()
+                  : '';
+
+      _detectedDepto = raw;
+
+      if (!mounted) return;
+      setState(() {});
+    } catch (_) {
+      _detectedDepto = '';
+    }
+  }
+
+  String _normalizeText(String value) {
+    return value
+        .trim()
+        .toLowerCase()
+        .replaceAll('á', 'a')
+        .replaceAll('é', 'e')
+        .replaceAll('í', 'i')
+        .replaceAll('ó', 'o')
+        .replaceAll('ú', 'u');
+  }
+
+  String _findBestDeptoMatch({
+    required String detected,
+    required List<String> deptosDisponibles,
+  }) {
+    if (detected.trim().isEmpty) return '';
+
+    final d = _normalizeText(detected);
+
+    for (final dep in deptosDisponibles) {
+      if (_normalizeText(dep) == d) return dep;
+    }
+
+    for (final dep in deptosDisponibles) {
+      final x = _normalizeText(dep);
+      if (d.contains(x) || x.contains(d)) return dep;
+    }
+
+    final aliases = <String, List<String>>{
+      'La Paz': ['la paz', 'lp', 'l.p.', 'el alto'],
+      'Cochabamba': ['cochabamba', 'cbba', 'cbb', 'cocha', 'quillacollo', 'sacaba'],
+      'Santa Cruz': ['santa cruz', 'scz', 'santa cruz de la sierra'],
+      'Oruro': ['oruro', 'oru'],
+      'Potosí': ['potosi', 'pts'],
+      'Chuquisaca': ['chuquisaca', 'sucre', 'chq'],
+      'Tarija': ['tarija', 'tja'],
+      'Beni': ['beni', 'trinidad'],
+      'Pando': ['pando', 'cobija'],
+    };
+
+    for (final entry in aliases.entries) {
+      final canonical = entry.key;
+      final keys = entry.value.map(_normalizeText).toList();
+
+      if (keys.any((k) => d.contains(k))) {
+        for (final dep in deptosDisponibles) {
+          final depNorm = _normalizeText(dep);
+
+          if (depNorm == _normalizeText(canonical)) return dep;
+          if (keys.any((k) => depNorm.contains(k) || k.contains(depNorm))) {
+            return dep;
+          }
+        }
+      }
+    }
+
+    return '';
   }
 
   Future<void> _logout() async {
@@ -181,13 +298,6 @@ class _HomeClienteState extends State<HomeCliente> {
     setState(() => _selectedDepto = chosen);
   }
 
-  String _s(dynamic v) => (v ?? '').toString().trim();
-
-  double _toDouble(dynamic v) {
-    if (v is num) return v.toDouble();
-    return double.tryParse(v?.toString() ?? '') ?? 0.0;
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -210,7 +320,6 @@ class _HomeClienteState extends State<HomeCliente> {
 
           final almacenesDocs = almacenesSnap.data?.docs ?? [];
 
-          // Map: almacenId -> departamento
           final Map<String, String> almacenDeptoById = {};
           final Set<String> deptosSet = {'Todos'};
 
@@ -228,8 +337,27 @@ class _HomeClienteState extends State<HomeCliente> {
               return a.compareTo(b);
             });
 
-          if (!deptos.contains(_selectedDepto)) {
-            _selectedDepto = 'Todos';
+          final deptosDisponibles = deptos.where((d) => d != 'Todos').toList();
+
+          if (!_autoDeptoApplied) {
+            final best = _findBestDeptoMatch(
+              detected: _detectedDepto,
+              deptosDisponibles: deptosDisponibles,
+            );
+
+            if (best.isNotEmpty) {
+              _selectedDepto = best;
+            } else {
+              _selectedDepto =
+                  deptosDisponibles.isNotEmpty ? deptosDisponibles.first : 'Todos';
+            }
+
+            _autoDeptoApplied = true;
+          } else {
+            if (_selectedDepto.isEmpty || !deptos.contains(_selectedDepto)) {
+              _selectedDepto =
+                  deptosDisponibles.isNotEmpty ? deptosDisponibles.first : 'Todos';
+            }
           }
 
           return SingleChildScrollView(
@@ -249,7 +377,6 @@ class _HomeClienteState extends State<HomeCliente> {
                   },
                   onSearch: () {},
                 ),
-
                 SafeArea(
                   top: false,
                   bottom: false,
@@ -285,14 +412,11 @@ class _HomeClienteState extends State<HomeCliente> {
                           ],
                         ),
                         const SizedBox(height: 12),
-
-                        // ✅ CATEGORÍAS DESDE FIRESTORE
                         StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
                           stream: _categorias$,
                           builder: (context, catSnap) {
                             if (catSnap.connectionState ==
                                 ConnectionState.waiting) {
-                              // no loader grande para no “flash”
                               return const SizedBox(height: 42);
                             }
 
@@ -302,7 +426,6 @@ class _HomeClienteState extends State<HomeCliente> {
                               const CategoryModel(id: 'Todos', nombre: 'Todos'),
                               ...docs.map((d) {
                                 final data = d.data();
-                                // 🔧 Ajusta campos si tu doc usa otros nombres
                                 final nombre = _s(data['nombre']);
                                 return CategoryModel(
                                   id: d.id,
@@ -311,7 +434,6 @@ class _HomeClienteState extends State<HomeCliente> {
                               }),
                             ];
 
-                            // si la seleccion ya no existe
                             final exists = categorias.any(
                               (c) => c.id == _selectedCategoriaId,
                             );
@@ -323,12 +445,9 @@ class _HomeClienteState extends State<HomeCliente> {
                                 runAlignment: WrapAlignment.center,
                                 spacing: 8,
                                 runSpacing: 8,
-                                children: List.generate(categorias.length, (
-                                  index,
-                                ) {
+                                children: List.generate(categorias.length, (index) {
                                   final cat = categorias[index];
-                                  final selected =
-                                      cat.id == _selectedCategoriaId;
+                                  final selected = cat.id == _selectedCategoriaId;
 
                                   return GestureDetector(
                                     onTap: () => setState(
@@ -344,10 +463,7 @@ class _HomeClienteState extends State<HomeCliente> {
                             );
                           },
                         ),
-
                         const SizedBox(height: 12),
-
-                        // ✅ PRODUCTOS
                         StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
                           stream: _productos$,
                           builder: (context, productosSnap) {
@@ -377,29 +493,22 @@ class _HomeClienteState extends State<HomeCliente> {
                               final data = p.data();
 
                               final nombre = _s(data['nombre'] ?? data['name']);
-                              final description = _s(
-                                data['description'] ?? data['descripcion'],
-                              );
-                              final imagenUrl = _s(
-                                data['imagenUrl'] ?? data['imageUrl'],
-                              );
+                              final description =
+                                  _s(data['description'] ?? data['descripcion']);
+                              final imagenUrl =
+                                  _s(data['imagenUrl'] ?? data['imageUrl']);
 
                               final precio = _toDouble(data['precio']);
                               final rating = _toDouble(data['rating']);
-
                               final almacenId = _s(data['almacenId']);
 
                               final stockRaw = data['stock'];
                               final stock = (stockRaw is num)
                                   ? stockRaw.toInt()
-                                  : int.tryParse(stockRaw?.toString() ?? '') ??
-                                        0;
+                                  : int.tryParse(stockRaw?.toString() ?? '') ?? 0;
 
-                              // ✅ categoría guardada en producto
                               final categoriaId = _s(data['categoriaId']);
-                              final categoriaNombre = _s(
-                                data['categoriaNombre'],
-                              );
+                              final categoriaNombre = _s(data['categoriaNombre']);
 
                               return ProductModel(
                                 id: p.id,
@@ -415,7 +524,6 @@ class _HomeClienteState extends State<HomeCliente> {
                               );
                             }).toList();
 
-                            // filtro por depto
                             final filteredByDepto = (_selectedDepto == 'Todos')
                                 ? allProducts
                                 : allProducts.where((prod) {
@@ -424,16 +532,13 @@ class _HomeClienteState extends State<HomeCliente> {
                                     return dep == _selectedDepto;
                                   }).toList();
 
-                            // filtro por categoría
                             final filtered = (_selectedCategoriaId == 'Todos')
                                 ? filteredByDepto
                                 : filteredByDepto.where((p) {
-                                    // match por id (ideal)
                                     if (p.categoriaId.isNotEmpty &&
                                         p.categoriaId == _selectedCategoriaId) {
                                       return true;
                                     }
-                                    // fallback por nombre (por si tus productos guardan solo el nombre)
                                     return p.categoriaNombre.isNotEmpty &&
                                         p.categoriaNombre.toLowerCase() ==
                                             _selectedCategoriaId.toLowerCase();
@@ -471,15 +576,11 @@ class _HomeClienteState extends State<HomeCliente> {
                               itemCount: filtered.length,
                               gridDelegate:
                                   const SliverGridDelegateWithFixedCrossAxisCount(
-                                    crossAxisCount: 2,
-                                    crossAxisSpacing: 14,
-                                    mainAxisSpacing: 14,
-
-                                    // ✅ Más alto (tú lo controlas aquí)
-                                    // 0.60 = más alto
-                                    // 0.65 = menos alto
-                                    childAspectRatio: 0.60,
-                                  ),
+                                crossAxisCount: 2,
+                                crossAxisSpacing: 14,
+                                mainAxisSpacing: 14,
+                                childAspectRatio: 0.60,
+                              ),
                               itemBuilder: (_, i) {
                                 final prod = filtered[i];
                                 return InkWell(
@@ -527,14 +628,11 @@ class ProductModel {
   final String id;
   final String name;
   final String description;
-
   final double price;
   final double rating;
   final String imageUrl;
-
   final String almacenId;
   final int stock;
-
   final String categoriaId;
   final String categoriaNombre;
 
@@ -553,12 +651,14 @@ class ProductModel {
 }
 
 class _BannerModel {
+  final String productId;
   final String title;
   final String subtitle;
-  final String buttonText; // se mantiene igual visualmente
+  final String buttonText;
   final String imageUrl;
 
   const _BannerModel({
+    required this.productId,
     required this.title,
     required this.subtitle,
     required this.imageUrl,
@@ -596,7 +696,6 @@ class _PinkPedidosHeaderState extends State<_PinkPedidosHeader> {
   late final PageController _pageController;
   int _page = 0;
 
-  // ✅ stream cacheado para no “flash”
   late final Stream<QuerySnapshot<Map<String, dynamic>>> _banners$;
 
   @override
@@ -617,6 +716,68 @@ class _PinkPedidosHeaderState extends State<_PinkPedidosHeader> {
   }
 
   String _s(dynamic v) => (v ?? '').toString().trim();
+
+  double _toDouble(dynamic v) {
+    if (v is num) return v.toDouble();
+    return double.tryParse(v?.toString() ?? '') ?? 0.0;
+  }
+
+  Future<void> _openBannerProduct(_BannerModel banner) async {
+    if (banner.productId.trim().isEmpty) return;
+
+    try {
+      final snap = await FirebaseFirestore.instance
+          .collection('productos')
+          .doc(banner.productId)
+          .get();
+
+      if (!snap.exists) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Este producto ya no está disponible'),
+          ),
+        );
+        return;
+      }
+
+      final data = snap.data() ?? {};
+
+      final stockRaw = data['stock'];
+      final stock = (stockRaw is num)
+          ? stockRaw.toInt()
+          : int.tryParse(stockRaw?.toString() ?? '') ?? 0;
+
+      final product = ProductModel(
+        id: snap.id,
+        name: _s(data['nombre'] ?? data['name']),
+        description: _s(data['description'] ?? data['descripcion']),
+        price: _toDouble(data['precio']),
+        rating: _toDouble(data['rating']),
+        imageUrl: _s(data['imagenUrl'] ?? data['imageUrl']),
+        almacenId: _s(data['almacenId']),
+        stock: stock,
+        categoriaId: _s(data['categoriaId']),
+        categoriaNombre: _s(data['categoriaNombre']),
+      );
+
+      if (!mounted) return;
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => DetalleProductoPage(product: product),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('No se pudo abrir el producto: $e'),
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -700,49 +861,46 @@ class _PinkPedidosHeaderState extends State<_PinkPedidosHeader> {
                         child: Text('Cerrar sesión'),
                       ),
                     ],
-                    child:
-                        StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-                          stream: FirebaseFirestore.instance
-                              .collection('usuarios')
-                              .doc(FirebaseAuth.instance.currentUser?.uid)
-                              .snapshots(),
-                          builder: (context, snap) {
-                            final photoUrl =
-                                snap.data?.data()?['photo'] as String?;
+                    child: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+                      stream: FirebaseFirestore.instance
+                          .collection('usuarios')
+                          .doc(FirebaseAuth.instance.currentUser?.uid)
+                          .snapshots(),
+                      builder: (context, snap) {
+                        final photoUrl =
+                            snap.data?.data()?['photo'] as String?;
 
-                            return Container(
-                              height: 36,
-                              width: 36,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: Colors.white70,
-                                  width: 2,
-                                ),
-                                color: Colors.white.withOpacity(0.15),
-                                image: photoUrl != null && photoUrl.isNotEmpty
-                                    ? DecorationImage(
-                                        image: NetworkImage(photoUrl),
-                                        fit: BoxFit.cover,
-                                      )
-                                    : null,
-                              ),
-                              child: photoUrl == null || photoUrl.isEmpty
-                                  ? Icon(
-                                      Icons.person_rounded,
-                                      color: Colors.white.withOpacity(0.9),
-                                      size: 20,
-                                    )
-                                  : null,
-                            );
-                          },
-                        ),
+                        return Container(
+                          height: 36,
+                          width: 36,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: Colors.white70,
+                              width: 2,
+                            ),
+                            color: Colors.white.withOpacity(0.15),
+                            image: photoUrl != null && photoUrl.isNotEmpty
+                                ? DecorationImage(
+                                    image: NetworkImage(photoUrl),
+                                    fit: BoxFit.cover,
+                                  )
+                                : null,
+                          ),
+                          child: photoUrl == null || photoUrl.isEmpty
+                              ? Icon(
+                                  Icons.person_rounded,
+                                  color: Colors.white.withOpacity(0.9),
+                                  size: 20,
+                                )
+                              : null,
+                        );
+                      },
+                    ),
                   ),
                 ],
               ),
               const SizedBox(height: 12),
-
-              // buscador (igual)
               Container(
                 height: 48,
                 decoration: BoxDecoration(
@@ -782,17 +940,13 @@ class _PinkPedidosHeaderState extends State<_PinkPedidosHeader> {
                   ],
                 ),
               ),
-
               const SizedBox(height: 14),
-
-              // ✅ Carrusel: MISMO DISEÑO, datos desde Firestore
               SizedBox(
                 height: 170,
                 child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
                   stream: _banners$,
                   builder: (context, snap) {
                     if (snap.connectionState == ConnectionState.waiting) {
-                      // no “flash” fuerte
                       return const SizedBox.shrink();
                     }
 
@@ -810,10 +964,13 @@ class _PinkPedidosHeaderState extends State<_PinkPedidosHeader> {
                     final banners = docs
                         .map((d) {
                           final data = d.data();
+                          final productId = _s(data['idproducto']);
                           final title = _s(data['titulo']);
                           final subtitle = _s(data['subtitulo']);
                           final image = _s(data['imagen']);
+
                           return _BannerModel(
+                            productId: productId,
                             title: title.isEmpty ? 'New Collection' : title,
                             subtitle: subtitle.isEmpty
                                 ? 'Discount 50% for\nthe first transaction'
@@ -822,7 +979,7 @@ class _PinkPedidosHeaderState extends State<_PinkPedidosHeader> {
                             buttonText: 'Ver más',
                           );
                         })
-                        .where((b) => b.imageUrl.isNotEmpty)
+                        .where((b) => b.imageUrl.isNotEmpty && b.productId.isNotEmpty)
                         .toList();
 
                     if (banners.isEmpty) return const SizedBox.shrink();
@@ -845,7 +1002,7 @@ class _PinkPedidosHeaderState extends State<_PinkPedidosHeader> {
                           onPageChanged: (i) => setState(() => _page = i),
                           itemBuilder: (_, i) => _FurnitureBannerCard(
                             banner: banners[i],
-                            onTap: () {},
+                            onTap: () => _openBannerProduct(banners[i]),
                           ),
                         ),
                         Positioned(
@@ -857,9 +1014,7 @@ class _PinkPedidosHeaderState extends State<_PinkPedidosHeader> {
                             children: List.generate(banners.length, (i) {
                               final active = i == _page;
                               return Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 3,
-                                ),
+                                padding: const EdgeInsets.symmetric(horizontal: 3),
                                 child: _Dot(active: active),
                               );
                             }),
@@ -970,7 +1125,20 @@ class _FurnitureBannerCard extends StatelessWidget {
                 borderRadius: BorderRadius.circular(18),
                 child: SizedBox(
                   width: 140,
-                  child: Image.network(banner.imageUrl, fit: BoxFit.cover),
+                  child: Image.network(
+                    banner.imageUrl,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => Container(
+                      width: 140,
+                      color: Palette.fieldBg,
+                      child: Center(
+                        child: Icon(
+                          Icons.image_outlined,
+                          color: Palette.ink.withOpacity(0.25),
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -1000,21 +1168,25 @@ class _FurnitureBannerCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 9,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Palette.primary,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      banner.buttonText,
-                      style: TextStyle(
-                        color: Palette.white,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 12.5,
+                  InkWell(
+                    onTap: onTap,
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 9,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Palette.primary,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        banner.buttonText,
+                        style: TextStyle(
+                          color: Palette.white,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 12.5,
+                        ),
                       ),
                     ),
                   ),
@@ -1154,6 +1326,14 @@ class _ProductCardState extends State<_ProductCard>
         .snapshots();
   }
 
+  Stream<QuerySnapshot<Map<String, dynamic>>> _reviewsStream(String id) {
+    return FirebaseFirestore.instance
+        .collection('productos')
+        .doc(id)
+        .collection('reviews')
+        .snapshots();
+  }
+
   double _toDouble(dynamic v) {
     if (v is num) return v.toDouble();
     return double.tryParse(v?.toString() ?? '') ?? 0.0;
@@ -1166,8 +1346,8 @@ class _ProductCardState extends State<_ProductCard>
 
     return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
       stream: _descuentoStream(product.id),
-      builder: (context, snap) {
-        final d = snap.data?.data();
+      builder: (context, descuentoSnap) {
+        final d = descuentoSnap.data?.data();
         final activo = (d?['activo'] == true);
 
         final tipo = (d?['tipo'] ?? 'PORCENTAJE').toString().trim();
@@ -1204,189 +1384,193 @@ class _ProductCardState extends State<_ProductCard>
           }
         }
 
-        return Container(
-          decoration: BoxDecoration(
-            color: Palette.white,
-            borderRadius: BorderRadius.circular(24),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.05),
-                blurRadius: 18,
-                offset: const Offset(0, 12),
-              ),
-            ],
-          ),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Like arriba derecha
-                Row(
-                  children: [
-                    const Spacer(),
-                    AnimatedBuilder(
-                      animation: widget.wishlist,
-                      builder: (_, __) {
-                        final liked = widget.wishlist.contains(product.id);
-                        return _LikeButtonSmooth(
-                          controller: _ctrl,
-                          liked: liked,
-                          onTap: () => _tapLike(liked),
-                        );
-                      },
-                    ),
-                  ],
-                ),
+        return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+          stream: _reviewsStream(product.id),
+          builder: (context, reviewSnap) {
+            final reviewDocs = reviewSnap.data?.docs ?? [];
 
-                const SizedBox(height: 6),
+            double avgRating = product.rating;
+            final totalReviews = reviewDocs.length;
 
-                // ✅ Imagen con altura fija (no se achica por descuento)
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(16),
-                  child: AspectRatio(
-                    // ✅ controla “alto” visual de la imagen aquí
-                    aspectRatio: 16 / 10,
-                    child: Stack(
-                      children: [
-                        Positioned.fill(
-                          child: Hero(
-                            tag: 'product_${product.id}',
-                            child: hasImg
-                                ? Image.network(
-                                    product.imageUrl,
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (_, __, ___) =>
-                                        const _NoImage(),
-                                  )
-                                : const _NoImage(),
-                          ),
-                        ),
-                        if (hasDescuento)
-                          Positioned(
-                            left: 10,
-                            top: 10,
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 6,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.red,
-                                borderRadius: BorderRadius.circular(12),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.12),
-                                    blurRadius: 10,
-                                    offset: const Offset(0, 6),
-                                  ),
-                                ],
-                              ),
-                              child: Text(
-                                badge,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w900,
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                ),
+            if (reviewDocs.isNotEmpty) {
+              double sum = 0;
+              for (final doc in reviewDocs) {
+                sum += _toDouble(doc.data()['rating']);
+              }
+              avgRating = sum / reviewDocs.length;
+            }
 
-                const SizedBox(height: 10),
-
-                Text(
-                  product.name.isEmpty ? 'Producto' : product.name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w900,
-                    color: Palette.ink,
-                  ),
-                ),
-
-                const SizedBox(height: 6),
-
-                Row(
-                  children: [
-                    Expanded(
-                      child: Wrap(
-                        spacing: 10,
-                        runSpacing: 2,
-                        crossAxisAlignment: WrapCrossAlignment.center,
-                        children: [
-                          Text(
-                            'Bs. ${(hasDescuento ? finalPrice : base).toStringAsFixed(2)}',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w900,
-                              color: Palette.ink,
-                            ),
-                          ),
-                          if (hasDescuento)
-                            Text(
-                              'Bs. ${base.toStringAsFixed(2)}',
-                              style: TextStyle(
-                                fontSize: 12.5,
-                                fontWeight: FontWeight.w800,
-                                color: Palette.ink.withOpacity(0.40),
-                                decoration: TextDecoration.lineThrough,
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
-                    const Icon(
-                      Icons.star_rounded,
-                      size: 18,
-                      color: Color(0xFFFFB300),
-                    ),
-                    const SizedBox(width: 2),
-                    Text(
-                      product.rating <= 0
-                          ? '0.0'
-                          : product.rating.toStringAsFixed(1),
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w800,
-                        color: Palette.ink.withOpacity(0.65),
-                      ),
-                    ),
-                  ],
-                ),
-
-                if (hasDescuento) ...[
-                  const SizedBox(height: 6),
-                  Text(
-                    line,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: Colors.red,
-                      fontWeight: FontWeight.w900,
-                      fontSize: 12.5,
-                    ),
+            return Container(
+              decoration: BoxDecoration(
+                color: Palette.white,
+                borderRadius: BorderRadius.circular(24),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 18,
+                    offset: const Offset(0, 12),
                   ),
                 ],
-
-                const SizedBox(height: 6),
-
-                Text(
-                  'Stock: ${product.stock}',
-                  style: TextStyle(
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w800,
-                    color: Palette.ink.withOpacity(0.55),
-                  ),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Spacer(),
+                        AnimatedBuilder(
+                          animation: widget.wishlist,
+                          builder: (_, __) {
+                            final liked = widget.wishlist.contains(product.id);
+                            return _LikeButtonSmooth(
+                              controller: _ctrl,
+                              liked: liked,
+                              onTap: () => _tapLike(liked),
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(16),
+                      child: AspectRatio(
+                        aspectRatio: 16 / 10,
+                        child: Stack(
+                          children: [
+                            Positioned.fill(
+                              child: Hero(
+                                tag: 'product_${product.id}',
+                                child: hasImg
+                                    ? Image.network(
+                                        product.imageUrl,
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (_, __, ___) =>
+                                            const _NoImage(),
+                                      )
+                                    : const _NoImage(),
+                              ),
+                            ),
+                            if (hasDescuento)
+                              Positioned(
+                                left: 10,
+                                top: 10,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 6,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.red,
+                                    borderRadius: BorderRadius.circular(12),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withOpacity(0.12),
+                                        blurRadius: 10,
+                                        offset: const Offset(0, 6),
+                                      ),
+                                    ],
+                                  ),
+                                  child: Text(
+                                    badge,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w900,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      product.name.isEmpty ? 'Producto' : product.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w900,
+                        color: Palette.ink,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Wrap(
+                            spacing: 10,
+                            runSpacing: 2,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            children: [
+                              Text(
+                                'Bs. ${(hasDescuento ? finalPrice : base).toStringAsFixed(2)}',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w900,
+                                  color: Palette.ink,
+                                ),
+                              ),
+                              if (hasDescuento)
+                                Text(
+                                  'Bs. ${base.toStringAsFixed(2)}',
+                                  style: TextStyle(
+                                    fontSize: 12.5,
+                                    fontWeight: FontWeight.w800,
+                                    color: Palette.ink.withOpacity(0.40),
+                                    decoration: TextDecoration.lineThrough,
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                        const Icon(
+                          Icons.star_rounded,
+                          size: 18,
+                          color: Color(0xFFFFB300),
+                        ),
+                        const SizedBox(width: 2),
+                        Text(
+                          avgRating <= 0 ? '0.0' : avgRating.toStringAsFixed(1),
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800,
+                            color: Palette.ink.withOpacity(0.65),
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (hasDescuento) ...[
+                      const SizedBox(height: 6),
+                      Text(
+                        line,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Colors.red,
+                          fontWeight: FontWeight.w900,
+                          fontSize: 12.5,
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 6),
+                    Text(
+                      'Stock: ${product.stock}',
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w800,
+                        color: Palette.ink.withOpacity(0.55),
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-          ),
+              ),
+            );
+          },
         );
       },
     );

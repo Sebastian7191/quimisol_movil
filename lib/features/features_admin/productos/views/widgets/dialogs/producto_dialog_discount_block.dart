@@ -5,11 +5,34 @@ import 'package:quimisol_movil/core/theme/palette.dart';
 import 'package:quimisol_movil/features/features_admin/productos/controllers/producto_dialog_controller.dart';
 import 'package:quimisol_movil/features/features_admin/productos/views/widgets/dialogs/producto_dialog_ui.dart';
 
-
 class ProductoDialogDiscountBlock extends StatelessWidget {
   const ProductoDialogDiscountBlock({super.key, required this.controller});
 
   final ProductoDialogController controller;
+
+  String? _validateDescuento(String? v) {
+    if (!controller.descuentoEnabled) return null;
+
+    final text = (v ?? '').trim();
+    if (text.isEmpty) return 'Ingresa un valor';
+
+    final val = controller.parseDouble(text);
+    if (val <= 0) return 'Ingresa un valor > 0';
+
+    if (controller.descuentoTipo == 'PORCENTAJE') {
+      if (val > 100) return 'Máximo 100%';
+      return null;
+    }
+
+    final precio = controller.precioBaseNow();
+    if (precio <= 0) return 'Primero ingresa un precio válido';
+
+    if (val >= precio) {
+      return 'Debe ser menor al precio';
+    }
+
+    return null;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -18,6 +41,7 @@ class ProductoDialogDiscountBlock extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           DropdownButtonFormField<String?>(
+            isExpanded: true,
             initialValue: controller.agregarDescuento,
             items: const [
               DropdownMenuItem<String?>(
@@ -28,11 +52,12 @@ class ProductoDialogDiscountBlock extends StatelessWidget {
                 value: 'SI',
                 child: Text('Sí, agregar descuento'),
               ),
-              DropdownMenuItem<String?>(value: 'NO', child: Text('No')),
+              DropdownMenuItem<String?>(
+                value: 'NO',
+                child: Text('No'),
+              ),
             ],
-            onChanged: controller.saving
-                ? null
-                : controller.setAgregarDescuento,
+            onChanged: controller.saving ? null : controller.setAgregarDescuento,
             decoration: ProductoDialogUI.decor(
               label: '¿Agregar descuento?',
               hint: 'Seleccionar',
@@ -43,68 +68,78 @@ class ProductoDialogDiscountBlock extends StatelessWidget {
           if (controller.descuentoEnabled) ...[
             ProductoDialogUI.gap(12),
 
-            Row(
-              children: [
-                Expanded(
-                  child: DropdownButtonFormField<String>(
-                    initialValue: controller.descuentoTipo,
-                    items: const [
-                      DropdownMenuItem(
-                        value: 'PORCENTAJE',
-                        child: Text('PORCENTAJE'),
-                      ),
-                      DropdownMenuItem(value: 'MONTO', child: Text('MONTO')),
-                    ],
-                    onChanged: controller.saving
-                        ? null
-                        : (v) => controller.setDescuentoTipo(
+            LayoutBuilder(
+              builder: (context, box) {
+                final isTight = box.maxWidth < 430;
+
+                final tipoField = DropdownButtonFormField<String>(
+                  isExpanded: true,
+                  initialValue: controller.descuentoTipo,
+                  items: const [
+                    DropdownMenuItem(
+                      value: 'PORCENTAJE',
+                      child: Text('PORCENTAJE'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'MONTO',
+                      child: Text('MONTO'),
+                    ),
+                  ],
+                  onChanged: controller.saving
+                      ? null
+                      : (v) => controller.setDescuentoTipo(
                             v ?? controller.descuentoTipo,
                           ),
-                    decoration: ProductoDialogUI.decor(
-                      label: 'Tipo',
-                      prefixIcon: const Icon(Icons.tune_rounded),
+                  decoration: ProductoDialogUI.decor(
+                    label: 'Tipo',
+                    prefixIcon: const Icon(Icons.tune_rounded),
+                  ),
+                );
+
+                final valorField = TextFormField(
+                  controller: controller.descuentoCtrl,
+                  enabled: !controller.saving,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(
+                      RegExp(r'^\d*([.,]\d{0,2})?$'),
+                    ),
+                  ],
+                  decoration: ProductoDialogUI.decor(
+                    label: controller.descuentoTipo == 'PORCENTAJE'
+                        ? (isTight ? 'Valor %' : 'Valor (%)')
+                        : 'Valor (Bs)',
+                    prefixIcon: Icon(
+                      controller.descuentoTipo == 'PORCENTAJE'
+                          ? Icons.percent_rounded
+                          : Icons.payments_rounded,
                     ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: TextFormField(
-                    controller: controller.descuentoCtrl,
-                    enabled: !controller.saving,
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
-                    ),
-                    inputFormatters: [
-                      FilteringTextInputFormatter.allow(
-                        RegExp(r'^\d*([.,]\d{0,2})?$'),
-                      ),
+                  validator: _validateDescuento,
+                );
+
+                if (isTight) {
+                  return Column(
+                    children: [
+                      tipoField,
+                      const SizedBox(height: 12),
+                      valorField,
                     ],
-                    decoration: ProductoDialogUI.decor(
-                      label: controller.descuentoTipo == 'PORCENTAJE'
-                          ? 'Valor (%)'
-                          : 'Valor (Bs)',
-                      prefixIcon: Icon(
-                        controller.descuentoTipo == 'PORCENTAJE'
-                            ? Icons.percent_rounded
-                            : Icons.payments_rounded,
-                      ),
-                    ),
-                    validator: (v) {
-                      if (!controller.descuentoEnabled) return null;
-                      final val = controller.parseDouble(v ?? '');
-                      if (val <= 0) return 'Ingresa un valor > 0';
-                      if (controller.descuentoTipo == 'PORCENTAJE' &&
-                          val > 100) {
-                        return 'Máximo 100%';
-                      }
-                      return null;
-                    },
-                  ),
-                ),
-              ],
+                  );
+                }
+
+                return Row(
+                  children: [
+                    Expanded(child: tipoField),
+                    const SizedBox(width: 12),
+                    Expanded(child: valorField),
+                  ],
+                );
+              },
             ),
 
-            // ✅ Pregunta banner promo (sin campos extra)
             ProductoDialogUI.gap(12),
             _PromoBannerToggle(controller: controller),
           ],
@@ -139,7 +174,7 @@ class _PromoBannerToggle extends StatelessWidget {
               border: Border.all(color: Palette.button.withValues(alpha: 0.22)),
             ),
             child: Icon(
-              Icons.confirmation_number_rounded, // 🎟️ ticket
+              Icons.confirmation_number_rounded,
               color: Palette.primary.withValues(alpha: 0.9),
               size: 18,
             ),
@@ -159,9 +194,8 @@ class _PromoBannerToggle extends StatelessWidget {
             value: controller.promoBannerEnabled,
             activeThumbColor: Palette.primary,
             activeTrackColor: Palette.primary.withValues(alpha: 0.5),
-            onChanged: controller.saving
-                ? null
-                : controller.setPromoBannerEnabled,
+            onChanged:
+                controller.saving ? null : controller.setPromoBannerEnabled,
           ),
         ],
       ),

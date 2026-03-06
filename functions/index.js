@@ -2,7 +2,10 @@
 
 const admin = require("firebase-admin");
 const { setGlobalOptions } = require("firebase-functions/v2");
-const { onDocumentCreated } = require("firebase-functions/v2/firestore");
+const {
+  onDocumentCreated,
+  onDocumentUpdated,
+} = require("firebase-functions/v2/firestore");
 const logger = require("firebase-functions/logger");
 
 admin.initializeApp();
@@ -81,7 +84,6 @@ async function sendPushToUserByUid({
     ...logContext,
   });
 
-  // ✅ Limpieza de tokens inválidos
   const invalidTokens = [];
   response.responses.forEach((r, i) => {
     if (!r.success) {
@@ -115,8 +117,33 @@ async function sendPushToUserByUid({
   }
 }
 
+async function sendPushToManyUids({
+  uids = [],
+  title,
+  body,
+  data = {},
+  androidChannelId,
+  logContext = {},
+}) {
+  const uniqueUids = [...new Set(uids.filter(Boolean))];
+  for (const uid of uniqueUids) {
+    await sendPushToUserByUid({
+      uidDestino: uid,
+      title,
+      body,
+      data,
+      androidChannelId,
+      logContext: { ...logContext, uidDestino: uid },
+    });
+  }
+}
+
+function norm(v) {
+  return String(v || "").trim().toLowerCase();
+}
+
 /* =========================================================
- * 1) NOTIFICAR NUEVO PEDIDO
+ * 1) NOTIFICAR NUEVO PEDIDO A ADMINS DEL MISMO DEPARTAMENTO
  * Trigger: pedidos/{pedidoId}
  * =======================================================*/
 
@@ -136,25 +163,81 @@ exports.notificarNuevoPedido = onDocumentCreated(
       const pedido = snap.data() || {};
       const pedidoId = event.params.pedidoId;
 
-      // 🔧 Ajusta según tu modelo real
-      const uidDestino =
-        pedido.uidTaxista || pedido.uidRepartidor || pedido.uidCliente;
+      // ✅ intenta leer departamento del pedido
+      const pedidoDepto = String(
+        pedido.departamento ||
+          pedido?.ubicacion?.departamento ||
+          pedido?.direccion?.departamento ||
+          "",
+      ).trim();
 
-      if (!uidDestino) {
-        logger.warn("No se encontró uidDestino en pedido", { pedidoId });
+      if (!pedidoDepto) {
+        logger.warn("Pedido sin departamento", { pedidoId });
         return;
       }
 
-      await sendPushToUserByUid({
-        uidDestino,
-        title: "Nuevo pedido",
-        body: "Tienes una nueva solicitud",
-        data: {
-          type: "nuevo_pedido",
+      // ✅ almacenes del mismo departamento
+      const almacenesSnap = await admin
+        .firestore()
+        .collection("almacenes")
+        .get();
+
+      const almacenesIdsDepto = almacenesSnap.docs
+        .filter((d) => {
+          const data = d.data() || {};
+          const dep = String(data.departamento || "").trim();
+          return norm(dep) === norm(pedidoDepto);
+        })
+        .map((d) => d.id);
+
+      if (!almacenesIdsDepto.length) {
+        logger.warn("No hay almacenes en el depto del pedido", {
           pedidoId,
+          pedidoDepto,
+        });
+        return;
+      }
+
+      // ✅ buscar admins cuyo almacenId esté dentro de esos almacenes
+      const usuariosSnap = await admin.firestore().collection("usuarios").get();
+
+      const adminUids = usuariosSnap.docs
+        .filter((d) => {
+          const u = d.data() || {};
+          const rol = String(u.rol || u.role || "").trim().toLowerCase();
+          const almacenId = String(
+            u.almacenId || u.idAlmacen || u.assignedAlmacenId || "",
+          ).trim();
+
+          return rol === "admin" && almacenesIdsDepto.includes(almacenId);
+        })
+        .map((d) => d.id);
+
+      if (!adminUids.length) {
+        logger.warn("No se encontraron admins para el depto del pedido", {
+          pedidoId,
+          pedidoDepto,
+          almacenesIdsDepto,
+        });
+        return;
+      }
+
+      await sendPushToManyUids({
+        uids: adminUids,
+        title: "Nuevo pedido pendiente",
+        body: `Hay un nuevo pedido pendiente en ${pedidoDepto}`,
+        data: {
+          type: "nuevo_pedido_pendiente",
+          pedidoId,
+          departamento: pedidoDepto,
         },
         androidChannelId: "orders_channel",
-        logContext: { trigger: "notificarNuevoPedido", pedidoId },
+        logContext: {
+          trigger: "notificarNuevoPedido",
+          pedidoId,
+          pedidoDepto,
+          adminsCount: adminUids.length,
+        },
       });
     } catch (error) {
       logger.error("Error en notificarNuevoPedido", error);
@@ -183,12 +266,11 @@ exports.notificarMensajeSoporte = onDocumentCreated(
       const msg = snap.data() || {};
       const { chatId, messageId } = event.params;
 
-      const senderRole = (msg.senderRole || "").toString().trim(); // support | client | system
+      const senderRole = (msg.senderRole || "").toString().trim();
       const senderName = (msg.senderName || "").toString().trim() || "Soporte";
       const type = (msg.type || "text").toString().trim();
       const text = (msg.text || "").toString().trim();
 
-      // ❌ No enviar push por mensajes del sistema
       if (senderRole === "system") {
         logger.info("Mensaje system: no se envía push", { chatId, messageId });
         return;
@@ -217,7 +299,6 @@ exports.notificarMensajeSoporte = onDocumentCreated(
       const supportUid = (chat.assignedSupportUid || "").toString().trim();
       const clientName = (chat.clientName || "Cliente").toString().trim();
 
-      // ✅ Flags de presencia (los que ya estás guardando desde Flutter)
       const clientInSupportChatPage = chat.clientInSupportChatPage === true;
       const supportInChatPage = chat.supportInChatPage === true;
 
@@ -226,10 +307,8 @@ exports.notificarMensajeSoporte = onDocumentCreated(
       let body = "";
 
       if (senderRole === "support") {
-        // Soporte escribe -> notificar cliente
         uidDestino = clientUid;
 
-        // ✅ Si el cliente está dentro del chat, no mandes push
         if (clientInSupportChatPage) {
           logger.info("Cliente está en el chat, no se envía push", {
             chatId,
@@ -245,10 +324,8 @@ exports.notificarMensajeSoporte = onDocumentCreated(
             ? `${senderName} te envió una imagen`
             : `${senderName}: ${text || "Nuevo mensaje"}`;
       } else if (senderRole === "client") {
-        // Cliente escribe -> notificar asesor asignado
         uidDestino = supportUid;
 
-        // ✅ Si el asesor está dentro del chat, no mandes push
         if (supportInChatPage) {
           logger.info("Soporte está en el chat, no se envía push", {
             chatId,
@@ -258,9 +335,6 @@ exports.notificarMensajeSoporte = onDocumentCreated(
           return;
         }
 
-        // ✅ WhatsApp style:
-        //   - título: nombre del cliente
-        //   - body: el mensaje (o 📷 Imagen)
         title = clientName || "Cliente";
         body = type === "image" ? "📷 Imagen" : (text || "Nuevo mensaje");
       } else {
@@ -298,6 +372,104 @@ exports.notificarMensajeSoporte = onDocumentCreated(
       });
     } catch (error) {
       logger.error("Error en notificarMensajeSoporte", error);
+    }
+  },
+);
+
+/* =========================================================
+ * 3) NOTIFICAR AL CLIENTE CUANDO EL PEDIDO SEA ENTREGADO
+ * Trigger: pedidos/{pedidoId}
+ * =======================================================*/
+
+exports.notificarPedidoEntregado = onDocumentUpdated(
+  {
+    document: "pedidos/{pedidoId}",
+    region: "us-central1",
+  },
+  async (event) => {
+    try {
+      const beforeSnap = event.data?.before;
+      const afterSnap = event.data?.after;
+
+      if (!beforeSnap || !afterSnap) {
+        logger.warn("No hay snapshots before/after en notificarPedidoEntregado");
+        return;
+      }
+
+      const beforeData = beforeSnap.data() || {};
+      const afterData = afterSnap.data() || {};
+      const pedidoId = event.params.pedidoId;
+
+      const estadoAntes = norm(beforeData.estado);
+      const estadoDespues = norm(afterData.estado);
+
+      // ✅ Solo cuando cambia realmente a entregado
+      if (estadoAntes === "entregado" || estadoDespues !== "entregado") {
+        logger.info("No corresponde enviar push de entregado", {
+          pedidoId,
+          estadoAntes,
+          estadoDespues,
+        });
+        return;
+      }
+
+      // ✅ Buscar UID del cliente en varios posibles campos
+      const uidCliente = String(
+        afterData.clienteUid ||
+          afterData.userUid ||
+          afterData.usuarioUid ||
+          afterData.uidCliente ||
+          afterData.uidUsuario ||
+          afterData.createdBy ||
+          ""
+      ).trim();
+
+      if (!uidCliente) {
+        logger.warn("Pedido entregado pero sin uid del cliente", {
+          pedidoId,
+          estadoAntes,
+          estadoDespues,
+        });
+        return;
+      }
+
+      const codigoPedido = String(
+        afterData.codigo ||
+          afterData.codigoPedido ||
+          ""
+      ).trim();
+
+      const titulo = "Pedido entregado";
+      const cuerpo = codigoPedido
+        ? `Tu pedido ${codigoPedido} fue entregado. Por favor califica la satisfacción del pedido y los productos.`
+        : "Tu pedido fue entregado. Por favor califica la satisfacción del pedido y los productos.";
+
+      await sendPushToUserByUid({
+        uidDestino: uidCliente,
+        title: titulo,
+        body: cuerpo,
+        data: {
+          type: "pedido_entregado",
+          pedidoId,
+          estado: "Entregado",
+          codigo: codigoPedido,
+        },
+        androidChannelId: "orders_channel",
+        logContext: {
+          trigger: "notificarPedidoEntregado",
+          pedidoId,
+          uidCliente,
+          codigoPedido,
+        },
+      });
+
+      logger.info("Push de pedido entregado enviada correctamente", {
+        pedidoId,
+        uidCliente,
+        codigoPedido,
+      });
+    } catch (error) {
+      logger.error("Error en notificarPedidoEntregado", error);
     }
   },
 );

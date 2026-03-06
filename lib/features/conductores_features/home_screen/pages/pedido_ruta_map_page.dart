@@ -29,35 +29,32 @@ class PedidoRutaMapPage extends StatefulWidget {
 }
 
 class _PedidoRutaMapPageState extends State<PedidoRutaMapPage> {
-  static const String _mapboxToken =
-      'TOKEN_MAPBOX';
-
+  static const String _mapboxToken = 'TOKEN_MAPBOX';
   static const String _styleUri = "mapbox://styles/mapbox/streets-v12";
 
-  // ✅ tamaños burbuja (pro)
+  // tamaños burbuja
   static const double _pngSize = 160;
   static const double _bubbleRadius = 55;
   static const double _iconFontSize = 70;
 
-  // ✅ tamaño en mapa + “flotante”
+  // tamaño en mapa + “flotante”
   static const double _mapIconSize = 1.55;
-  static const double _floatOffsetPx = 16.0; // sube/baja la burbuja en el mapa
-  static const double _floatInsidePngPx =
-      10.0; // sube/baja el dibujo dentro del PNG (fallback)
+  static const double _floatOffsetPx = 16.0;
+  static const double _floatInsidePngPx = 10.0;
 
-  // ✅ Ruta: solo rosa
+  // Ruta
   static const double _routeWidth = 7.0;
 
-  // ✅ NUEVO: reglas de actualización de ruta
+  // reglas de actualización de ruta
   static const double _routeUpdateMinMoveMeters = 50.0;
   static const Duration _routeUpdateMinInterval = Duration(seconds: 6);
 
   final DatabaseReference _rtdb = FirebaseDatabase.instance.ref();
 
-  // ✅ Servicio que ESCRIBE en RTDB (ubicación)
+  // Servicio que ESCRIBE en RTDB
   final RepartidorLocationService _locationService = RepartidorLocationService();
 
-  // ✅ RTDB solo se activa cuando esté "En camino"
+  // RTDB solo se activa cuando esté "En camino"
   bool _rtdbActive = false;
 
   mb.MapboxMap? _map;
@@ -78,10 +75,9 @@ class _PedidoRutaMapPageState extends State<PedidoRutaMapPage> {
   String? _error;
 
   bool _changingEstado = false;
-
   bool _fetchingRoute = false;
 
-  // ✅ no mover cámara cada update
+  // no mover cámara cada update
   bool _didInitialCameraFit = false;
 
   static const String _routeSourceId = 'route-source';
@@ -90,14 +86,14 @@ class _PedidoRutaMapPageState extends State<PedidoRutaMapPage> {
   mb.PointAnnotation? _aMarker;
   mb.PointAnnotation? _bMarker;
 
-  // ✅ PNGs pro (burbuja + icono)
+  // PNGs
   Uint8List? _truckMarkerPng;
   Uint8List? _bagMarkerPng;
 
-  // ✅ si tu versión no soporta iconOffset, esto lo detecta
+  // si tu versión no soporta iconOffset
   bool _supportsIconOffset = true;
 
-  // ✅ control de actualización ruta (50m o 6s)
+  // control de actualización ruta
   DateTime _lastRouteUpdateAt = DateTime.fromMillisecondsSinceEpoch(0);
   double? _lastRouteALat, _lastRouteALng;
   double? _lastRouteBLat, _lastRouteBLng;
@@ -106,53 +102,43 @@ class _PedidoRutaMapPageState extends State<PedidoRutaMapPage> {
   void initState() {
     super.initState();
     _prepareMarkerImages();
-
-    // ❌ NO activar RTDB al entrar
     _loadPedidoData();
   }
 
   @override
   void dispose() {
-    _stopRealtime(); // ✅ corta listener + timer (si estaba activo)
+    _stopRealtime();
     super.dispose();
   }
 
   // ─────────────────────────────────────────────
-  // ✅ Activar/Desactivar RTDB (solo al "En camino")
+  // Activar/Desactivar RTDB
   // ─────────────────────────────────────────────
   Future<void> _startRealtimeIfNeeded() async {
     if (_rtdbActive) return;
 
     _rtdbActive = true;
 
-    // ✅ 1) empieza a ESCRIBIR en RTDB (tu timer/condiciones)
     await _locationService.start(uid: widget.repartidorUid);
-
-    // ✅ 2) empieza a ESCUCHAR desde RTDB (para pintar A y ruta)
     _listenRepartidorLocation();
   }
 
   Future<void> _stopRealtime() async {
-    // cancela listener (aunque no esté "activo")
-    _repartidorSub?.cancel();
+    await _repartidorSub?.cancel();
     _repartidorSub = null;
 
     if (!_rtdbActive) return;
 
     _rtdbActive = false;
-
-    // corta timer de GPS/RTDB
     _locationService.stop();
 
-    // opcional: limpia el nodo del repartidor en RTDB al terminar
     try {
       await _locationService.clear(widget.repartidorUid);
     } catch (_) {}
   }
 
   // ─────────────────────────────────────────────
-  // ✅ MARKERS PRO (burbuja + icono material)
-  //  - Los hacemos “flotantes” dentro del PNG también (fallback).
+  // MARKERS
   // ─────────────────────────────────────────────
   Future<void> _prepareMarkerImages() async {
     final truck = await _materialIconBubblePng(
@@ -184,28 +170,23 @@ class _PedidoRutaMapPageState extends State<PedidoRutaMapPage> {
     final recorder = ui.PictureRecorder();
     final canvas = ui.Canvas(recorder);
 
-    // ✅ “flotante” dentro del PNG (fallback): subimos el centro un poco
     final center = Offset(_pngSize / 2, _pngSize / 2 - _floatInsidePngPx);
 
-    // sombra pro
     final shadowPath = ui.Path()
       ..addOval(Rect.fromCircle(center: center, radius: _bubbleRadius));
     canvas.drawShadow(shadowPath, Colors.black.withOpacity(0.30), 14, true);
 
-    // fondo
     final fillPaint = ui.Paint()
       ..color = Palette.white
       ..style = ui.PaintingStyle.fill;
     canvas.drawCircle(center, _bubbleRadius, fillPaint);
 
-    // borde
     final strokePaint = ui.Paint()
       ..color = borderColor
       ..style = ui.PaintingStyle.stroke
       ..strokeWidth = 7;
     canvas.drawCircle(center, _bubbleRadius, strokePaint);
 
-    // icono
     final iconChar = String.fromCharCode(icon.codePoint);
     final tp = TextPainter(
       text: TextSpan(
@@ -220,7 +201,6 @@ class _PedidoRutaMapPageState extends State<PedidoRutaMapPage> {
       textDirection: TextDirection.ltr,
     )..layout();
 
-    // ✅ sube el icono un poco (fallback)
     tp.paint(
       canvas,
       Offset(center.dx - tp.width / 2, center.dy - tp.height / 2 - 2),
@@ -233,10 +213,9 @@ class _PedidoRutaMapPageState extends State<PedidoRutaMapPage> {
   }
 
   // ─────────────────────────────────────────────
-  // A) Repartidor desde RTDB (tiempo real) ✅ SOLO cuando esté activo
+  // RTDB repartidor
   // ─────────────────────────────────────────────
   void _listenRepartidorLocation() {
-    // por seguridad, cancela anterior si existía
     _repartidorSub?.cancel();
     _repartidorSub = null;
 
@@ -255,8 +234,6 @@ class _PedidoRutaMapPageState extends State<PedidoRutaMapPage> {
           if (lat != null && lng != null) {
             _aLat = lat;
             _aLng = lng;
-
-            // ✅ NO reposicionar cámara acá
             _updateMarkersAndRoute();
           }
         }
@@ -269,7 +246,7 @@ class _PedidoRutaMapPageState extends State<PedidoRutaMapPage> {
   }
 
   // ─────────────────────────────────────────────
-  // B) Pedido desde Firestore (codigo + ubicacion + estado)
+  // Cargar pedido
   // ─────────────────────────────────────────────
   Future<void> _loadPedidoData() async {
     try {
@@ -297,9 +274,8 @@ class _PedidoRutaMapPageState extends State<PedidoRutaMapPage> {
       final ubicacion = (data['ubicacion'] as Map?) ?? {};
       final u = Map<String, dynamic>.from(ubicacion as Map);
 
-      _pedidoDireccion = (u['direccion'] ?? data['direccion'] ?? '')
-          .toString()
-          .trim();
+      _pedidoDireccion =
+          (u['direccion'] ?? data['direccion'] ?? '').toString().trim();
       if (_pedidoDireccion!.isEmpty) _pedidoDireccion = null;
 
       final lat = _toDouble(u['lat']);
@@ -317,7 +293,6 @@ class _PedidoRutaMapPageState extends State<PedidoRutaMapPage> {
       _bLat = lat;
       _bLng = lng;
 
-      // ✅ Si el pedido ya estaba "En camino", activamos RTDB al abrir
       final st = (_pedidoEstado ?? '').trim().toLowerCase();
       if (st == 'en camino') {
         await _startRealtimeIfNeeded();
@@ -352,9 +327,7 @@ class _PedidoRutaMapPageState extends State<PedidoRutaMapPage> {
 
     _pointManager = await _map!.annotations.createPointAnnotationManager();
 
-    // source + layer para ruta rosa
     await _ensureRouteStyle();
-
     _updateMarkersAndRoute();
   }
 
@@ -380,7 +353,7 @@ class _PedidoRutaMapPageState extends State<PedidoRutaMapPage> {
           lineJoin: mb.LineJoin.ROUND,
           lineCap: mb.LineCap.ROUND,
           lineWidth: _routeWidth,
-          lineColor: Palette.button.value, // ✅ solo rosa
+          lineColor: Palette.button.value,
         ),
       );
     }
@@ -394,23 +367,19 @@ class _PedidoRutaMapPageState extends State<PedidoRutaMapPage> {
 
     await _updateMarkers();
 
-    // ✅ cámara solo la primera vez que haya algo para enfocar
     if (!_didInitialCameraFit) {
       final did = await _fitCameraIfPossible();
       if (did) _didInitialCameraFit = true;
     }
 
-    // ✅ Ruta: SOLO si cumple (>=50m o >=6s) o primera vez / cambió destino
     if (_shouldUpdateRouteNow()) {
       await _drawRoute();
     }
   }
 
-  // ✅ sin fantasmas: crear 1 vez y luego update
   Future<void> _updateMarkers() async {
     if (_pointManager == null) return;
 
-    // A: repartidor (se mueve)
     if (_aLat != null && _aLng != null) {
       final aPoint = mb.Point(coordinates: mb.Position(_aLng!, _aLat!));
 
@@ -421,7 +390,6 @@ class _PedidoRutaMapPageState extends State<PedidoRutaMapPage> {
         );
       } else {
         _aMarker!.geometry = aPoint;
-        // por si el png llegó después
         if (_aMarker!.image == null && _truckMarkerPng != null) {
           _aMarker!.image = _truckMarkerPng;
         }
@@ -429,7 +397,6 @@ class _PedidoRutaMapPageState extends State<PedidoRutaMapPage> {
       }
     }
 
-    // B: pedido (fijo)
     if (_bLat != null && _bLng != null) {
       final bPoint = mb.Point(coordinates: mb.Position(_bLng!, _bLat!));
 
@@ -448,15 +415,12 @@ class _PedidoRutaMapPageState extends State<PedidoRutaMapPage> {
     }
   }
 
-  // Crea un marker “flotante”.
-  // Si tu versión NO soporta iconOffset, automáticamente cae al PNG (que ya lo dibujamos flotante).
   Future<mb.PointAnnotation?> _createFloatingPoint({
     required mb.Point geometry,
     required Uint8List? png,
   }) async {
     if (_pointManager == null) return null;
 
-    // Intento con iconOffset (si existe en tu versión)
     if (_supportsIconOffset) {
       try {
         return await _pointManager!.create(
@@ -464,16 +428,14 @@ class _PedidoRutaMapPageState extends State<PedidoRutaMapPage> {
             geometry: geometry,
             image: png,
             iconSize: _mapIconSize,
-            iconOffset: [0.0, -_floatOffsetPx], // ✅ flota en el mapa
+            iconOffset: [0.0, -_floatOffsetPx],
           ),
         );
       } catch (_) {
-        // Si aquí falla, tu versión no soporta iconOffset → fallback
         _supportsIconOffset = false;
       }
     }
 
-    // Fallback: sin iconOffset (el PNG ya viene “flotante” por dentro)
     return await _pointManager!.create(
       mb.PointAnnotationOptions(
         geometry: geometry,
@@ -485,9 +447,6 @@ class _PedidoRutaMapPageState extends State<PedidoRutaMapPage> {
 
   Future<void> _safeUpdatePoint(mb.PointAnnotation ann) async {
     if (_pointManager == null) return;
-
-    // En algunas versiones no existe setter iconOffset/iconSize, así que solo update normal.
-    // Si tu versión sí soporta, se mantiene desde create.
     try {
       await _pointManager!.update(ann);
     } catch (_) {}
@@ -496,7 +455,6 @@ class _PedidoRutaMapPageState extends State<PedidoRutaMapPage> {
   Future<bool> _fitCameraIfPossible() async {
     if (_map == null) return false;
 
-    // si ya tenemos A y B, centramos al medio
     if (_aLat != null && _aLng != null && _bLat != null && _bLng != null) {
       final midLat = (_aLat! + _bLat!) / 2;
       final midLng = (_aLng! + _bLng!) / 2;
@@ -510,7 +468,6 @@ class _PedidoRutaMapPageState extends State<PedidoRutaMapPage> {
       return true;
     }
 
-    // solo A o solo B
     if (_aLat != null && _aLng != null) {
       await _map!.setCamera(
         mb.CameraOptions(
@@ -535,18 +492,19 @@ class _PedidoRutaMapPageState extends State<PedidoRutaMapPage> {
   }
 
   // ─────────────────────────────────────────────
-  // ✅ Lógica: decidir si toca recalcular ruta (50m o 6s)
+  // Lógica de actualización de ruta
   // ─────────────────────────────────────────────
   bool _coordsChanged(double? lat1, double? lng1, double? lat2, double? lng2) {
-    if (lat1 == null || lng1 == null || lat2 == null || lng2 == null) return true;
-    // tolerancia mínima para evitar “ruido”
+    if (lat1 == null || lng1 == null || lat2 == null || lng2 == null) {
+      return true;
+    }
     return (lat1 - lat2).abs() > 1e-6 || (lng1 - lng2).abs() > 1e-6;
   }
 
   double _deg2rad(double deg) => deg * (Math.pi / 180.0);
 
   double _haversineMeters(double lat1, double lon1, double lat2, double lon2) {
-    const R = 6371000.0; // metros
+    const R = 6371000.0;
     final dLat = _deg2rad(lat2 - lat1);
     final dLon = _deg2rad(lon2 - lon1);
 
@@ -564,29 +522,31 @@ class _PedidoRutaMapPageState extends State<PedidoRutaMapPage> {
       return false;
     }
 
-    // 1) Primera vez
     final noPrevious = _lastRouteALat == null || _lastRouteALng == null;
     if (noPrevious) return true;
 
-    // 2) Si cambió el destino (B), recalcular ya
-    if (_coordsChanged(_bLat, _bLng, _lastRouteBLat, _lastRouteBLng)) return true;
+    if (_coordsChanged(_bLat, _bLng, _lastRouteBLat, _lastRouteBLng)) {
+      return true;
+    }
 
-    // 3) Tiempo: cada 6 segundos
     final now = DateTime.now();
-    if (now.difference(_lastRouteUpdateAt) >= _routeUpdateMinInterval) return true;
+    if (now.difference(_lastRouteUpdateAt) >= _routeUpdateMinInterval) {
+      return true;
+    }
 
-    // 4) Distancia: >= 50m desde la última ruta
     final moved =
         _haversineMeters(_aLat!, _aLng!, _lastRouteALat!, _lastRouteALng!);
     return moved >= _routeUpdateMinMoveMeters;
   }
 
   // ─────────────────────────────────────────────
-  // Directions + actualizar GeoJsonSource
+  // Directions
   // ─────────────────────────────────────────────
   Future<void> _drawRoute() async {
     if (_fetchingRoute) return;
-    if (_aLat == null || _aLng == null || _bLat == null || _bLng == null) return;
+    if (_aLat == null || _aLng == null || _bLat == null || _bLng == null) {
+      return;
+    }
 
     _fetchingRoute = true;
 
@@ -617,7 +577,10 @@ class _PedidoRutaMapPageState extends State<PedidoRutaMapPage> {
           {
             "type": "Feature",
             "properties": {},
-            "geometry": {"type": "LineString", "coordinates": coords},
+            "geometry": {
+              "type": "LineString",
+              "coordinates": coords,
+            },
           },
         ],
       };
@@ -628,21 +591,20 @@ class _PedidoRutaMapPageState extends State<PedidoRutaMapPage> {
         await source.updateGeoJSON(jsonEncode(featureCollection));
       }
 
-      // ✅ Guardar “último estado” para regla 50m/6s
       _lastRouteUpdateAt = DateTime.now();
       _lastRouteALat = aLat;
       _lastRouteALng = aLng;
       _lastRouteBLat = bLat;
       _lastRouteBLng = bLng;
     } catch (_) {
-      // silencioso
+      //
     } finally {
       _fetchingRoute = false;
     }
   }
 
   // ─────────────────────────────────────────────
-  // BOTÓN ESTADO (En camino / Entregado)
+  // BOTÓN ESTADO
   // ─────────────────────────────────────────────
   Future<void> _toggleEstadoPedido() async {
     if (_changingEstado) return;
@@ -658,12 +620,14 @@ class _PedidoRutaMapPageState extends State<PedidoRutaMapPage> {
       await FirebaseFirestore.instance
           .collection('pedidos')
           .doc(widget.pedidoId)
-          .update({'estado': next, 'updatedAt': FieldValue.serverTimestamp()});
+          .update({
+        'estado': next,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
 
       if (!mounted) return;
       setState(() => _pedidoEstado = next);
 
-      // ✅ Activar RTDB recién cuando marque "En camino"
       final nextLower = next.trim().toLowerCase();
       if (nextLower == 'en camino') {
         await _startRealtimeIfNeeded();
@@ -673,7 +637,11 @@ class _PedidoRutaMapPageState extends State<PedidoRutaMapPage> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Estado actualizado: $next'),
+          content: Text(
+            nextLower == 'entregado'
+                ? 'Pedido marcado como entregado. Se notificará al cliente.'
+                : 'Estado actualizado: $next',
+          ),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -701,7 +669,10 @@ class _PedidoRutaMapPageState extends State<PedidoRutaMapPage> {
         backgroundColor: Colors.transparent,
         title: Text(
           title,
-          style: TextStyle(fontWeight: FontWeight.w900, color: Palette.ink),
+          style: TextStyle(
+            fontWeight: FontWeight.w900,
+            color: Palette.ink,
+          ),
         ),
         iconTheme: IconThemeData(color: Palette.ink),
       ),
@@ -841,7 +812,7 @@ class _InfoBar extends StatelessWidget {
               style: ElevatedButton.styleFrom(
                 backgroundColor: Palette.button,
                 disabledBackgroundColor: Palette.ink.withOpacity(0.15),
-                foregroundColor: Colors.white, // ✅ texto en blanco
+                foregroundColor: Colors.white,
                 elevation: 0,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(14),
@@ -851,7 +822,10 @@ class _InfoBar extends StatelessWidget {
                   ? const SizedBox(
                       width: 18,
                       height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
                     )
                   : Text(
                       buttonText,

@@ -1,16 +1,4 @@
-// lib/features/pedidos/mis_pedidos_page.dart
-//
-// ✅ Funcional con Firestore (RAÍZ /pedidos filtrado por uid) realtime
-// ✅ Fondo blanco
-// ✅ Cards rosadas
-// ✅ Textos MORADOS (Palette.primary)
-// ✅ Tabs: Todos | Pendiente | Aceptado | En camino | Completado | Cancelado
-// ✅ Status colors:
-//    - Pendiente/Aceptado/En camino => naranja (Palette.statsWarning)
-//    - Completado => verde (Palette.statsSuccess)
-//    - Cancelado => rojo (Palette.statsDanger)
-// ✅ Lista: NO muestra imagen de producto (solo icono rosado de pedido con fondo blanco)
-// ✅ Tap: abre detalle_pedido.dart (DetallePedidoPage)
+// lib/features/pasajeros_features/pedidos/pages/lista_pedidos.dart
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -19,25 +7,35 @@ import 'package:quimisol_movil/core/theme/palette.dart';
 import 'package:quimisol_movil/features/pasajeros_features/pedidos/pages/detalle_producto.dart';
 
 class MisPedidosPage extends StatefulWidget {
-  const MisPedidosPage({super.key});
+  final int initialTab;
+
+  const MisPedidosPage({
+    super.key,
+    this.initialTab = 0,
+  });
 
   @override
   State<MisPedidosPage> createState() => _MisPedidosPageState();
 }
 
 class _MisPedidosPageState extends State<MisPedidosPage> {
-  int _tab = 0;
+  late int _tab;
 
   final _auth = FirebaseAuth.instance;
   final _fire = FirebaseFirestore.instance;
 
   String get _uid => _auth.currentUser?.uid ?? '';
 
-  /// ✅ Lista desde /pedidos (raíz) filtrado por uid del usuario
   Query<Map<String, dynamic>> get _pedidosQuery => _fire
       .collection('pedidos')
       .where('uid', isEqualTo: _uid)
       .orderBy('createdAt', descending: true);
+
+  @override
+  void initState() {
+    super.initState();
+    _tab = widget.initialTab;
+  }
 
   String _norm(String s) => s
       .trim()
@@ -48,17 +46,14 @@ class _MisPedidosPageState extends State<MisPedidosPage> {
   _PedidoStatus _mapStatus(String raw) {
     final s = _norm(raw);
 
-    // Pendiente
     if (s == 'pendiente' || s == 'en proceso' || s == 'proceso') {
       return _PedidoStatus.pendiente;
     }
 
-    // Aceptado
     if (s == 'aceptado' || s == 'aceptada') {
       return _PedidoStatus.aceptado;
     }
 
-    // En camino (incluye variantes)
     if (s == 'en camino' ||
         s == 'encamino' ||
         s == 'en curso' ||
@@ -66,7 +61,6 @@ class _MisPedidosPageState extends State<MisPedidosPage> {
       return _PedidoStatus.enCamino;
     }
 
-    // Completado (incluye entregado)
     if (s == 'completado' ||
         s == 'completada' ||
         s == 'entregado' ||
@@ -74,29 +68,19 @@ class _MisPedidosPageState extends State<MisPedidosPage> {
       return _PedidoStatus.completado;
     }
 
-    // Cancelado
-    if (s == 'cancelado' || s == 'cancelada') return _PedidoStatus.cancelado;
+    if (s == 'cancelado' || s == 'cancelada') {
+      return _PedidoStatus.cancelado;
+    }
 
     return _PedidoStatus.pendiente;
   }
 
   bool _passesTab(_PedidoStatus st) {
-    // 0: Todos
     if (_tab == 0) return true;
-
-    // 1: Pendiente
     if (_tab == 1) return st == _PedidoStatus.pendiente;
-
-    // 2: Aceptado
     if (_tab == 2) return st == _PedidoStatus.aceptado;
-
-    // 3: En camino
     if (_tab == 3) return st == _PedidoStatus.enCamino;
-
-    // 4: Completado
     if (_tab == 4) return st == _PedidoStatus.completado;
-
-    // 5: Cancelado
     return st == _PedidoStatus.cancelado;
   }
 
@@ -128,14 +112,10 @@ class _MisPedidosPageState extends State<MisPedidosPage> {
 
   @override
   Widget build(BuildContext context) {
-    final primary = Palette.button; // rosa
-    final purpleText = Palette.primary; // morado
+    final primary = Palette.button;
+    final purpleText = Palette.primary;
     final ink = Palette.ink;
-    final bg = Palette.fieldBg; // blanco
-
-    // Cards rosadas
-    final cardA = Palette.button.withOpacity(0.92);
-    final cardB = Palette.gradientEnd.withOpacity(0.90);
+    final bg = Palette.fieldBg;
     final chipBg = Palette.button.withOpacity(0.10);
 
     return Scaffold(
@@ -143,7 +123,6 @@ class _MisPedidosPageState extends State<MisPedidosPage> {
       body: SafeArea(
         child: Column(
           children: [
-            // AppBar
             Padding(
               padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
               child: Row(
@@ -190,10 +169,7 @@ class _MisPedidosPageState extends State<MisPedidosPage> {
                 ],
               ),
             ),
-
             const SizedBox(height: 6),
-
-            // Chips
             SizedBox(
               height: 44,
               child: ListView(
@@ -256,9 +232,7 @@ class _MisPedidosPageState extends State<MisPedidosPage> {
                 ],
               ),
             ),
-
             const SizedBox(height: 12),
-
             Expanded(
               child: _uid.isEmpty
                   ? Center(
@@ -305,7 +279,6 @@ class _MisPedidosPageState extends State<MisPedidosPage> {
                           final st = _mapStatus(rawStatus);
 
                           final total = _asDouble(data['total']);
-
                           final createdAt = data['createdAt'];
                           final dateText = _formatDate(createdAt);
 
@@ -316,7 +289,7 @@ class _MisPedidosPageState extends State<MisPedidosPage> {
                           final code = (data['codigo'] ?? d.id).toString();
 
                           return _PedidoModel(
-                            id: d.id, // ✅ pedidoId real
+                            id: d.id,
                             code: code,
                             total: total,
                             dateText: dateText,
@@ -364,8 +337,6 @@ class _MisPedidosPageState extends State<MisPedidosPage> {
                               padding: const EdgeInsets.only(bottom: 14),
                               child: _PedidoCard(
                                 pedido: p,
-                                cardA: cardA,
-                                cardB: cardB,
                                 purpleText: purpleText,
                                 onTap: () {
                                   Navigator.push(
@@ -442,15 +413,11 @@ class _ChipTab extends StatelessWidget {
 class _PedidoCard extends StatelessWidget {
   const _PedidoCard({
     required this.pedido,
-    required this.cardA,
-    required this.cardB,
     required this.purpleText,
     required this.onTap,
   });
 
   final _PedidoModel pedido;
-  final Color cardA;
-  final Color cardB;
   final Color purpleText;
   final VoidCallback onTap;
 
@@ -460,147 +427,272 @@ class _PedidoCard extends StatelessWidget {
 
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(24),
       child: Container(
         decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [cardA, cardB],
+          color: Palette.white,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(
+            color: purpleText.withOpacity(0.06),
           ),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.white.withOpacity(0.25)),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.08),
+              color: Colors.black.withOpacity(0.05),
               blurRadius: 22,
               offset: const Offset(0, 12),
             ),
           ],
         ),
-        padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
-        child: Column(
-          children: [
-            Row(
-              children: [
-                // ✅ Icono de pedido: fondo blanco + icono rosado
-                Container(
-                  height: 46,
-                  width: 46,
-                  decoration: BoxDecoration(
-                    color: Palette.white,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: purpleText.withOpacity(0.14)),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.06),
-                        blurRadius: 12,
-                        offset: const Offset(0, 8),
-                      ),
-                    ],
-                  ),
-                  child: Icon(
-                    Icons.receipt_long_rounded,
-                    color: Palette.button,
-                    size: 26,
+        child: IntrinsicHeight(
+          child: Row(
+            children: [
+              Container(
+                width: 6,
+                decoration: BoxDecoration(
+                  color: status.bg,
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(24),
+                    bottomLeft: Radius.circular(24),
                   ),
                 ),
-                const SizedBox(width: 12),
-
-                Expanded(
+              ),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'Pedido #${pedido.code}',
-                        style: TextStyle(
-                          color: purpleText,
-                          fontWeight: FontWeight.w900,
-                          fontSize: 13.5,
-                        ),
+                      Row(
+                        children: [
+                          Container(
+                            height: 48,
+                            width: 48,
+                            decoration: BoxDecoration(
+                              color: status.bg.withOpacity(0.12),
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: Icon(
+                              status.icon,
+                              color: status.bg,
+                              size: 24,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Pedido #${pedido.code}',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    color: purpleText,
+                                    fontWeight: FontWeight.w900,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Toca para abrir el detalle',
+                                  style: TextStyle(
+                                    color: purpleText.withOpacity(0.55),
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 11.5,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          _StatusBadge(status: status),
+                        ],
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        pedido.dateText,
-                        style: TextStyle(
-                          color: purpleText.withOpacity(0.75),
-                          fontWeight: FontWeight.w700,
-                          fontSize: 11.5,
+                      const SizedBox(height: 14),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _InfoMiniCard(
+                              label: 'Fecha',
+                              value: pedido.dateText,
+                              icon: Icons.schedule_rounded,
+                              valueColor: purpleText,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _InfoMiniCard(
+                              label: 'Artículos',
+                              value:
+                                  '${pedido.itemsCount} articulo${pedido.itemsCount == 1 ? '' : 's'}',
+                              icon: Icons.inventory_2_outlined,
+                              valueColor: purpleText,
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: _InfoMiniCard(
+                              label: 'Total',
+                              value: 'Bs. ${pedido.total.toStringAsFixed(2)}',
+                              icon: Icons.payments_outlined,
+                              valueColor: purpleText,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 11,
+                        ),
+                        decoration: BoxDecoration(
+                          color: status.bg.withOpacity(0.08),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: status.bg.withOpacity(0.18),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Text(
+                              status.actionText,
+                              style: TextStyle(
+                                color: status.bg,
+                                fontWeight: FontWeight.w900,
+                                fontSize: 12.5,
+                              ),
+                            ),
+                            const Spacer(),
+                            Icon(
+                              Icons.arrow_forward_rounded,
+                              color: status.bg,
+                              size: 20,
+                            ),
+                          ],
                         ),
                       ),
                     ],
                   ),
                 ),
-
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      'Bs. ${pedido.total.toStringAsFixed(2)}',
-                      style: TextStyle(
-                        color: purpleText,
-                        fontWeight: FontWeight.w900,
-                        fontSize: 13.5,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '${pedido.itemsCount} articulo${pedido.itemsCount == 1 ? '' : 's'}',
-                      style: TextStyle(
-                        color: purpleText.withOpacity(0.75),
-                        fontWeight: FontWeight.w700,
-                        fontSize: 11.5,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            Divider(color: Colors.white.withOpacity(0.35), height: 1),
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-                  decoration: BoxDecoration(
-                    color: status.bg,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(status.icon, size: 16, color: Palette.white),
-                      const SizedBox(width: 6),
-                      Text(
-                        status.label,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w900,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const Spacer(),
-                Text(
-                  status.actionText,
-                  style: TextStyle(
-                    color: purpleText.withOpacity(0.95),
-                    fontWeight: FontWeight.w800,
-                    fontSize: 12,
-                  ),
-                ),
-                const SizedBox(width: 6),
-                Icon(
-                  Icons.chevron_right_rounded,
-                  color: purpleText.withOpacity(0.85),
-                ),
-              ],
-            ),
-          ],
+              ),
+            ],
+          ),
         ),
+      ),
+    );
+  }
+}
+
+class _StatusBadge extends StatelessWidget {
+  const _StatusBadge({required this.status});
+
+  final _StatusMeta status;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        color: status.bg,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            status.icon,
+            size: 14,
+            color: Palette.white,
+          ),
+          const SizedBox(width: 6),
+          Text(
+            status.label,
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w900,
+              fontSize: 11.5,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _InfoMiniCard extends StatelessWidget {
+  const _InfoMiniCard({
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.valueColor,
+  });
+
+  final String label;
+  final String value;
+  final IconData icon;
+  final Color valueColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
+      decoration: BoxDecoration(
+        color: Palette.fieldBg.withOpacity(0.55),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: valueColor.withOpacity(0.06),
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            height: 34,
+            width: 34,
+            decoration: BoxDecoration(
+              color: Palette.button.withOpacity(0.10),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(
+              icon,
+              size: 18,
+              color: Palette.button,
+            ),
+          ),
+          const SizedBox(width: 9),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: valueColor.withOpacity(0.55),
+                    fontWeight: FontWeight.w700,
+                    fontSize: 10.5,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: valueColor,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 11.8,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -671,7 +763,7 @@ _StatusMeta _statusMeta(_PedidoStatus status) {
 enum _PedidoStatus { pendiente, aceptado, enCamino, completado, cancelado }
 
 class _PedidoModel {
-  final String id; // ✅ pedidoId real
+  final String id;
   final String code;
   final double total;
   final String dateText;
