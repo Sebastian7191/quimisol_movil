@@ -59,6 +59,8 @@ class UsuariosController {
 
     final adminRef = _db.collection('admins').doc(uid);
     final clienteRef = _db.collection('clientes').doc(uid);
+    final clienteMayoristaRef =
+        _db.collection('clientes_mayoristas').doc(uid);
     final repartidorRef = _db.collection('repartidores').doc(uid);
 
     final snap = await userRef.get();
@@ -76,18 +78,31 @@ class UsuariosController {
 
     final batch = _db.batch();
 
-    // usuarios
-    final update = {'role': role, 'updated_at': FieldValue.serverTimestamp()};
+    final update = <String, dynamic>{
+      'role': role,
+      'updated_at': FieldValue.serverTimestamp(),
+    };
 
     if (role != 'repartidor') {
       update['almacenId'] = FieldValue.delete();
     }
 
+    if (role != 'cliente_mayorista') {
+      update['nit'] = FieldValue.delete();
+    } else {
+      final nit = (userData['nit'] ?? '').toString().trim();
+      if (nit.isNotEmpty) {
+        update['nit'] = nit;
+        payload['nit'] = nit;
+      }
+    }
+
     batch.set(userRef, update, SetOptions(merge: true));
 
-    // limpiar roles
+    // limpiar roles anteriores
     batch.delete(adminRef);
     batch.delete(clienteRef);
+    batch.delete(clienteMayoristaRef);
     batch.delete(repartidorRef);
 
     // asignar nuevo rol
@@ -95,10 +110,47 @@ class UsuariosController {
       batch.set(adminRef, payload, SetOptions(merge: true));
     } else if (role == 'cliente') {
       batch.set(clienteRef, payload, SetOptions(merge: true));
+    } else if (role == 'cliente_mayorista') {
+      batch.set(clienteMayoristaRef, payload, SetOptions(merge: true));
     } else if (role == 'repartidor') {
       final almacenId = (userData['almacenId'] ?? '').toString();
       if (almacenId.isNotEmpty) payload['almacenId'] = almacenId;
       batch.set(repartidorRef, payload, SetOptions(merge: true));
+    }
+
+    await batch.commit();
+  }
+
+  Future<void> setNit({
+    required String uid,
+    required String nit,
+  }) async {
+    final userRef = _db.collection('usuarios').doc(uid);
+    final mayoristaRef = _db.collection('clientes_mayoristas').doc(uid);
+
+    final cleanNit = nit.trim();
+    final snap = await userRef.get();
+    final userData = snap.data() ?? {};
+    final role = (userData['role'] ?? '').toString().trim().toLowerCase();
+
+    final batch = _db.batch();
+
+    batch.set(userRef, {
+      'nit': cleanNit,
+      'updated_at': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+
+    if (role == 'cliente_mayorista') {
+      batch.set(mayoristaRef, {
+        'uid': uid,
+        'role': role,
+        'name': userData['name'],
+        'email': userData['email'],
+        'photo': userData['photo'],
+        'nit': cleanNit,
+        'updated_at': FieldValue.serverTimestamp(),
+        'from': 'usuarios',
+      }, SetOptions(merge: true));
     }
 
     await batch.commit();

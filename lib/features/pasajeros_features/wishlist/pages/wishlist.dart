@@ -100,10 +100,7 @@ class _WishlistPageState extends State<WishlistPage> {
               padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
               child: Row(
                 children: [
-                  IconButton(
-                    onPressed: () => Navigator.pop(context),
-                    icon: Icon(Icons.arrow_back_rounded, color: ink),
-                  ),
+                  const SizedBox(width: 38), // 👈 sin flecha
                   const Spacer(),
                   Text(
                     'Lista de Deseos',

@@ -141,6 +141,10 @@ class _ProductosPageState extends State<ProductosPage> {
         initialCategoriaId: product.categoriaId,
         initialCategoriaNombre: product.categoriaNombre,
 
+        // ✅ NUEVO: contenido/gramaje
+        initialContenido:
+            (estadoEdicion['contenido'] as String?) ?? product.contenido,
+
         // ✅ hidratar descuento + banner
         initialAgregarDescuento: estadoEdicion['agregarDescuento'] as String?,
         initialDescuentoTipo: estadoEdicion['descuentoTipo'] as String?,
@@ -299,8 +303,9 @@ class _ProductosPageState extends State<ProductosPage> {
                   return AlmacenOption(
                     id: d.id,
                     nombre: (data['nombre'] ?? '').toString(),
-                    activo:
-                        (data['activo'] is bool) ? (data['activo'] as bool) : true,
+                    activo: (data['activo'] is bool)
+                        ? (data['activo'] as bool)
+                        : true,
                   );
                 })
                 .where((a) => a.activo)
@@ -317,7 +322,6 @@ class _ProductosPageState extends State<ProductosPage> {
                 return Scaffold(
                   backgroundColor: Palette.card,
 
-                  // ✅ FAB pill: SOLO bordes celestes (Palette.button)
                   floatingActionButton: compact
                       ? _FloatingAddPill(
                           enabled: canAdd,
@@ -345,32 +349,47 @@ class _ProductosPageState extends State<ProductosPage> {
                             ),
                           ),
                           const SizedBox(height: 12),
-
                           _SearchBarProductos(controller: _searchCtrl),
                           const SizedBox(height: 12),
-
                           SizedBox(
                             height: 44,
                             child: ListView.separated(
                               scrollDirection: Axis.horizontal,
-                              itemCount: const ['Todos', 'PRODUCTO', 'INSUMO'].length,
-                              separatorBuilder: (_, __) => const SizedBox(width: 10),
+                              itemCount: const [
+                                'Todos',
+                                'PRODUCTO',
+                                'INSUMO',
+                              ].length,
+                              separatorBuilder: (_, __) =>
+                                  const SizedBox(width: 10),
                               itemBuilder: (_, i) {
-                                final t = const ['Todos', 'PRODUCTO', 'INSUMO'][i];
+                                final t = const [
+                                  'Todos',
+                                  'PRODUCTO',
+                                  'INSUMO',
+                                ][i];
                                 final selected = _tipo == t;
 
                                 return ChoiceChip(
                                   label: Text(t == 'Todos' ? 'Todos' : t),
                                   selected: selected,
-                                  selectedColor: Palette.primary.withValues(alpha: 0.18),
+                                  selectedColor: Palette.primary.withValues(
+                                    alpha: 0.18,
+                                  ),
                                   backgroundColor: Palette.white,
                                   side: BorderSide(
                                     color: selected
-                                        ? Palette.primary.withValues(alpha: 0.55)
-                                        : Palette.button.withValues(alpha: 0.35),
+                                        ? Palette.primary.withValues(
+                                            alpha: 0.55,
+                                          )
+                                        : Palette.button.withValues(
+                                            alpha: 0.35,
+                                          ),
                                   ),
                                   labelStyle: TextStyle(
-                                    color: Palette.ink.withValues(alpha: selected ? 1 : 0.9),
+                                    color: Palette.ink.withValues(
+                                      alpha: selected ? 1 : 0.9,
+                                    ),
                                     fontWeight: FontWeight.w900,
                                   ),
                                   onSelected: (_) => setState(() => _tipo = t),
@@ -379,24 +398,28 @@ class _ProductosPageState extends State<ProductosPage> {
                             ),
                           ),
                           const SizedBox(height: 16),
-
                           Expanded(
                             child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
                               stream: _productosStream(),
                               builder: (context, snapshot) {
                                 if (snapshot.hasError) {
                                   return ErrorBox(
-                                    message: 'Error al cargar productos: ${snapshot.error}',
+                                    message:
+                                        'Error al cargar productos: ${snapshot.error}',
                                   );
                                 }
 
-                                if (snapshot.connectionState == ConnectionState.waiting) {
-                                  return const LoadingTable(icon: Icons.inventory_2_rounded);
+                                if (snapshot.connectionState ==
+                                    ConnectionState.waiting) {
+                                  return const LoadingTable(
+                                    icon: Icons.inventory_2_rounded,
+                                  );
                                 }
 
                                 final docs = snapshot.data?.docs ?? [];
-                                final productos =
-                                    docs.map((d) => controller.mapProducto(d)).toList();
+                                final productos = docs
+                                    .map((d) => controller.mapProducto(d))
+                                    .toList();
 
                                 productos.sort((a, b) {
                                   final da = a.createdAt;
@@ -416,7 +439,8 @@ class _ProductosPageState extends State<ProductosPage> {
                                 if (filtered.isEmpty) {
                                   return const EmptyBox(
                                     title: 'No hay productos',
-                                    subtitle: 'Agrega un producto o ajusta tus filtros.',
+                                    subtitle:
+                                        'Agrega un producto o ajusta tus filtros.',
                                     icon: Icons.inventory_2_rounded,
                                   );
                                 }
@@ -425,7 +449,8 @@ class _ProductosPageState extends State<ProductosPage> {
                                   return ListView.separated(
                                     padding: const EdgeInsets.only(bottom: 96),
                                     itemCount: filtered.length,
-                                    separatorBuilder: (_, __) => const SizedBox(height: 10),
+                                    separatorBuilder: (_, __) =>
+                                        const SizedBox(height: 10),
                                     itemBuilder: (_, i) {
                                       final p = filtered[i];
 
@@ -443,13 +468,15 @@ class _ProductosPageState extends State<ProductosPage> {
                                         stock: p.stock,
                                         precio: p.precio,
                                         imagenUrl: imagenUrl,
-                                        onTapImage: (imagenPath.isEmpty && imagenUrl.isEmpty)
-                                            ? null
-                                            : () => _openImageViewer(
-                                                  title: nombre,
-                                                  imagenPath: imagenPath,
-                                                  imagenUrl: imagenUrl,
-                                                ),
+                                        onTapImage:
+                                            (imagenPath.isEmpty &&
+                                                    imagenUrl.isEmpty)
+                                                ? null
+                                                : () => _openImageViewer(
+                                                      title: nombre,
+                                                      imagenPath: imagenPath,
+                                                      imagenUrl: imagenUrl,
+                                                    ),
                                         onEdit: () => _openEditDialog(
                                           id: id,
                                           product: p,
@@ -471,7 +498,9 @@ class _ProductosPageState extends State<ProductosPage> {
                                     color: Palette.white,
                                     borderRadius: BorderRadius.circular(18),
                                     border: Border.all(
-                                      color: Palette.button.withValues(alpha: 0.35),
+                                      color: Palette.button.withValues(
+                                        alpha: 0.35,
+                                      ),
                                     ),
                                   ),
                                   child: ClipRRect(
@@ -490,7 +519,9 @@ class _ProductosPageState extends State<ProductosPage> {
                                           DataColumn(label: Text('Imagen')),
                                           DataColumn(label: Text('Código')),
                                           DataColumn(label: Text('Nombre')),
-                                          DataColumn(label: Text('Descripción')),
+                                          DataColumn(
+                                            label: Text('Descripción'),
+                                          ),
                                           DataColumn(label: Text('Tipo')),
                                           DataColumn(label: Text('Unidad')),
                                           DataColumn(label: Text('Stock')),
@@ -512,13 +543,18 @@ class _ProductosPageState extends State<ProductosPage> {
                                             cells: [
                                               DataCell(
                                                 InkWell(
-                                                  onTap: (imagenPath.isEmpty && imagenUrl.isEmpty)
-                                                      ? null
-                                                      : () => _openImageViewer(
-                                                            title: nombre,
-                                                            imagenPath: imagenPath,
-                                                            imagenUrl: imagenUrl,
-                                                          ),
+                                                  onTap:
+                                                      (imagenPath.isEmpty &&
+                                                              imagenUrl.isEmpty)
+                                                          ? null
+                                                          : () =>
+                                                                _openImageViewer(
+                                                                  title: nombre,
+                                                                  imagenPath:
+                                                                      imagenPath,
+                                                                  imagenUrl:
+                                                                      imagenUrl,
+                                                                ),
                                                   child: _ProductoThumb(
                                                     imagenPath: imagenPath,
                                                     imagenUrl: imagenUrl,
@@ -527,18 +563,28 @@ class _ProductosPageState extends State<ProductosPage> {
                                               ),
                                               DataCell(
                                                 Text(
-                                                  p.codigo.isEmpty ? '-' : p.codigo,
-                                                  style: const TextStyle(fontWeight: FontWeight.w700),
+                                                  p.codigo.isEmpty
+                                                      ? '-'
+                                                      : p.codigo,
+                                                  style: const TextStyle(
+                                                    fontWeight: FontWeight.w700,
+                                                  ),
                                                 ),
                                               ),
                                               DataCell(
                                                 SizedBox(
                                                   width: 240,
                                                   child: Text(
-                                                    nombre.isEmpty ? '-' : nombre,
+                                                    nombre.isEmpty
+                                                        ? '-'
+                                                        : nombre,
                                                     maxLines: 2,
-                                                    overflow: TextOverflow.ellipsis,
-                                                    style: const TextStyle(fontWeight: FontWeight.w700),
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
+                                                    style: const TextStyle(
+                                                      fontWeight:
+                                                          FontWeight.w700,
+                                                    ),
                                                   ),
                                                 ),
                                               ),
@@ -546,42 +592,73 @@ class _ProductosPageState extends State<ProductosPage> {
                                                 SizedBox(
                                                   width: 320,
                                                   child: Text(
-                                                    desc.trim().isEmpty ? '-' : desc.trim(),
+                                                    desc.trim().isEmpty
+                                                        ? '-'
+                                                        : desc.trim(),
                                                     maxLines: 2,
-                                                    overflow: TextOverflow.ellipsis,
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
                                                     style: TextStyle(
-                                                      color: Palette.ink.withValues(alpha: 0.85),
+                                                      color: Palette.ink
+                                                          .withValues(
+                                                            alpha: 0.85,
+                                                          ),
                                                     ),
                                                   ),
                                                 ),
                                               ),
-                                              DataCell(_ChipTipo(tipoItem: tipoItem)),
-                                              DataCell(Text(unidadNombre.isEmpty ? '-' : unidadNombre)),
+                                              DataCell(
+                                                _ChipTipo(tipoItem: tipoItem),
+                                              ),
+                                              DataCell(
+                                                Text(
+                                                  unidadNombre.isEmpty
+                                                      ? '-'
+                                                      : unidadNombre,
+                                                ),
+                                              ),
                                               DataCell(Text(stock.toString())),
-                                              DataCell(Text(precio.toStringAsFixed(2))),
+                                              DataCell(
+                                                Text(
+                                                  precio.toStringAsFixed(2),
+                                                ),
+                                              ),
                                               DataCell(
                                                 Row(
                                                   children: [
                                                     IconButton(
                                                       tooltip: 'Editar',
-                                                      onPressed: () => _openEditDialog(
-                                                        id: id,
-                                                        product: p,
-                                                        unidades: unidades,
-                                                        almacenes: almacenes,
+                                                      onPressed: () =>
+                                                          _openEditDialog(
+                                                            id: id,
+                                                            product: p,
+                                                            unidades: unidades,
+                                                            almacenes:
+                                                                almacenes,
+                                                          ),
+                                                      icon: Icon(
+                                                        Icons.edit_rounded,
+                                                        color:
+                                                            Palette.primary,
                                                       ),
-                                                      icon: Icon(Icons.edit_rounded, color: Palette.primary),
                                                     ),
                                                     IconButton(
                                                       tooltip: 'Eliminar',
-                                                      onPressed: () => _deleteProducto(
-                                                        id,
-                                                        nombre,
-                                                        imagenPath: imagenPath,
-                                                      ),
+                                                      onPressed: () =>
+                                                          _deleteProducto(
+                                                            id,
+                                                            nombre,
+                                                            imagenPath:
+                                                                imagenPath,
+                                                          ),
                                                       icon: Icon(
-                                                        Icons.delete_outline_rounded,
-                                                        color: Palette.statsDanger.withValues(alpha: 0.95),
+                                                        Icons
+                                                            .delete_outline_rounded,
+                                                        color: Palette
+                                                            .statsDanger
+                                                            .withValues(
+                                                              alpha: 0.95,
+                                                            ),
                                                       ),
                                                     ),
                                                   ],
@@ -632,10 +709,8 @@ class _FloatingAddPill extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
-              // ✅ un solo fondo
               color: Palette.white.withValues(alpha: 0.92),
               borderRadius: BorderRadius.circular(999),
-              // ✅ solo borde celeste
               border: Border.all(
                 color: Palette.button.withValues(alpha: 0.95),
                 width: 3,
@@ -739,7 +814,9 @@ class _HeaderProductos extends StatelessWidget {
             decoration: BoxDecoration(
               color: Palette.white.withValues(alpha: 0.18),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Palette.white.withValues(alpha: 0.35)),
+              border: Border.all(
+                color: Palette.white.withValues(alpha: 0.35),
+              ),
             ),
             child: const Icon(
               Icons.inventory_2_rounded,
@@ -778,7 +855,6 @@ class _HeaderProductos extends StatelessWidget {
           ),
           const SizedBox(width: 12),
 
-          // ✅ botón del header: solo borde celeste + texto degradado
           if (!compact)
             InkWell(
               onTap: canAdd ? onAdd : null,
@@ -787,9 +863,12 @@ class _HeaderProductos extends StatelessWidget {
                 duration: const Duration(milliseconds: 160),
                 opacity: canAdd ? 1 : 0.55,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 12,
+                  ),
                   decoration: BoxDecoration(
-                    color: Palette.white.withValues(alpha: 0.22), // leve, para que no "corte"
+                    color: Palette.white.withValues(alpha: 0.22),
                     borderRadius: BorderRadius.circular(999),
                     border: Border.all(
                       color: Palette.button.withValues(alpha: 0.90),
@@ -797,7 +876,10 @@ class _HeaderProductos extends StatelessWidget {
                     ),
                   ),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 10,
+                    ),
                     decoration: BoxDecoration(
                       color: Palette.white.withValues(alpha: 0.80),
                       borderRadius: BorderRadius.circular(999),
@@ -806,7 +888,10 @@ class _HeaderProductos extends StatelessWidget {
                         width: 1.4,
                       ),
                     ),
-                    child: _GradientIconText(compact: false, enabled: canAdd),
+                    child: _GradientIconText(
+                      compact: false,
+                      enabled: canAdd,
+                    ),
                   ),
                 ),
               ),
@@ -842,7 +927,10 @@ class _SearchBarProductos extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12),
       child: Row(
         children: [
-          Icon(Icons.search_rounded, color: Palette.ink.withValues(alpha: 0.45)),
+          Icon(
+            Icons.search_rounded,
+            color: Palette.ink.withValues(alpha: 0.45),
+          ),
           const SizedBox(width: 10),
           Expanded(
             child: TextField(
@@ -935,7 +1023,10 @@ class _ProductoThumb extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
       ),
       child: Center(
-        child: Icon(Icons.image_outlined, color: Palette.ink.withValues(alpha: 0.35)),
+        child: Icon(
+          Icons.image_outlined,
+          color: Palette.ink.withValues(alpha: 0.35),
+        ),
       ),
     );
 
@@ -1030,7 +1121,9 @@ class _ProductoCardMobile extends StatelessWidget {
                                 color: Palette.fieldBg,
                                 child: Icon(
                                   Icons.broken_image_rounded,
-                                  color: Palette.statsDanger.withValues(alpha: 0.9),
+                                  color: Palette.statsDanger.withValues(
+                                    alpha: 0.9,
+                                  ),
                                 ),
                               ),
                             ),
@@ -1069,7 +1162,8 @@ class _ProductoCardMobile extends StatelessWidget {
                                 ),
                               ),
                             ),
-                          if (codigo.trim().isNotEmpty) const SizedBox(width: 8),
+                          if (codigo.trim().isNotEmpty)
+                            const SizedBox(width: 8),
                           _ChipTipo(tipoItem: tipoItem),
                         ],
                       ),
@@ -1105,9 +1199,15 @@ class _ProductoCardMobile extends StatelessWidget {
               spacing: 10,
               runSpacing: 8,
               children: [
-                _MiniInfoChip(label: 'Unidad', value: unidadNombre.isEmpty ? '-' : unidadNombre),
+                _MiniInfoChip(
+                  label: 'Unidad',
+                  value: unidadNombre.isEmpty ? '-' : unidadNombre,
+                ),
                 _MiniInfoChip(label: 'Stock', value: stock.toString()),
-                _MiniInfoChip(label: 'Precio', value: 'Bs ${precio.toStringAsFixed(2)}'),
+                _MiniInfoChip(
+                  label: 'Precio',
+                  value: 'Bs ${precio.toStringAsFixed(2)}',
+                ),
               ],
             ),
             const SizedBox(height: 12),
@@ -1120,9 +1220,13 @@ class _ProductoCardMobile extends StatelessWidget {
                     label: const Text('Editar'),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: Palette.primary,
-                      side: BorderSide(color: Palette.primary.withValues(alpha: 0.35)),
+                      side: BorderSide(
+                        color: Palette.primary.withValues(alpha: 0.35),
+                      ),
                       padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
                       textStyle: const TextStyle(fontWeight: FontWeight.w900),
                     ),
                   ),
@@ -1131,13 +1235,22 @@ class _ProductoCardMobile extends StatelessWidget {
                 Expanded(
                   child: OutlinedButton.icon(
                     onPressed: onDelete,
-                    icon: const Icon(Icons.delete_outline_rounded, size: 18),
+                    icon: const Icon(
+                      Icons.delete_outline_rounded,
+                      size: 18,
+                    ),
                     label: const Text('Eliminar'),
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: Palette.statsDanger.withValues(alpha: 0.95),
-                      side: BorderSide(color: Palette.statsDanger.withValues(alpha: 0.35)),
+                      foregroundColor: Palette.statsDanger.withValues(
+                        alpha: 0.95,
+                      ),
+                      side: BorderSide(
+                        color: Palette.statsDanger.withValues(alpha: 0.35),
+                      ),
                       padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
                       textStyle: const TextStyle(fontWeight: FontWeight.w900),
                     ),
                   ),

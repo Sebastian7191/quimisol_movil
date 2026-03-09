@@ -45,10 +45,46 @@ class _SoporteChatPageState extends State<SoporteChatPage>
   final fb.FirebaseAuth _auth = fb.FirebaseAuth.instance;
 
   final List<String> _emojis = const [
-    '😀', '😁', '😂', '🤣', '😊', '😍', '😘', '😎', '🤗', '🤔',
-    '😢', '😭', '😡', '😴', '🙌', '👏', '👍', '👎', '💪', '🙏',
-    '🔥', '💯', '✨', '🎉', '❤️', '💙', '💚', '🧡', '💛', '🤍',
-    '🚚', '📦', '🛒', '💳', '📍', '📞', '📷', '⚠️', '✅', '❌',
+    '😀',
+    '😁',
+    '😂',
+    '🤣',
+    '😊',
+    '😍',
+    '😘',
+    '😎',
+    '🤗',
+    '🤔',
+    '😢',
+    '😭',
+    '😡',
+    '😴',
+    '🙌',
+    '👏',
+    '👍',
+    '👎',
+    '💪',
+    '🙏',
+    '🔥',
+    '💯',
+    '✨',
+    '🎉',
+    '❤️',
+    '💙',
+    '💚',
+    '🧡',
+    '💛',
+    '🤍',
+    '🚚',
+    '📦',
+    '🛒',
+    '💳',
+    '📍',
+    '📞',
+    '📷',
+    '⚠️',
+    '✅',
+    '❌',
   ];
 
   @override
@@ -163,7 +199,8 @@ class _SoporteChatPageState extends State<SoporteChatPage>
       await _setClientChatPresence(true);
 
       setState(() {
-        _chatCreated = true; // ya existe doc de ticket (pendiente de confirmación)
+        _chatCreated =
+            true; // ya existe doc de ticket (pendiente de confirmación)
         _awaitingOpenTicketAnswer = true;
         _chatRejected = false;
         _chatStatus = 'draft';
@@ -310,18 +347,14 @@ class _SoporteChatPageState extends State<SoporteChatPage>
       'status': 'sent',
     });
 
-    batch.set(
-      chatRef,
-      {
-        'updatedAt': FieldValue.serverTimestamp(),
-        if (countAsLastMessage) ...{
-          'lastMessage': text,
-          'lastMessageType': 'text',
-          'lastMessageAt': FieldValue.serverTimestamp(),
-        }
+    batch.set(chatRef, {
+      'updatedAt': FieldValue.serverTimestamp(),
+      if (countAsLastMessage) ...{
+        'lastMessage': text,
+        'lastMessageType': 'text',
+        'lastMessageAt': FieldValue.serverTimestamp(),
       },
-      SetOptions(merge: true),
-    );
+    }, SetOptions(merge: true));
 
     await batch.commit();
   }
@@ -408,7 +441,8 @@ class _SoporteChatPageState extends State<SoporteChatPage>
     );
 
     await _addSystemMessage(
-      text: 'Antes de continuar, ¿deseas abrir un ticket de soporte con un asesor?',
+      text:
+          'Antes de continuar, ¿deseas abrir un ticket de soporte con un asesor?',
       metaType: 'open_ticket_question',
       countAsLastMessage: false,
     );
@@ -422,7 +456,8 @@ class _SoporteChatPageState extends State<SoporteChatPage>
   }
 
   void _toggleEmojiPicker() {
-    final canUse = _chatStatus == 'pending' ||
+    final canUse =
+        _chatStatus == 'pending' ||
         _chatStatus == 'in_progress' ||
         _chatStatus == 'completed';
 
@@ -606,13 +641,16 @@ class _SoporteChatPageState extends State<SoporteChatPage>
     final text = _messageCtrl.text.trim();
     if (text.isEmpty) return;
 
-    final canSend = _chatStatus == 'pending' ||
+    final canSend =
+        _chatStatus == 'pending' ||
         _chatStatus == 'in_progress' ||
         _chatStatus == 'completed';
 
     if (!canSend || _chatId == null || _clientUid == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Primero responde Sí para abrir el ticket.')),
+        const SnackBar(
+          content: Text('Primero responde Sí para abrir el ticket.'),
+        ),
       );
       return;
     }
@@ -623,11 +661,7 @@ class _SoporteChatPageState extends State<SoporteChatPage>
 
     setState(() {
       _messages.add(
-        _ChatMessage.text(
-          text: text,
-          isMine: true,
-          time: _formatNow(),
-        ),
+        _ChatMessage.text(text: text, isMine: true, time: _formatNow()),
       );
       _messageCtrl.clear();
       _isTyping = false;
@@ -657,22 +691,18 @@ class _SoporteChatPageState extends State<SoporteChatPage>
         'status': 'sent',
       });
 
-      batch.set(
-        chatRef,
-        {
-          'updatedAt': FieldValue.serverTimestamp(),
-          'lastMessage': text,
-          'lastMessageType': 'text',
-          'lastMessageAt': FieldValue.serverTimestamp(),
-          'unreadCountSupport': FieldValue.increment(1),
-          'status': 'pending',
-          'lastReadAtClient': FieldValue.serverTimestamp(),
-          'completedAt': null,
-          'completedByUid': null,
-          'completedByName': null,
-        },
-        SetOptions(merge: true),
-      );
+      batch.set(chatRef, {
+        'updatedAt': FieldValue.serverTimestamp(),
+        'lastMessage': text,
+        'lastMessageType': 'text',
+        'lastMessageAt': FieldValue.serverTimestamp(),
+        'unreadCountSupport': FieldValue.increment(1),
+        'status': 'pending',
+        'lastReadAtClient': FieldValue.serverTimestamp(),
+        'completedAt': null,
+        'completedByUid': null,
+        'completedByName': null,
+      }, SetOptions(merge: true));
 
       await batch.commit();
 
@@ -689,13 +719,16 @@ class _SoporteChatPageState extends State<SoporteChatPage>
   }
 
   Future<void> _pickAndSendImage() async {
-    final canSend = _chatStatus == 'pending' ||
+    final canSend =
+        _chatStatus == 'pending' ||
         _chatStatus == 'in_progress' ||
         _chatStatus == 'completed';
 
     if (!canSend || _chatId == null || _clientUid == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Primero responde Sí para abrir el ticket.')),
+        const SnackBar(
+          content: Text('Primero responde Sí para abrir el ticket.'),
+        ),
       );
       return;
     }
@@ -781,22 +814,18 @@ class _SoporteChatPageState extends State<SoporteChatPage>
         'status': 'sent',
       });
 
-      batch.set(
-        chatRef,
-        {
-          'updatedAt': FieldValue.serverTimestamp(),
-          'lastMessage': '📷 Imagen',
-          'lastMessageType': 'image',
-          'lastMessageAt': FieldValue.serverTimestamp(),
-          'unreadCountSupport': FieldValue.increment(1),
-          'status': 'pending',
-          'lastReadAtClient': FieldValue.serverTimestamp(),
-          'completedAt': null,
-          'completedByUid': null,
-          'completedByName': null,
-        },
-        SetOptions(merge: true),
-      );
+      batch.set(chatRef, {
+        'updatedAt': FieldValue.serverTimestamp(),
+        'lastMessage': '📷 Imagen',
+        'lastMessageType': 'image',
+        'lastMessageAt': FieldValue.serverTimestamp(),
+        'unreadCountSupport': FieldValue.increment(1),
+        'status': 'pending',
+        'lastReadAtClient': FieldValue.serverTimestamp(),
+        'completedAt': null,
+        'completedByUid': null,
+        'completedByName': null,
+      }, SetOptions(merge: true));
 
       await batch.commit();
 
@@ -824,7 +853,8 @@ class _SoporteChatPageState extends State<SoporteChatPage>
   }
 
   bool get _inputEnabled {
-    final canSend = _chatStatus == 'pending' ||
+    final canSend =
+        _chatStatus == 'pending' ||
         _chatStatus == 'in_progress' ||
         _chatStatus == 'completed';
     return canSend && !_creatingChat && !_loadingChat;
@@ -846,12 +876,8 @@ class _SoporteChatPageState extends State<SoporteChatPage>
           elevation: 0,
           backgroundColor: Palette.white,
           surfaceTintColor: Colors.transparent,
-          leading: IconButton(
-            icon: const Icon(Icons.arrow_back_ios_new_rounded),
-            color: Palette.primary,
-            onPressed: () => Navigator.of(context).maybePop(),
-          ),
-          titleSpacing: 0,
+          automaticallyImplyLeading: false, // 👈 quita la flecha
+          titleSpacing: 16,
           title: Row(
             children: [
               CircleAvatar(
@@ -883,24 +909,24 @@ class _SoporteChatPageState extends State<SoporteChatPage>
                       _loadingChat
                           ? 'Cargando...'
                           : (_chatStatus == 'in_progress'
-                              ? 'En atención'
-                              : _chatStatus == 'completed'
-                                  ? 'Completado'
-                                  : _chatStatus == 'pending'
-                                      ? 'Ticket pendiente'
-                                      : _chatStatus == 'draft'
-                                          ? 'Pre-chat'
-                                          : _creatingChat
-                                              ? 'Creando ticket...'
-                                              : 'Pre-chat'),
+                                ? 'En atención'
+                                : _chatStatus == 'completed'
+                                ? 'Completado'
+                                : _chatStatus == 'pending'
+                                ? 'Ticket pendiente'
+                                : _chatStatus == 'draft'
+                                ? 'Pre-chat'
+                                : _creatingChat
+                                ? 'Creando ticket...'
+                                : 'Pre-chat'),
                       style: TextStyle(
                         color: _chatStatus == 'completed'
                             ? Colors.green
                             : _chatStatus == 'in_progress'
-                                ? Colors.blue
-                                : _chatStatus == 'pending'
-                                    ? Colors.orange
-                                    : Palette.primary,
+                            ? Colors.blue
+                            : _chatStatus == 'pending'
+                            ? Colors.orange
+                            : Palette.primary,
                         fontSize: 11.5,
                         fontWeight: FontWeight.w600,
                       ),
@@ -919,9 +945,7 @@ class _SoporteChatPageState extends State<SoporteChatPage>
           ],
         ),
         body: _loadingChat
-            ? Center(
-                child: CircularProgressIndicator(color: Palette.primary),
-              )
+            ? Center(child: CircularProgressIndicator(color: Palette.primary))
             : Column(
                 children: [
                   Container(
@@ -933,7 +957,9 @@ class _SoporteChatPageState extends State<SoporteChatPage>
                     decoration: BoxDecoration(
                       color: Palette.white,
                       borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: Palette.button.withOpacity(0.20)),
+                      border: Border.all(
+                        color: Palette.button.withOpacity(0.20),
+                      ),
                     ),
                     child: Row(
                       children: [
@@ -948,12 +974,12 @@ class _SoporteChatPageState extends State<SoporteChatPage>
                             _chatStatus == 'draft'
                                 ? 'Primero responde Sí o No para continuar.'
                                 : _chatStatus == 'cancelled_by_client'
-                                    ? 'No se abrió ticket. Si deseas soporte, vuelve a responder Sí.'
-                                    : _chatStatus == 'completed'
-                                        ? 'Este ticket está completado. Si envías un mensaje, se reabrirá.'
-                                        : _chatStatus == 'in_progress'
-                                            ? 'Tu ticket está siendo atendido por soporte.'
-                                            : 'Tu ticket está pendiente de atención.',
+                                ? 'No se abrió ticket. Si deseas soporte, vuelve a responder Sí.'
+                                : _chatStatus == 'completed'
+                                ? 'Este ticket está completado. Si envías un mensaje, se reabrirá.'
+                                : _chatStatus == 'in_progress'
+                                ? 'Tu ticket está siendo atendido por soporte.'
+                                : 'Tu ticket está pendiente de atención.',
                             style: const TextStyle(
                               fontSize: 12.3,
                               color: Palette.ink,
@@ -972,7 +998,9 @@ class _SoporteChatPageState extends State<SoporteChatPage>
                       itemBuilder: (context, index) {
                         final msg = _messages[index];
                         final showYesNo =
-                            msg.isBotQuestion && _awaitingOpenTicketAnswer && !_creatingChat;
+                            msg.isBotQuestion &&
+                            _awaitingOpenTicketAnswer &&
+                            !_creatingChat;
 
                         return Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -999,7 +1027,8 @@ class _SoporteChatPageState extends State<SoporteChatPage>
                                       label: 'No',
                                       icon: Icons.cancel_outlined,
                                       color: Colors.redAccent,
-                                      onTap: () => _onBotAnswerOpenTicket(false),
+                                      onTap: () =>
+                                          _onBotAnswerOpenTicket(false),
                                     ),
                                   ],
                                 ),
@@ -1073,11 +1102,14 @@ class _SoporteChatPageState extends State<SoporteChatPage>
                                   child: Row(
                                     children: [
                                       IconButton(
-                                        onPressed: _inputEnabled ? _toggleEmojiPicker : null,
+                                        onPressed: _inputEnabled
+                                            ? _toggleEmojiPicker
+                                            : null,
                                         icon: Icon(
                                           _showEmojiPicker
                                               ? Icons.keyboard_rounded
-                                              : Icons.sentiment_satisfied_alt_rounded,
+                                              : Icons
+                                                    .sentiment_satisfied_alt_rounded,
                                           color: _inputEnabled
                                               ? Palette.primary.withOpacity(0.8)
                                               : Colors.grey,
@@ -1095,7 +1127,9 @@ class _SoporteChatPageState extends State<SoporteChatPage>
                                           onChanged: _handleTyping,
                                           onTap: () {
                                             if (_showEmojiPicker) {
-                                              setState(() => _showEmojiPicker = false);
+                                              setState(
+                                                () => _showEmojiPicker = false,
+                                              );
                                             }
                                           },
                                           onSubmitted: (_) => _sendMessage(),
@@ -1113,7 +1147,9 @@ class _SoporteChatPageState extends State<SoporteChatPage>
                                         ),
                                       ),
                                       IconButton(
-                                        onPressed: _inputEnabled ? _pickAndSendImage : null,
+                                        onPressed: _inputEnabled
+                                            ? _pickAndSendImage
+                                            : null,
                                         icon: Icon(
                                           Icons.attach_file_rounded,
                                           color: _inputEnabled
@@ -1149,7 +1185,9 @@ class _SoporteChatPageState extends State<SoporteChatPage>
                                   ],
                                 ),
                                 child: IconButton(
-                                  onPressed: (_isTyping && _inputEnabled) ? _sendMessage : null,
+                                  onPressed: (_isTyping && _inputEnabled)
+                                      ? _sendMessage
+                                      : null,
                                   icon: const Icon(
                                     Icons.send_rounded,
                                     color: Palette.white,
@@ -1283,10 +1321,7 @@ class _SimpleEmojiPanel extends StatelessWidget {
                   borderRadius: BorderRadius.circular(10),
                   onTap: () => onEmojiTap(emoji),
                   child: Center(
-                    child: Text(
-                      emoji,
-                      style: const TextStyle(fontSize: 24),
-                    ),
+                    child: Text(emoji, style: const TextStyle(fontSize: 24)),
                   ),
                 );
               },
@@ -1306,7 +1341,9 @@ class _MessageBubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isMine = message.isMine;
-    final isSystem = !isMine && (message.isBotQuestion || (!isMine && !message.isRemoteImage));
+    final isSystem =
+        !isMine &&
+        (message.isBotQuestion || (!isMine && !message.isRemoteImage));
 
     final bubbleColor = isMine
         ? Palette.button.withOpacity(0.92)
@@ -1339,9 +1376,7 @@ class _MessageBubble extends StatelessWidget {
               ),
               border: isMine
                   ? null
-                  : Border.all(
-                      color: Palette.button.withOpacity(0.18),
-                    ),
+                  : Border.all(color: Palette.button.withOpacity(0.18)),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withOpacity(0.04),
@@ -1352,8 +1387,9 @@ class _MessageBubble extends StatelessWidget {
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment:
-                  isMine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+              crossAxisAlignment: isMine
+                  ? CrossAxisAlignment.end
+                  : CrossAxisAlignment.start,
               children: [
                 if (message.type == _MessageType.text)
                   Text(
@@ -1418,16 +1454,16 @@ class _ChatImageView extends StatelessWidget {
             errorBuilder: (_, __, ___) => _imageErrorBox(),
           )
         : (kIsWeb
-            ? Image.network(
-                path,
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => _imageErrorBox(),
-              )
-            : Image.file(
-                File(path),
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => _imageErrorBox(),
-              ));
+              ? Image.network(
+                  path,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => _imageErrorBox(),
+                )
+              : Image.file(
+                  File(path),
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => _imageErrorBox(),
+                ));
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(12),
@@ -1474,19 +1510,19 @@ class _ChatMessage {
     required this.time,
     this.isBotQuestion = false,
     this.isBotAnswer = false,
-  })  : text = text,
-        imagePath = null,
-        type = _MessageType.text,
-        isRemoteImage = false;
+  }) : text = text,
+       imagePath = null,
+       type = _MessageType.text,
+       isRemoteImage = false;
 
   _ChatMessage.image({
     required String imagePath,
     required this.isMine,
     required this.time,
     this.isRemoteImage = false,
-  })  : text = null,
-        imagePath = imagePath,
-        type = _MessageType.image,
-        isBotQuestion = false,
-        isBotAnswer = false;
+  }) : text = null,
+       imagePath = imagePath,
+       type = _MessageType.image,
+       isBotQuestion = false,
+       isBotAnswer = false;
 }

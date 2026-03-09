@@ -5,7 +5,6 @@ import 'package:flutter_modular/flutter_modular.dart';
 import 'package:quimisol_movil/core/theme/palette.dart';
 import 'package:quimisol_movil/features/pasajeros_features/ubicaciones/pages/lista_ubicaciones.dart';
 
-
 class PerfilPage extends StatefulWidget {
   const PerfilPage({super.key});
 
@@ -48,6 +47,8 @@ class _PerfilPageState extends State<PerfilPage> {
                 (data['email'] ?? _auth.currentUser?.email ?? '').toString();
             final photo = (data['photo'] ?? '').toString();
             final role = (data['role'] ?? 'cliente').toString();
+            final isClienteMayorista =
+                role.toLowerCase().trim() == 'cliente_mayorista';
 
             return SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 22),
@@ -105,6 +106,42 @@ class _PerfilPageState extends State<PerfilPage> {
                       const spacing = 12.0;
                       const tileHeight = 104.0;
 
+                      final quickTiles = <Widget>[
+                        _QuickTile(
+                          icon: Icons.person_outline_rounded,
+                          label: 'Información\npersonal',
+                          color: pink,
+                          onTap: () {},
+                        ),
+                        _QuickTile(
+                          icon: Icons.favorite_border_rounded,
+                          label: 'Favoritos',
+                          color: pink,
+                          onTap: () {
+                            // Modular.to.pushNamed('/wishlist');
+                          },
+                        ),
+                        _QuickTile(
+                          icon: Icons.support_agent_rounded,
+                          label: 'Soporte',
+                          color: pink,
+                          onTap: () {},
+                        ),
+                      ];
+
+                      if (isClienteMayorista) {
+                        quickTiles.add(
+                          _QuickTile(
+                            icon: Icons.science_rounded,
+                            label: 'Laboratorios',
+                            color: pink,
+                            onTap: () {
+                              // Modular.to.pushNamed('/laboratorios');
+                            },
+                          ),
+                        );
+                      }
+
                       return GridView(
                         shrinkWrap: true,
                         physics: const NeverScrollableScrollPhysics(),
@@ -115,34 +152,7 @@ class _PerfilPageState extends State<PerfilPage> {
                           crossAxisSpacing: spacing,
                           mainAxisExtent: tileHeight,
                         ),
-                        children: [
-                          _QuickTile(
-                            icon: Icons.person_outline_rounded,
-                            label: 'Información\npersonal',
-                            color: pink,
-                            onTap: () {},
-                          ),
-                          _QuickTile(
-                            icon: Icons.local_offer_outlined,
-                            label: 'Cupones',
-                            color: pink,
-                            onTap: () {},
-                          ),
-                          _QuickTile(
-                            icon: Icons.favorite_border_rounded,
-                            label: 'Favoritos',
-                            color: pink,
-                            onTap: () {
-                              // Modular.to.pushNamed('/wishlist');
-                            },
-                          ),
-                          _QuickTile(
-                            icon: Icons.support_agent_rounded,
-                            label: 'Soporte',
-                            color: pink,
-                            onTap: () {},
-                          ),
-                        ],
+                        children: quickTiles,
                       );
                     },
                   ),
@@ -152,7 +162,6 @@ class _PerfilPageState extends State<PerfilPage> {
                   // ✅ PERFIL
                   const _SectionTitleX(title: 'Perfil'),
                   const SizedBox(height: 14),
-
 
                   // ✅ Direcciones -> abre UbicacionesPage
                   _MenuRowSimple(
@@ -413,6 +422,7 @@ class _ProfileCard extends StatelessWidget {
     final v = r.toLowerCase().trim();
     if (v == 'admin') return 'Admin';
     if (v == 'repartidor') return 'Repartidor';
+    if (v == 'cliente_mayorista') return 'Cliente mayorista';
     return 'Cliente';
   }
 }
@@ -546,8 +556,11 @@ class _MenuRowSimpleState extends State<_MenuRowSimple> {
                   ),
                 ),
               ),
-              Icon(Icons.chevron_right_rounded,
-                  color: ink.withOpacity(0.48), size: 26),
+              Icon(
+                Icons.chevron_right_rounded,
+                color: ink.withOpacity(0.48),
+                size: 26,
+              ),
             ],
           ),
         ),

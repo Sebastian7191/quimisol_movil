@@ -7,9 +7,6 @@ import 'package:quimisol_movil/features/features_admin/usuarios/controllers/usua
 import 'package:quimisol_movil/features/features_admin/usuarios/data/almacen_row.dart';
 import 'package:quimisol_movil/features/features_admin/usuarios/views/widgets/role_combo.dart';
 
-/// Modal inferior de "Detalles" para un usuario.
-/// - Muestra teléfono + fechas
-/// - Incluye combos para cambiar rol y asignar almacén si aplica
 class UsersDialog {
   static Future<void> open(
     BuildContext context, {
@@ -44,7 +41,7 @@ class UsersDialog {
   }
 }
 
-class _UsersDetailsSheet extends StatelessWidget {
+class _UsersDetailsSheet extends StatefulWidget {
   const _UsersDetailsSheet({
     required this.controller,
     required this.uid,
@@ -63,12 +60,64 @@ class _UsersDetailsSheet extends StatelessWidget {
   final String role;
   final String almacenId;
 
-  Future<Map<String, dynamic>> _fetchUser() async {
-    final snap = await FirebaseFirestore.instance
-        .collection('usuarios')
-        .doc(uid)
-        .get();
-    return snap.data() ?? {};
+  @override
+  State<_UsersDetailsSheet> createState() => _UsersDetailsSheetState();
+}
+
+class _UsersDetailsSheetState extends State<_UsersDetailsSheet> {
+  late String _currentRole;
+  late String _currentAlmacenId;
+  final TextEditingController _nitCtrl = TextEditingController();
+
+  bool _loadingUser = true;
+  bool _savingNit = false;
+
+  String _phone = '';
+  String _createdAt = '—';
+  String _updatedAt = '—';
+
+  @override
+  void initState() {
+    super.initState();
+    _currentRole = widget.role;
+    _currentAlmacenId = widget.almacenId;
+    _loadUser();
+  }
+
+  @override
+  void dispose() {
+    _nitCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadUser() async {
+    try {
+      final snap = await FirebaseFirestore.instance
+          .collection('usuarios')
+          .doc(widget.uid)
+          .get();
+
+      final data = snap.data() ?? {};
+
+      if (!mounted) return;
+      setState(() {
+        _phone = (data['phone'] ?? '').toString().trim();
+        _createdAt = _fmtTs(data['created_at']);
+        _updatedAt = _fmtTs(data['updated_at']);
+        _currentRole = (data['role'] ?? widget.role)
+            .toString()
+            .trim()
+            .toLowerCase();
+        _currentAlmacenId = (data['almacenId'] ?? widget.almacenId)
+            .toString()
+            .trim();
+        _nitCtrl.text = (data['nit'] ?? '').toString().trim();
+        _loadingUser = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _loadingUser = false);
+    }
   }
 
   String _fmtTs(dynamic v) {
@@ -80,6 +129,41 @@ class _UsersDetailsSheet extends StatelessWidget {
     if (v == null) return '—';
     final s = v.toString().trim();
     return s.isEmpty ? '—' : s;
+  }
+
+  Future<void> _saveNit() async {
+    if (_savingNit) return;
+
+    setState(() => _savingNit = true);
+
+    try {
+      await widget.controller.setNit(uid: widget.uid, nit: _nitCtrl.text);
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('NIT guardado correctamente'),
+          backgroundColor: Colors.green,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+
+      await _loadUser();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('No se pudo guardar el NIT: $e')));
+    } finally {
+      if (mounted) {
+        setState(() => _savingNit = false);
+      }
+    }
   }
 
   @override
@@ -95,137 +179,248 @@ class _UsersDetailsSheet extends StatelessWidget {
           16,
           16 + MediaQuery.of(context).viewInsets.bottom,
         ),
-        child: FutureBuilder<Map<String, dynamic>>(
-          future: _fetchUser(),
-          builder: (context, snap) {
-            final loading = snap.connectionState == ConnectionState.waiting;
-            final data = snap.data ?? {};
-
-            final phone = (data['phone'] ?? '').toString().trim();
-
-            // ✅ Dejar SOLO snake_case
-            final createdAt = _fmtTs(data['created_at']);
-            final updated = _fmtTs(data['updated_at']);
-
-            // ✅ para repartidor: almacén (id actual del doc, con fallback al param)
-            final almacen = (data['almacenId'] ?? almacenId).toString().trim();
-
-            return SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
                 children: [
-                  // Header
-                  Row(
-                    children: [
-                      _AvatarResolved(uid: uid, photoRaw: photoRaw),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              name,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                color: ink,
-                                fontWeight: FontWeight.w900,
-                                fontSize: 16,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              email.isEmpty ? '—' : email,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                color: ink.withValues(alpha: .60),
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ],
+                  _AvatarResolved(uid: widget.uid, photoRaw: widget.photoRaw),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          widget.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: ink,
+                            fontWeight: FontWeight.w900,
+                            fontSize: 16,
+                          ),
                         ),
-                      ),
-                      IconButton(
-                        onPressed: () => Navigator.pop(context),
-                        icon: Icon(
-                          Icons.close_rounded,
-                          color: ink.withValues(alpha: .70),
+                        const SizedBox(height: 2),
+                        Text(
+                          widget.email.isEmpty ? '—' : widget.email,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: ink.withValues(alpha: .60),
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
-                        splashRadius: 22,
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-
-                  const SizedBox(height: 14),
-
-                  // Controles (sin "Rol:" ni extras)
-                  Wrap(
-                    spacing: 10,
-                    runSpacing: 10,
-                    children: [
-                      RoleComboFancy(
-                        controller: controller,
-                        uid: uid,
-                        currentRole: role,
-                      ),
-                      if (role == 'repartidor')
-                        _AlmacenComboFancy(
-                          controller: controller,
-                          uid: uid,
-                          currentAlmacenId: almacen,
-                        ),
-                    ],
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: Icon(
+                      Icons.close_rounded,
+                      color: ink.withValues(alpha: .70),
+                    ),
+                    splashRadius: 22,
                   ),
-
-                  const SizedBox(height: 14),
-
-                  // Detalles: Teléfono
-                  _DetailTile(
-                    icon: Icons.phone_rounded,
-                    label: 'Teléfono',
-                    value: phone.isEmpty ? '—' : phone,
-                    trailing: loading
-                        ? SizedBox(
-                            height: 16,
-                            width: 16,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Palette.primary.withValues(alpha: .75),
-                            ),
-                          )
-                        : null,
-                  ),
-
-                  const SizedBox(height: 10),
-
-                  // Fechas
-                  _DetailTile(
-                    icon: Icons.event_available_rounded,
-                    label: 'Creado',
-                    value: createdAt,
-                  ),
-
-                  const SizedBox(height: 10),
-
-                  _DetailTile(
-                    icon: Icons.update_rounded,
-                    label: 'Actualizado',
-                    value: updated,
-                  ),
-
-                  const SizedBox(height: 10),
                 ],
               ),
-            );
-          },
+
+              const SizedBox(height: 14),
+
+              Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: [
+                  RoleComboFancy(
+                    controller: widget.controller,
+                    uid: widget.uid,
+                    currentRole: _currentRole,
+                    onChanged: (role) async {
+                      setState(() {
+                        _currentRole = role;
+                        if (role != 'repartidor') {
+                          _currentAlmacenId = '';
+                        }
+                        if (role != 'cliente_mayorista') {
+                          _nitCtrl.clear();
+                        }
+                      });
+
+                      await _loadUser();
+                    },
+                  ),
+                  if (_currentRole == 'repartidor')
+                    _AlmacenComboFancy(
+                      controller: widget.controller,
+                      uid: widget.uid,
+                      currentAlmacenId: _currentAlmacenId,
+                      onChanged: (almacenId) {
+                        setState(() => _currentAlmacenId = almacenId);
+                      },
+                    ),
+                ],
+              ),
+
+              if (_currentRole == 'cliente_mayorista') ...[
+                const SizedBox(height: 14),
+                _NitEditorCard(
+                  controller: _nitCtrl,
+                  saving: _savingNit,
+                  onSave: _saveNit,
+                ),
+              ],
+
+              const SizedBox(height: 14),
+
+              _DetailTile(
+                icon: Icons.phone_rounded,
+                label: 'Teléfono',
+                value: _phone.isEmpty ? '—' : _phone,
+                trailing: _loadingUser
+                    ? SizedBox(
+                        height: 16,
+                        width: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Palette.primary.withValues(alpha: .75),
+                        ),
+                      )
+                    : null,
+              ),
+
+              const SizedBox(height: 10),
+
+              _DetailTile(
+                icon: Icons.event_available_rounded,
+                label: 'Creado',
+                value: _createdAt,
+              ),
+
+              const SizedBox(height: 10),
+
+              _DetailTile(
+                icon: Icons.update_rounded,
+                label: 'Actualizado',
+                value: _updatedAt,
+              ),
+
+              const SizedBox(height: 10),
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
-/* ---------------- UI helpers ---------------- */
+class _NitEditorCard extends StatelessWidget {
+  const _NitEditorCard({
+    required this.controller,
+    required this.saving,
+    required this.onSave,
+  });
+
+  final TextEditingController controller;
+  final bool saving;
+  final VoidCallback onSave;
+
+  @override
+  Widget build(BuildContext context) {
+    final ink = Palette.ink;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+      decoration: BoxDecoration(
+        color: Palette.fieldBg,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.deepPurple.withValues(alpha: .18)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.badge_rounded, color: Colors.deepPurple),
+              const SizedBox(width: 8),
+              Text(
+                'NIT mayorista',
+                style: TextStyle(
+                  color: ink,
+                  fontWeight: FontWeight.w900,
+                  fontSize: 14,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          TextField(
+            controller: controller,
+            keyboardType: TextInputType.text,
+            decoration: InputDecoration(
+              hintText: 'Ingresa el NIT',
+              filled: true,
+              fillColor: Palette.white,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 14,
+                vertical: 14,
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: BorderSide(color: ink.withValues(alpha: .10)),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: BorderSide(color: ink.withValues(alpha: .10)),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: const BorderSide(
+                  color: Colors.deepPurple,
+                  width: 1.4,
+                ),
+              ),
+            ),
+            style: TextStyle(color: ink, fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 10),
+          Align(
+            alignment: Alignment.centerRight,
+            child: ElevatedButton.icon(
+              onPressed: saving ? null : onSave,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.deepPurple,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 12,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+              icon: saving
+                  ? const SizedBox(
+                      height: 16,
+                      width: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Icon(Icons.save_rounded, size: 18),
+              label: Text(
+                saving ? 'Guardando...' : 'Guardar NIT',
+                style: const TextStyle(fontWeight: FontWeight.w900),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
 class _DetailTile extends StatelessWidget {
   const _DetailTile({
@@ -273,25 +468,17 @@ class _DetailTile extends StatelessWidget {
                   value,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: ink,
-                    fontWeight: FontWeight.w900,
-                  ),
+                  style: TextStyle(color: ink, fontWeight: FontWeight.w900),
                 ),
               ],
             ),
           ),
-          if (trailing != null) ...[
-            const SizedBox(width: 10),
-            trailing!,
-          ],
+          if (trailing != null) ...[const SizedBox(width: 10), trailing!],
         ],
       ),
     );
   }
 }
-
-/* ---------------- Avatar resolve (http / gs:// / storage path) ---------------- */
 
 class _AvatarResolved extends StatefulWidget {
   const _AvatarResolved({required this.uid, required this.photoRaw});
@@ -357,8 +544,9 @@ class _AvatarResolvedState extends State<_AvatarResolved> {
       }
 
       if (raw.startsWith('gs://')) {
-        final url =
-            await FirebaseStorage.instance.refFromURL(raw).getDownloadURL();
+        final url = await FirebaseStorage.instance
+            .refFromURL(raw)
+            .getDownloadURL();
         _cache[widget.uid] = url;
         setState(() {
           _resolved = url;
@@ -420,23 +608,20 @@ class _AvatarResolvedState extends State<_AvatarResolved> {
                     ),
                   )
                 : (_resolved != null)
-                    ? Image.network(
-                        _resolved!,
-                        fit: BoxFit.cover,
-                        gaplessPlayback: true,
-                        errorBuilder: (_, __, ___) =>
-                            _RetryAvatar(onRetry: _resolve),
-                      )
-                    : _RetryAvatar(onRetry: _resolve),
+                ? Image.network(
+                    _resolved!,
+                    fit: BoxFit.cover,
+                    gaplessPlayback: true,
+                    errorBuilder: (_, __, ___) =>
+                        _RetryAvatar(onRetry: _resolve),
+                  )
+                : _RetryAvatar(onRetry: _resolve),
           ),
         ),
         Positioned.fill(
           child: Material(
             color: Colors.transparent,
-            child: InkWell(
-              customBorder: const CircleBorder(),
-              onTap: _resolve,
-            ),
+            child: InkWell(customBorder: const CircleBorder(), onTap: _resolve),
           ),
         ),
       ],
@@ -463,18 +648,18 @@ class _RetryAvatar extends StatelessWidget {
   }
 }
 
-/* ---------------- Almacén picker (misma UX) ---------------- */
-
 class _AlmacenComboFancy extends StatefulWidget {
   const _AlmacenComboFancy({
     required this.controller,
     required this.uid,
     required this.currentAlmacenId,
+    this.onChanged,
   });
 
   final UsuariosController controller;
   final String uid;
   final String currentAlmacenId;
+  final ValueChanged<String>? onChanged;
 
   @override
   State<_AlmacenComboFancy> createState() => _AlmacenComboFancyState();
@@ -496,10 +681,9 @@ class _AlmacenComboFancyState extends State<_AlmacenComboFancy> {
     });
 
     try {
-      await widget.controller.setAlmacen(
-        uid: widget.uid,
-        almacenId: almacenId,
-      );
+      await widget.controller.setAlmacen(uid: widget.uid, almacenId: almacenId);
+
+      widget.onChanged?.call(almacenId);
 
       if (!mounted) return;
       setState(() => _saved = true);
@@ -619,7 +803,12 @@ class _AlmacenComboFancyState extends State<_AlmacenComboFancy> {
                           children: [
                             Container(
                               width: double.infinity,
-                              padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+                              padding: const EdgeInsets.fromLTRB(
+                                12,
+                                10,
+                                12,
+                                10,
+                              ),
                               decoration: BoxDecoration(
                                 color: Palette.card,
                                 borderRadius: BorderRadius.circular(16),
@@ -649,7 +838,12 @@ class _AlmacenComboFancyState extends State<_AlmacenComboFancy> {
                                     borderRadius: BorderRadius.circular(16),
                                     onTap: () => Navigator.pop(context, a.id),
                                     child: Padding(
-                                      padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
+                                      padding: const EdgeInsets.fromLTRB(
+                                        12,
+                                        12,
+                                        12,
+                                        12,
+                                      ),
                                       child: Row(
                                         children: [
                                           Icon(
@@ -676,7 +870,9 @@ class _AlmacenComboFancyState extends State<_AlmacenComboFancy> {
                                           if (sel)
                                             Icon(
                                               Icons.verified_rounded,
-                                              color: Palette.primary.withValues(alpha: .9),
+                                              color: Palette.primary.withValues(
+                                                alpha: .9,
+                                              ),
                                               size: 18,
                                             ),
                                         ],
@@ -734,7 +930,11 @@ class _AlmacenComboFancyState extends State<_AlmacenComboFancy> {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.warehouse_rounded, size: 18, color: ink.withValues(alpha: .55)),
+                Icon(
+                  Icons.warehouse_rounded,
+                  size: 18,
+                  color: ink.withValues(alpha: .55),
+                ),
                 const SizedBox(width: 8),
                 Text(
                   'Sin almacenes',
@@ -749,10 +949,12 @@ class _AlmacenComboFancyState extends State<_AlmacenComboFancy> {
           );
         }
 
-        final selected =
-            almacenes.where((a) => a.id == widget.currentAlmacenId).toList();
-        final selectedName =
-            selected.isNotEmpty ? selected.first.nombre : 'Elegir almacén';
+        final selected = almacenes
+            .where((a) => a.id == widget.currentAlmacenId)
+            .toList();
+        final selectedName = selected.isNotEmpty
+            ? selected.first.nombre
+            : 'Elegir almacén';
         final selectedId = selected.isNotEmpty ? selected.first.id : null;
 
         return AnimatedContainer(
@@ -768,7 +970,8 @@ class _AlmacenComboFancyState extends State<_AlmacenComboFancy> {
             borderRadius: BorderRadius.circular(16),
             onTap: _saving
                 ? null
-                : () => _openPicker(almacenes: almacenes, selectedId: selectedId),
+                : () =>
+                      _openPicker(almacenes: almacenes, selectedId: selectedId),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -789,18 +992,18 @@ class _AlmacenComboFancyState extends State<_AlmacenComboFancy> {
                           ),
                         )
                       : _saved
-                          ? const Icon(
-                              Icons.check_circle_rounded,
-                              key: ValueKey('saved'),
-                              color: Palette.primary,
-                              size: 18,
-                            )
-                          : const Icon(
-                              Icons.warehouse_rounded,
-                              key: ValueKey('idle'),
-                              color: Palette.primary,
-                              size: 18,
-                            ),
+                      ? const Icon(
+                          Icons.check_circle_rounded,
+                          key: ValueKey('saved'),
+                          color: Palette.primary,
+                          size: 18,
+                        )
+                      : const Icon(
+                          Icons.warehouse_rounded,
+                          key: ValueKey('idle'),
+                          color: Palette.primary,
+                          size: 18,
+                        ),
                 ),
                 const SizedBox(width: 8),
                 ConstrainedBox(
@@ -817,7 +1020,10 @@ class _AlmacenComboFancyState extends State<_AlmacenComboFancy> {
                   ),
                 ),
                 const SizedBox(width: 6),
-                Icon(Icons.keyboard_arrow_down_rounded, color: ink.withValues(alpha: .60)),
+                Icon(
+                  Icons.keyboard_arrow_down_rounded,
+                  color: ink.withValues(alpha: .60),
+                ),
               ],
             ),
           ),

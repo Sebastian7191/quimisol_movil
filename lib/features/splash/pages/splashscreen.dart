@@ -59,18 +59,18 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
     final role = await _authService.getUserRole();
     if (!mounted) return;
 
-    // ✅ NUEVO: ADMIN -> SidebarShellPage (ruta definida en AppModule)
+    // ADMIN -> SidebarShellPage
     if (role == 'admin') {
       Modular.to.navigate('/admin');
       return;
     }
 
-    if (role == 'cliente') {
+    // CLIENTE NORMAL y CLIENTE MAYORISTA
+    if (role == 'cliente' || role == 'cliente_mayorista') {
       Modular.to.navigate('/home-pasajero');
       return;
     }
 
-    // ✅ Fix: antes estaba duplicado 'repartidor'
     if (role == 'repartidor' || role == 'conductor') {
       Modular.to.navigate('/home-conductor');
       return;
@@ -82,7 +82,7 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
-    final pinkBg = Palette.button; // ✅ rosa oficial
+    final pinkBg = Palette.button;
 
     return Scaffold(
       body: AnimatedBuilder(
@@ -90,10 +90,8 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
         builder: (_, __) {
           return Stack(
             children: [
-              // Fondo rosa
               Container(color: pinkBg),
 
-              // Brillo diagonal
               Positioned.fill(
                 child: IgnorePointer(
                   child: CustomPaint(
@@ -102,12 +100,10 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
                 ),
               ),
 
-              // Contenido centrado
               Center(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Sticker blanco
                     Container(
                       width: 110,
                       height: 110,
@@ -232,7 +228,7 @@ class _ThreeDotsLoading extends StatelessWidget {
   }
 }
 
-/// Sticker flor (igual al tuyo, sin cambios)
+/// Sticker flor
 class _RedTulipSticker extends StatelessWidget {
   final double size;
   const _RedTulipSticker({required this.size});
@@ -246,11 +242,9 @@ class _RedTulipSticker extends StatelessWidget {
   }
 }
 
-// ⬇️ TODO el painter que ya tenías se mantiene IGUAL
 class _RedTulipStickerPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size s) {
-    // (SIN CAMBIOS – exactamente igual a tu versión)
     final outline = Paint()
       ..color = Colors.black.withOpacity(0.9)
       ..style = PaintingStyle.stroke
@@ -272,8 +266,7 @@ class _RedTulipStickerPainter extends CustomPainter {
     final cx = s.width * 0.5;
     final topY = s.height * 0.12;
 
-    // (… resto idéntico …)
-    // No lo recorto para no romper nada
+    // Mantén aquí tu painter completo original
   }
 
   @override

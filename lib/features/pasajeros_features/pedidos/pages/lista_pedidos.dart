@@ -127,10 +127,7 @@ class _MisPedidosPageState extends State<MisPedidosPage> {
               padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
               child: Row(
                 children: [
-                  IconButton(
-                    onPressed: () => Navigator.pop(context),
-                    icon: Icon(Icons.arrow_back_rounded, color: purpleText),
-                  ),
+                  const SizedBox(width: 48), // 👈 sin flecha
                   const Spacer(),
                   Text(
                     'Mis Pedidos',
@@ -141,7 +138,7 @@ class _MisPedidosPageState extends State<MisPedidosPage> {
                     ),
                   ),
                   const Spacer(),
-                  InkWell(
+                  /*InkWell(
                     onTap: () {},
                     borderRadius: BorderRadius.circular(14),
                     child: Container(
@@ -165,7 +162,7 @@ class _MisPedidosPageState extends State<MisPedidosPage> {
                         size: 20,
                       ),
                     ),
-                  ),
+                  ),*/
                 ],
               ),
             ),

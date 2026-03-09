@@ -19,9 +19,11 @@ class ProductoRow {
   final String almacenId;
   final String almacenNombre;
 
-  // ✅ NUEVO: categoría
   final String categoriaId;
   final String categoriaNombre;
+
+  // ✅ NUEVO
+  final String contenido;
 
   ProductoRow({
     required this.id,
@@ -38,9 +40,8 @@ class ProductoRow {
     required this.imagenPath,
     required this.almacenId,
     required this.almacenNombre,
-
-    // ✅ nuevos
     required this.categoriaId,
     required this.categoriaNombre,
+    required this.contenido,
   });
 }

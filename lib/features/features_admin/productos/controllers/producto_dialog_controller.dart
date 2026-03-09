@@ -23,7 +23,10 @@ class ProductoDialogController extends ChangeNotifier {
     String? initialCategoriaId,
     String? initialCategoriaNombre,
 
-    // ✅ NUEVOS: para hidratar descuento y banner al editar
+    // ✅ se sigue usando un solo input visual,
+    // pero luego se guarda en contenido o gramaje según categoría
+    String? initialContenido,
+
     String? initialAgregarDescuento,
     String? initialDescuentoTipo,
     String? initialDescuentoValor,
@@ -34,6 +37,7 @@ class ProductoDialogController extends ChangeNotifier {
         descCtrl = TextEditingController(text: initialDescripcion ?? ''),
         precioCtrl = TextEditingController(text: initialPrecio ?? '0'),
         stockCtrl = TextEditingController(text: initialStock ?? '0'),
+        contenidoCtrl = TextEditingController(text: initialContenido ?? ''),
         descuentoCtrl = TextEditingController(text: initialDescuentoValor ?? ''),
         promoTitleCtrl = TextEditingController(text: 'New Collection'),
         promoSubtitleCtrl = TextEditingController(
@@ -61,7 +65,6 @@ class ProductoDialogController extends ChangeNotifier {
         ? initialCategoriaNombre!.trim()
         : null;
 
-    // ✅ NUEVO: hidratar descuento al editar
     agregarDescuento = (initialAgregarDescuento?.trim().isNotEmpty ?? false)
         ? initialAgregarDescuento!.trim().toUpperCase()
         : null;
@@ -70,12 +73,12 @@ class ProductoDialogController extends ChangeNotifier {
         ? initialDescuentoTipo!.trim().toUpperCase()
         : 'PORCENTAJE';
 
-    // ✅ NUEVO: hidratar banner al editar
     promoBannerEnabled = initialPromoBannerEnabled;
 
     nombreCtrl.addListener(_bumpPreview);
     precioCtrl.addListener(_bumpPreview);
     stockCtrl.addListener(_bumpPreview);
+    contenidoCtrl.addListener(_bumpPreview);
     descuentoCtrl.addListener(_bumpPreview);
 
     promoTitleCtrl.addListener(_bumpPreview);
@@ -92,8 +95,11 @@ class ProductoDialogController extends ChangeNotifier {
   final TextEditingController precioCtrl;
   final TextEditingController stockCtrl;
 
-  String? agregarDescuento; // null | "SI" | "NO"
-  String descuentoTipo = 'PORCENTAJE'; // PORCENTAJE | MONTO
+  // ✅ mismo controller visual; persistencia cambia según categoría
+  final TextEditingController contenidoCtrl;
+
+  String? agregarDescuento;
+  String descuentoTipo = 'PORCENTAJE';
   final TextEditingController descuentoCtrl;
 
   bool promoBannerEnabled = false;
@@ -120,6 +126,23 @@ class ProductoDialogController extends ChangeNotifier {
   bool get descuentoEnabled => agregarDescuento == 'SI';
   bool get hasPickedImage => pickedBytes != null;
   bool get hasExistingImage => existingImageUrl.trim().isNotEmpty;
+
+  // ✅ Si la categoría contiene botella, el label visual será Gramaje
+  bool get categoriaEsBotella {
+    final s = (categoriaNombre ?? '').trim().toLowerCase();
+    return s.contains('botella');
+  }
+
+  // ✅ label dinámico
+  String get contenidoLabel => categoriaEsBotella ? 'Gramaje' : 'Contenido';
+
+  // ✅ hint dinámico, ya sin duplicar unidad
+  String get contenidoHint =>
+      categoriaEsBotella ? 'Ej: 500, 1, 2' : 'Ej: 1, 12, 500';
+
+  String get contenidoHelper => categoriaEsBotella
+      ? 'Ingresa solo el valor del gramaje. La unidad se toma del selector de unidad.'
+      : 'Ingresa solo el valor del contenido. La unidad se toma del selector de unidad.';
 
   void _bumpPreview() => previewTick.value++;
 
@@ -283,6 +306,8 @@ class ProductoDialogController extends ChangeNotifier {
       orElse: () => almacenes.first,
     );
 
+    final valorMedida = contenidoCtrl.text.trim();
+
     return ProductoDialogResult(
       producto: ProductoFormResult(
         codigo: codigoCtrl.text,
@@ -299,9 +324,17 @@ class ProductoDialogController extends ChangeNotifier {
         almacenNombre: almacen.label,
         categoriaId: categoriaId,
         categoriaNombre: categoriaNombre,
+
+        // ✅ si es botella guarda en gramaje, si no en contenido
+        contenido: categoriaEsBotella
+            ? null
+            : (valorMedida.isEmpty ? null : valorMedida),
+        gramaje: categoriaEsBotella
+            ? (valorMedida.isEmpty ? null : valorMedida)
+            : null,
       ),
       descuento: buildDescuentoDraft(),
-      promoBannerEnabled: promoBannerEnabled, // ✅ FALTABA ESTO
+      promoBannerEnabled: promoBannerEnabled,
     );
   }
 
@@ -310,6 +343,7 @@ class ProductoDialogController extends ChangeNotifier {
     nombreCtrl.removeListener(_bumpPreview);
     precioCtrl.removeListener(_bumpPreview);
     stockCtrl.removeListener(_bumpPreview);
+    contenidoCtrl.removeListener(_bumpPreview);
     descuentoCtrl.removeListener(_bumpPreview);
 
     promoTitleCtrl.removeListener(_bumpPreview);
@@ -324,6 +358,7 @@ class ProductoDialogController extends ChangeNotifier {
     descCtrl.dispose();
     precioCtrl.dispose();
     stockCtrl.dispose();
+    contenidoCtrl.dispose();
     descuentoCtrl.dispose();
 
     promoTitleCtrl.dispose();

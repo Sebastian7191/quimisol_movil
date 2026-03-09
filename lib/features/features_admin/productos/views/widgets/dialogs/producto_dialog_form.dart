@@ -26,7 +26,6 @@ class ProductoDialogForm extends StatelessWidget {
     return FirebaseFirestore.instance.collection('categorias').snapshots();
   }
 
-  /// ✅ helper UI: 2 columnas -> en móvil apila en columna
   Widget _twoColResponsive(
     BuildContext context, {
     required Widget left,
@@ -75,7 +74,7 @@ class ProductoDialogForm extends StatelessWidget {
             children: [
               ProductoDialogUI.sectionTitle(
                 title: 'Datos generales',
-                subtitle: 'Almacén, categoría, tipo, código y nombre.',
+                subtitle: 'Almacén, categoría, unidad, contenido, tipo, código y nombre.',
                 icon: Icons.badge_rounded,
               ),
               ProductoDialogUI.gap(12),
@@ -84,7 +83,7 @@ class ProductoDialogForm extends StatelessWidget {
                 child: Column(
                   children: [
                     DropdownButtonFormField<String>(
-                      isExpanded: true, // ✅ evita overflow horizontal
+                      isExpanded: true,
                       initialValue: controller.almacenId,
                       items: almacenes
                           .map(
@@ -106,8 +105,8 @@ class ProductoDialogForm extends StatelessWidget {
                           : null,
                     ),
 
-                    // ✅ CATEGORÍAS
                     ProductoDialogUI.gap(),
+
                     StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
                       stream: _categoriasStream(),
                       builder: (context, snap) {
@@ -144,7 +143,9 @@ class ProductoDialogForm extends StatelessWidget {
                               };
                             })
                             .where(
-                              (c) => (c['nombre'] ?? '').toString().isNotEmpty,
+                              (c) => (c['nombre'] ?? '')
+                                  .toString()
+                                  .isNotEmpty,
                             )
                             .toList();
 
@@ -218,7 +219,56 @@ class ProductoDialogForm extends StatelessWidget {
 
                     ProductoDialogUI.gap(),
 
-                    // ✅ Código + Tipo RESPONSIVO (fix overflow)
+                    DropdownButtonFormField<String>(
+                      isExpanded: true,
+                      initialValue: controller.unidadId,
+                      items: unidades
+                          .map(
+                            (u) => DropdownMenuItem(
+                              value: u.id,
+                              child: _ellipsisItem(u.label),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: controller.saving
+                          ? null
+                          : controller.setUnidadId,
+                      decoration: ProductoDialogUI.decor(
+                        label: 'Unidad',
+                        prefixIcon: const Icon(Icons.straighten_rounded),
+                      ),
+                      validator: (v) => (v == null || v.isEmpty)
+                          ? 'Selecciona una unidad'
+                          : null,
+                    ),
+
+                    ProductoDialogUI.gap(),
+
+                    TextFormField(
+                      controller: controller.contenidoCtrl,
+                      enabled: !controller.saving,
+                      decoration: ProductoDialogUI.decor(
+                        label: controller.contenidoLabel,
+                        hint: controller.contenidoHint,
+                        prefixIcon: Icon(
+                          controller.categoriaEsBotella
+                              ? Icons.local_drink_rounded
+                              : Icons.inventory_2_rounded,
+                        ),
+                        helper: controller.contenidoHelper,
+                      ),
+                      validator: (v) {
+                        final text = (v ?? '').trim();
+                        if (text.isEmpty) {
+                          return 'Ingresa ${controller.contenidoLabel.toLowerCase()}';
+                        }
+                        if (text.length < 2) return 'Valor inválido';
+                        return null;
+                      },
+                    ),
+
+                    ProductoDialogUI.gap(),
+
                     _twoColResponsive(
                       context,
                       left: TextFormField(
@@ -231,7 +281,7 @@ class ProductoDialogForm extends StatelessWidget {
                         ),
                       ),
                       right: DropdownButtonFormField<String>(
-                        isExpanded: true, // ✅ evita overflow
+                        isExpanded: true,
                         initialValue: controller.tipoItem,
                         items: const [
                           DropdownMenuItem(
@@ -246,8 +296,8 @@ class ProductoDialogForm extends StatelessWidget {
                         onChanged: controller.saving
                             ? null
                             : (v) => controller.setTipoItem(
-                                v ?? controller.tipoItem,
-                              ),
+                                  v ?? controller.tipoItem,
+                                ),
                         decoration: ProductoDialogUI.decor(
                           label: 'Tipo',
                           prefixIcon: const Icon(Icons.category_rounded),
@@ -280,7 +330,7 @@ class ProductoDialogForm extends StatelessWidget {
 
               ProductoDialogUI.sectionTitle(
                 title: 'Inventario',
-                subtitle: 'Unidad, stock y precio.',
+                subtitle: 'Stock y precio.',
                 icon: Icons.inventory_rounded,
               ),
               ProductoDialogUI.gap(12),
@@ -288,50 +338,24 @@ class ProductoDialogForm extends StatelessWidget {
               ProductoDialogUI.card(
                 child: Column(
                   children: [
-                    // ✅ Unidad + Stock RESPONSIVO (fix overflow)
-                    _twoColResponsive(
-                      context,
-                      left: DropdownButtonFormField<String>(
-                        isExpanded: true,
-                        initialValue: controller.unidadId,
-                        items: unidades
-                            .map(
-                              (u) => DropdownMenuItem(
-                                value: u.id,
-                                child: _ellipsisItem(u.label),
-                              ),
-                            )
-                            .toList(),
-                        onChanged: controller.saving
-                            ? null
-                            : controller.setUnidadId,
-                        decoration: ProductoDialogUI.decor(
-                          label: 'Unidad',
-                          prefixIcon: const Icon(Icons.straighten_rounded),
-                        ),
-                        validator: (v) => (v == null || v.isEmpty)
-                            ? 'Selecciona una unidad'
-                            : null,
+                    TextFormField(
+                      controller: controller.stockCtrl,
+                      enabled: !controller.saving,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.digitsOnly,
+                      ],
+                      decoration: ProductoDialogUI.decor(
+                        label: 'Stock',
+                        prefixIcon: const Icon(Icons.numbers_rounded),
+                        helper: 'Solo enteros (ej: 0, 5, 12).',
                       ),
-                      right: TextFormField(
-                        controller: controller.stockCtrl,
-                        enabled: !controller.saving,
-                        keyboardType: TextInputType.number,
-                        inputFormatters: [
-                          FilteringTextInputFormatter.digitsOnly,
-                        ],
-                        decoration: ProductoDialogUI.decor(
-                          label: 'Stock',
-                          prefixIcon: const Icon(Icons.numbers_rounded),
-                          helper: 'Solo enteros (ej: 0, 5, 12).',
-                        ),
-                        validator: (v) {
-                          final n = int.tryParse((v ?? '').trim());
-                          if (n == null) return 'Solo enteros';
-                          if (n < 0) return 'No puede ser negativo';
-                          return null;
-                        },
-                      ),
+                      validator: (v) {
+                        final n = int.tryParse((v ?? '').trim());
+                        if (n == null) return 'Solo enteros';
+                        if (n < 0) return 'No puede ser negativo';
+                        return null;
+                      },
                     ),
 
                     ProductoDialogUI.gap(),

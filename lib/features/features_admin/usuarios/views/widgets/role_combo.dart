@@ -5,12 +5,17 @@ import '../../controllers/usuarios_controller.dart';
 
 class RoleComboFancy extends StatefulWidget {
   const RoleComboFancy({
-    super.key, required this.controller,
-    required this.uid, required this.currentRole});
+    super.key,
+    required this.controller,
+    required this.uid,
+    required this.currentRole,
+    this.onChanged,
+  });
 
   final UsuariosController controller;
   final String uid;
   final String currentRole;
+  final ValueChanged<String>? onChanged;
 
   @override
   State<RoleComboFancy> createState() => _RoleComboFancyState();
@@ -22,6 +27,7 @@ class _RoleComboFancyState extends State<RoleComboFancy> {
 
   Future<void> _setRole(String role) async {
     if (_saving) return;
+    if (role == widget.currentRole) return;
 
     setState(() {
       _saving = true;
@@ -33,6 +39,8 @@ class _RoleComboFancyState extends State<RoleComboFancy> {
         uid: widget.uid,
         role: role,
       );
+
+      widget.onChanged?.call(role);
 
       if (!mounted) return;
       setState(() => _saved = true);
@@ -58,6 +66,8 @@ class _RoleComboFancyState extends State<RoleComboFancy> {
         return Palette.primary;
       case 'repartidor':
         return Palette.statsSuccess;
+      case 'cliente_mayorista':
+        return Colors.deepPurple;
       case 'cliente':
       default:
         return Palette.button;
@@ -131,6 +141,10 @@ class _RoleComboFancyState extends State<RoleComboFancy> {
               items: const [
                 DropdownMenuItem(value: 'admin', child: Text('Admin')),
                 DropdownMenuItem(value: 'cliente', child: Text('Cliente')),
+                DropdownMenuItem(
+                  value: 'cliente_mayorista',
+                  child: Text('Cliente Mayorista'),
+                ),
                 DropdownMenuItem(
                   value: 'repartidor',
                   child: Text('Repartidor'),

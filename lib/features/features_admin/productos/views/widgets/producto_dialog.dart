@@ -27,13 +27,14 @@ class ProductoDialog extends StatefulWidget {
   final String? initialImagenPath;
   final String? initialAlmacenId;
 
-  // ✅ categoría (para editar)
   final String? initialCategoriaId;
   final String? initialCategoriaNombre;
 
-  // ✅ descuento + banner (para editar)
-  final String? initialAgregarDescuento; // 'SI' | 'NO' | null
-  final String? initialDescuentoTipo; // 'PORCENTAJE' | 'MONTO'
+  // ✅ NUEVO
+  final String? initialContenido;
+
+  final String? initialAgregarDescuento;
+  final String? initialDescuentoTipo;
   final String? initialDescuentoValor;
   final bool initialPromoBannerEnabled;
 
@@ -54,6 +55,7 @@ class ProductoDialog extends StatefulWidget {
     this.initialAlmacenId,
     this.initialCategoriaId,
     this.initialCategoriaNombre,
+    this.initialContenido,
     this.initialAgregarDescuento,
     this.initialDescuentoTipo,
     this.initialDescuentoValor,
@@ -85,12 +87,12 @@ class _ProductoDialogState extends State<ProductoDialog> {
       initialPrecio: widget.initialPrecio,
       initialStock: widget.initialStock,
       initialAlmacenId: widget.initialAlmacenId,
-
-      // ✅ categoría
       initialCategoriaId: widget.initialCategoriaId,
       initialCategoriaNombre: widget.initialCategoriaNombre,
 
-      // ✅ descuento + banner
+      // ✅ NUEVO
+      initialContenido: widget.initialContenido,
+
       initialAgregarDescuento: widget.initialAgregarDescuento,
       initialDescuentoTipo: widget.initialDescuentoTipo,
       initialDescuentoValor: widget.initialDescuentoValor,

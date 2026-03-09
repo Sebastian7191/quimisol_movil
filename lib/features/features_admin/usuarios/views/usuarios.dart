@@ -394,6 +394,7 @@ class _RoleFilterMini extends StatelessWidget {
             Center(child: Text('Todos')),
             Center(child: Text('Admin')),
             Center(child: Text('Cliente')),
+            Center(child: Text('Cliente Mayorista')),
             Center(child: Text('Repartidor')),
           ],
           items: [
@@ -415,6 +416,13 @@ class _RoleFilterMini extends StatelessWidget {
               value: 'cliente',
               child: Text(
                 'Cliente',
+                style: TextStyle(color: ink, fontWeight: FontWeight.w900),
+              ),
+            ),
+            DropdownMenuItem(
+              value: 'cliente_mayorista',
+              child: Text(
+                'Cliente Mayorista',
                 style: TextStyle(color: ink, fontWeight: FontWeight.w900),
               ),
             ),
@@ -459,6 +467,8 @@ class _UserCardResponsive extends StatelessWidget {
         return Palette.primary;
       case 'repartidor':
         return Palette.statsSuccess;
+      case 'cliente_mayorista':
+        return Colors.deepPurple;
       case 'cliente':
       default:
         return Palette.button;
@@ -471,6 +481,8 @@ class _UserCardResponsive extends StatelessWidget {
         return Icons.verified_rounded;
       case 'repartidor':
         return Icons.local_shipping_rounded;
+      case 'cliente_mayorista':
+        return Icons.storefront_rounded;
       case 'cliente':
       default:
         return Icons.person_rounded;
@@ -499,7 +511,6 @@ class _UserCardResponsive extends StatelessWidget {
         final compact = c.maxWidth < 520;
         final roleColor = _roleColor(role);
 
-        // ✅ Card tappable (UX top)
         return InkWell(
           borderRadius: BorderRadius.circular(20),
           onTap: () => _openDetails(context),
