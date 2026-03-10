@@ -1,8 +1,8 @@
 // lib/features/admin/banners/widgets/dialog/banner_dialog.dart
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:quimisol_movil/core/theme/palette.dart';
-
 
 /// Resultado (UI-only). No toca data.
 /// Ajusta/expande a lo que tú ya retornas si necesitas más campos.
@@ -68,13 +68,14 @@ class BannerDialog extends StatefulWidget {
 class _BannerDialogState extends State<BannerDialog> {
   final _formKey = GlobalKey<FormState>();
   final _scrollCtrl = ScrollController();
+  final ImagePicker _picker = ImagePicker();
 
   late final TextEditingController _tituloCtrl;
   late final TextEditingController _subtituloCtrl;
 
   bool _activo = true;
 
-  // UI-only: aquí puedes conectar tu picker real en tu proyecto si ya lo tienes.
+  // Imagen seleccionada desde galería
   Uint8List? _pickedBytes;
 
   @override
@@ -91,6 +92,34 @@ class _BannerDialogState extends State<BannerDialog> {
     _tituloCtrl.dispose();
     _subtituloCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickImage() async {
+    try {
+      final file = await _picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 90,
+      );
+
+      if (file == null) return;
+
+      final bytes = await file.readAsBytes();
+
+      if (!mounted) return;
+
+      setState(() {
+        _pickedBytes = bytes;
+      });
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error al seleccionar imagen: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   void _close() => Navigator.pop(context);
@@ -501,19 +530,13 @@ class _BannerDialogState extends State<BannerDialog> {
 
                 const SizedBox(height: 12),
 
-                // Imagen (UI-only)
+                // Imagen
                 OutlinedButton.icon(
-                  onPressed: () {
-                    // Aquí conecta tu picker real si ya lo tienes.
-                    // Por ahora no hace nada (UI-only) para no tocar data.
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Conecta aquí tu selector de imagen (UI-only).'),
-                      ),
-                    );
-                  },
+                  onPressed: _pickImage,
                   icon: const Icon(Icons.image_rounded),
-                  label: const Text('Seleccionar imagen'),
+                  label: Text(
+                    _pickedBytes == null ? 'Seleccionar imagen' : 'Cambiar imagen',
+                  ),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: Palette.ink,
                     side: BorderSide(color: Palette.button.withValues(alpha: 0.45)),
@@ -524,6 +547,23 @@ class _BannerDialogState extends State<BannerDialog> {
                     textStyle: const TextStyle(fontWeight: FontWeight.w900),
                   ),
                 ),
+
+                if (_pickedBytes != null) ...[
+                  const SizedBox(height: 10),
+                  TextButton.icon(
+                    onPressed: () {
+                      setState(() {
+                        _pickedBytes = null;
+                      });
+                    },
+                    icon: const Icon(Icons.delete_outline_rounded),
+                    label: const Text('Quitar imagen seleccionada'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: Colors.red,
+                      textStyle: const TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),

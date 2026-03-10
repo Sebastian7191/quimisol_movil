@@ -30,7 +30,7 @@ Future<void> main() async {
 
   // ✅ Mapbox token (SOLO móvil/desktop nativo, NO web)
   if (!kIsWeb) {
-    MapboxOptions.setAccessToken("TOKEN_MAPBOX");
+    MapboxOptions.setAccessToken("TOKEN_MAPBOX_AQUI");
   }
 
   // ✅ Fullscreen (mejor solo en móvil; en web no aplica)

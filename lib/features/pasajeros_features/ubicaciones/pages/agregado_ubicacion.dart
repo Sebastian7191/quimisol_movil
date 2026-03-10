@@ -42,7 +42,7 @@ class AgregadoUbicacionPage extends StatefulWidget {
 
 class _AgregadoUbicacionPageState extends State<AgregadoUbicacionPage> {
   static const String _kMapboxToken =
-      'TOKEN_MAPBOX';
+      'TOKEN_MAPBOX_AQUI'; // Reemplaza con tu token Mapbox válido
   String get _mapboxToken => _kMapboxToken;
 
   final MapController _mapCtrl = MapController();

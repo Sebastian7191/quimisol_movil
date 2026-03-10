@@ -3,10 +3,21 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 import 'package:quimisol_movil/core/theme/palette.dart';
+import 'package:quimisol_movil/features/pasajeros_features/carrito/pages/carrito.dart';
 import 'package:quimisol_movil/features/pasajeros_features/ubicaciones/pages/lista_ubicaciones.dart';
+import 'perfil_form.dart';
 
 class PerfilPage extends StatefulWidget {
-  const PerfilPage({super.key});
+  const PerfilPage({
+    super.key,
+    this.onOpenDeseados,
+    this.onOpenPedidos,
+    this.onOpenSoporte,
+  });
+
+  final VoidCallback? onOpenDeseados;
+  final VoidCallback? onOpenPedidos;
+  final VoidCallback? onOpenSoporte;
 
   @override
   State<PerfilPage> createState() => _PerfilPageState();
@@ -29,6 +40,32 @@ class _PerfilPageState extends State<PerfilPage> {
     );
   }
 
+  void _openPerfilForm() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const PerfilFormPage()),
+    );
+  }
+
+  void _openDeseados() {
+    widget.onOpenDeseados?.call();
+  }
+
+  void _openMisPedidos() {
+    widget.onOpenPedidos?.call();
+  }
+
+  void _openSoporte() {
+    widget.onOpenSoporte?.call();
+  }
+
+  void _openCarrito() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const CarritoPage()),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final ink = Palette.ink;
@@ -42,7 +79,7 @@ class _PerfilPageState extends State<PerfilPage> {
           builder: (context, snap) {
             final data = snap.data?.data() ?? {};
 
-            final name = (data['name'] ?? 'Usuario').toString();
+            final name = (data['name'] ?? data['nombre'] ?? 'Usuario').toString();
             final email =
                 (data['email'] ?? _auth.currentUser?.email ?? '').toString();
             final photo = (data['photo'] ?? '').toString();
@@ -55,7 +92,6 @@ class _PerfilPageState extends State<PerfilPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Header (Hola + settings)
                   Row(
                     children: [
                       Expanded(
@@ -77,18 +113,16 @@ class _PerfilPageState extends State<PerfilPage> {
                   ),
                   const SizedBox(height: 16),
 
-                  // Card usuario
                   _ProfileCard(
                     name: name,
                     email: email,
                     role: role,
                     photoUrl: photo,
-                    onEdit: () {},
+                    onEdit: _openPerfilForm,
                   ),
 
                   const SizedBox(height: 18),
 
-                  // Accesos rápidos
                   Text(
                     'Accesos rápidos',
                     style: TextStyle(
@@ -111,21 +145,19 @@ class _PerfilPageState extends State<PerfilPage> {
                           icon: Icons.person_outline_rounded,
                           label: 'Información\npersonal',
                           color: pink,
-                          onTap: () {},
+                          onTap: _openPerfilForm,
                         ),
                         _QuickTile(
                           icon: Icons.favorite_border_rounded,
-                          label: 'Favoritos',
+                          label: 'Deseados',
                           color: pink,
-                          onTap: () {
-                            // Modular.to.pushNamed('/wishlist');
-                          },
+                          onTap: _openDeseados,
                         ),
                         _QuickTile(
                           icon: Icons.support_agent_rounded,
                           label: 'Soporte',
                           color: pink,
-                          onTap: () {},
+                          onTap: _openSoporte,
                         ),
                       ];
 
@@ -159,11 +191,9 @@ class _PerfilPageState extends State<PerfilPage> {
 
                   const SizedBox(height: 22),
 
-                  // ✅ PERFIL
                   const _SectionTitleX(title: 'Perfil'),
                   const SizedBox(height: 14),
 
-                  // ✅ Direcciones -> abre UbicacionesPage
                   _MenuRowSimple(
                     icon: Icons.location_on_outlined,
                     label: 'Direcciones',
@@ -174,16 +204,13 @@ class _PerfilPageState extends State<PerfilPage> {
 
                   _MenuRowSimple(
                     icon: Icons.favorite_border_rounded,
-                    label: 'Favoritos',
+                    label: 'Deseados',
                     accent: pink,
-                    onTap: () {
-                      // Modular.to.pushNamed('/wishlist');
-                    },
+                    onTap: _openDeseados,
                   ),
 
                   const SizedBox(height: 26),
 
-                  // ✅ COMPRAS
                   const _SectionTitleX(title: 'Compras'),
                   const SizedBox(height: 14),
 
@@ -191,9 +218,7 @@ class _PerfilPageState extends State<PerfilPage> {
                     icon: Icons.receipt_long_outlined,
                     label: 'Mis pedidos',
                     accent: Palette.primary,
-                    onTap: () {
-                      // Modular.to.pushNamed('/mis-pedidos');
-                    },
+                    onTap: _openMisPedidos,
                   ),
                   const SizedBox(height: 18),
 
@@ -201,14 +226,11 @@ class _PerfilPageState extends State<PerfilPage> {
                     icon: Icons.shopping_cart_outlined,
                     label: 'Carrito',
                     accent: Palette.primary,
-                    onTap: () {
-                      // Modular.to.pushNamed('/carrito');
-                    },
+                    onTap: _openCarrito,
                   ),
 
                   const SizedBox(height: 26),
 
-                  // ✅ CUENTA
                   const _SectionTitleX(title: 'Cuenta'),
                   const SizedBox(height: 14),
 
@@ -507,7 +529,6 @@ class _QuickTileState extends State<_QuickTile> {
   }
 }
 
-/// ✅ Fila simple estilo imagen (icono izquierda + texto + flecha)
 class _MenuRowSimple extends StatefulWidget {
   const _MenuRowSimple({
     required this.icon,

@@ -42,6 +42,21 @@ class _NavbarState extends State<Navbar> {
     });
   }
 
+  void _goToDeseados() {
+    if (!mounted) return;
+    setState(() => _currentIndex = 1);
+  }
+
+  void _goToPedidos() {
+    if (!mounted) return;
+    setState(() => _currentIndex = 2);
+  }
+
+  void _goToSoporte() {
+    if (!mounted) return;
+    setState(() => _currentIndex = 3);
+  }
+
   Future<void> _checkPendingReviewFlow() async {
     if (!mounted || _checkingReview || _reviewFlowDone) return;
 
@@ -162,7 +177,11 @@ class _NavbarState extends State<Navbar> {
       const WishlistPage(),
       MisPedidosPage(initialTab: widget.initialPedidosTab),
       const SoporteChatPage(),
-      const PerfilPage(),
+      PerfilPage(
+        onOpenDeseados: _goToDeseados,
+        onOpenPedidos: _goToPedidos,
+        onOpenSoporte: _goToSoporte,
+      ),
     ];
 
     return Scaffold(
@@ -229,7 +248,8 @@ class _BottomPillNavbarAnimated extends StatelessWidget {
             tween: Tween<double>(begin: targetX, end: targetX),
             builder: (context, animatedCenterX, _) {
               double bubbleLeft = animatedCenterX - (bubbleSize / 2);
-              bubbleLeft = bubbleLeft.clamp(-14.0, barWidth - bubbleSize + 14.0);
+              bubbleLeft =
+                  bubbleLeft.clamp(-14.0, barWidth - bubbleSize + 14.0);
 
               return Stack(
                 clipBehavior: Clip.none,
