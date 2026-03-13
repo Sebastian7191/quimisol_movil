@@ -91,6 +91,8 @@ dependencies:
   flutter_localizations:
     sdk: flutter
   geocoding: ^4.0.0
+  printing: ^5.14.2
+  pdf: ^3.11.3
 
 dev_dependencies:
   flutter_test:

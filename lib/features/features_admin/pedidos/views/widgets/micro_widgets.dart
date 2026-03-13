@@ -71,12 +71,15 @@ Widget statusPill(String estado) {
       labelFor(estado),
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
-      style: TextStyle(color: ink, fontWeight: FontWeight.w900, fontSize: 12),
+      style: TextStyle(
+        color: ink,
+        fontWeight: FontWeight.w900,
+        fontSize: 12,
+      ),
     ),
   );
 }
 
-/// ✅ FIX: ahora no revienta si el texto es largo
 Widget miniPill(IconData icon, String text) {
   final ink = Palette.ink;
 
@@ -118,7 +121,7 @@ String formatDateTime(DateTime? dt) {
 Color statusColor(String s) => estadoColor(s);
 
 // ==========================
-// Micro widgets que ya tenías
+// Micro widgets
 // ==========================
 
 class CountPill extends StatelessWidget {
@@ -260,7 +263,7 @@ class EmptyState extends StatelessWidget {
 }
 
 // ==========================
-// ✅ PEDIDO CARD (FIX OVERFLOW + MEJOR RESPONSIVE)
+// PEDIDO CARD
 // ==========================
 
 class PedidoCard extends StatelessWidget {
@@ -277,37 +280,12 @@ class PedidoCard extends StatelessWidget {
     final estado = normalizeEstado(p.estado);
     final barColor = statusColor(estado);
 
-    final code = (p.codigo ?? '').toString().trim();
-    final address = (p.direccion ?? '').toString().trim();
-    final depto = (p.departamento ?? '').toString().trim();
-    int _countItems(PedidoRow p) {
-      // 1) Si tu modelo tiene alguna propiedad "cantidad"
-      //    (ajusta aquí si tú sabes el nombre exacto)
-      final dynamic direct =
-          (p as dynamic).itemsCount ??
-          (p as dynamic).cantidadItems ??
-          (p as dynamic).itemsLength ??
-          (p as dynamic).items ??
-          (p as dynamic).detalleCount;
-
-      if (direct is int) return direct;
-      if (direct is num) return direct.toInt();
-
-      // 2) Si lo que tienes es una LISTA de items/detalles
-      final dynamic list =
-          (p as dynamic).items ??
-          (p as dynamic).detalle ??
-          (p as dynamic).detalles ??
-          (p as dynamic).productos ??
-          (p as dynamic).carrito;
-
-      if (list is List) return list.length;
-
-      return 0;
-    }
-
-    final conteo = _countItems(p);
-    final fecha = formatDateTime(p.createdAt);
+    final code = p.codigo.trim();
+    final address = p.direccion.trim();
+    final depto = p.departamento.trim();
+    final conteo = p.conteoItems;
+    final fecha = p.fechaLabel.isNotEmpty ? p.fechaLabel : formatDateTime(p.createdAt);
+    final totalLabel = p.totalLabel.isNotEmpty ? p.totalLabel : '${p.totalFinal.toStringAsFixed(2)} Bs';
 
     return LayoutBuilder(
       builder: (context, box) {
@@ -331,7 +309,6 @@ class PedidoCard extends StatelessWidget {
             ),
             child: Row(
               children: [
-                // barra estado
                 Container(
                   width: 8,
                   height: 118,
@@ -349,7 +326,6 @@ class PedidoCard extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // TOP: sin overflow (móvil reacomoda)
                         if (!tiny)
                           Row(
                             children: [
@@ -368,14 +344,17 @@ class PedidoCard extends StatelessWidget {
                               const SizedBox(width: 10),
                               statusPill(estado),
                               const SizedBox(width: 10),
-                              Text(
-                                fecha,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  color: ink.withValues(alpha: 0.55),
-                                  fontWeight: FontWeight.w800,
-                                  fontSize: 12,
+                              Flexible(
+                                child: Text(
+                                  fecha,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  textAlign: TextAlign.right,
+                                  style: TextStyle(
+                                    color: ink.withValues(alpha: 0.55),
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 12,
+                                  ),
                                 ),
                               ),
                             ],
@@ -415,10 +394,7 @@ class PedidoCard extends StatelessWidget {
                               ),
                             ],
                           ),
-
                         const SizedBox(height: 8),
-
-                        // Dirección
                         Text(
                           address.isEmpty ? '-' : address,
                           maxLines: 2,
@@ -428,28 +404,20 @@ class PedidoCard extends StatelessWidget {
                             fontWeight: FontWeight.w800,
                           ),
                         ),
-
                         const SizedBox(height: 10),
-
-                        // Chips: WRAP (nunca overflow)
                         Wrap(
                           spacing: 10,
                           runSpacing: 8,
                           children: [
-                            if (depto.isNotEmpty)
-                              miniPill(Icons.map_rounded, depto),
-                            miniPill(
-                              Icons.shopping_bag_rounded,
-                              'Items: $conteo',
-                            ),
-                            miniPill(Icons.payments_rounded, p.totalLabel),
+                            if (depto.isNotEmpty) miniPill(Icons.map_rounded, depto),
+                            miniPill(Icons.shopping_bag_rounded, 'Items: $conteo'),
+                            miniPill(Icons.payments_rounded, totalLabel),
                           ],
                         ),
                       ],
                     ),
                   ),
                 ),
-
                 Padding(
                   padding: const EdgeInsets.only(right: 10),
                   child: Icon(

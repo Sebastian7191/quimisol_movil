@@ -1,9 +1,10 @@
 // lib/features/shell/sidebar_shell_page.dart
 //
 // ✅ Responsive:
-// - Desktop: sidebar por hover (igual que antes)
-// - Mobile: sidebar overlay (drawer) con botón ☰ y scrim, sin achicar el contenido
-// ✅ Incluye chat footer global para admin (tipo messenger)
+// - Desktop: sidebar por hover
+// - Mobile: sidebar overlay (drawer) con botón ☰ y scrim
+// ✅ Incluye chat footer global para admin
+// ✅ Nuevo módulo: Laboratorios
 
 import 'dart:async';
 import 'dart:math' as math;
@@ -14,6 +15,7 @@ import 'package:quimisol_movil/features/features_admin/almacenes/views/almacenes
 import 'package:quimisol_movil/features/features_admin/banners/views/banners.dart';
 import 'package:quimisol_movil/features/features_admin/categorias/views/categorias.dart';
 import 'package:quimisol_movil/features/features_admin/home/views/dashboard_page.dart';
+import 'package:quimisol_movil/features/features_admin/laboratorios/pages/lista_laboratorios.dart';
 import 'package:quimisol_movil/features/features_admin/pedidos/views/pedidos.dart';
 import 'package:quimisol_movil/features/features_admin/productos/views/productos.dart';
 import 'package:quimisol_movil/features/features_admin/soporte/pages/admin_chat_footer_panel.dart';
@@ -37,8 +39,8 @@ class _SidebarShellPageState extends State<SidebarShellPage> {
 
   Timer? _closeTimer;
 
-  Color get _main => Palette.button; // rosa
-  Color get _accent => Palette.primary; // morado
+  Color get _main => Palette.button;
+  Color get _accent => Palette.primary;
 
   final List<_SideItem> _items = const [
     _SideItem(
@@ -77,6 +79,11 @@ class _SidebarShellPageState extends State<SidebarShellPage> {
       route: '/banners',
     ),
     _SideItem(
+      icon: Icons.science_rounded,
+      label: 'Laboratorios',
+      route: '/laboratorios',
+    ),
+    _SideItem(
       icon: Icons.receipt_long_rounded,
       label: 'Pedidos',
       route: '/pedidos',
@@ -110,7 +117,9 @@ class _SidebarShellPageState extends State<SidebarShellPage> {
     _cancelCloseTimer();
     _closeTimer = Timer(const Duration(milliseconds: 160), () {
       final keepOpen = _hoveringSidebar || _hoveringTrigger;
-      if (!keepOpen && mounted) setState(() => _sidebarOpen = false);
+      if (!keepOpen && mounted) {
+        setState(() => _sidebarOpen = false);
+      }
     });
   }
 
@@ -121,7 +130,8 @@ class _SidebarShellPageState extends State<SidebarShellPage> {
     if (path.startsWith('/unidades')) return 4;
     if (path.startsWith('/categorias')) return 5;
     if (path.startsWith('/banners')) return 6;
-    if (path.startsWith('/pedidos')) return 7;
+    if (path.startsWith('/laboratorios')) return 7;
+    if (path.startsWith('/pedidos')) return 8;
     return 0;
   }
 
@@ -134,7 +144,7 @@ class _SidebarShellPageState extends State<SidebarShellPage> {
 
   void _goTo(int index) {
     setState(() => _currentIndex = index);
-    // ❌ No navegar aquí (tu decisión original)
+    Modular.to.navigate(_items[index].route);
   }
 
   Future<void> _logout() async {
@@ -143,7 +153,9 @@ class _SidebarShellPageState extends State<SidebarShellPage> {
       barrierDismissible: true,
       builder: (ctx) {
         return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(18),
+          ),
           title: const Text(
             'Cerrar sesión',
             style: TextStyle(fontWeight: FontWeight.w800),
@@ -227,6 +239,7 @@ class _SidebarShellPageState extends State<SidebarShellPage> {
       const UnidadesPage(),
       const CategoriasPage(),
       const BannersPage(),
+      const LaboratoriosPage(),
       const PedidosPage(),
     ];
 
@@ -238,7 +251,6 @@ class _SidebarShellPageState extends State<SidebarShellPage> {
         final double mobileSidebarW =
             math.min(288.0, (w * 0.82)).clamp(240.0, 320.0);
 
-        // ✅ BODY con chat footer global admin
         final body = Stack(
           children: [
             Positioned.fill(
@@ -253,8 +265,6 @@ class _SidebarShellPageState extends State<SidebarShellPage> {
                 ),
               ),
             ),
-
-            // ✅ Chat footer global (izquierda)
             Positioned(
               left: isMobile ? 10 : 18,
               bottom: isMobile ? 30 : 16,
@@ -363,7 +373,6 @@ class _SidebarShellPageState extends State<SidebarShellPage> {
                 },
                 child: const SizedBox(width: 6, height: double.infinity),
               ),
-
               MouseRegion(
                 onEnter: (_) {
                   _hoveringSidebar = true;
@@ -385,7 +394,6 @@ class _SidebarShellPageState extends State<SidebarShellPage> {
                   closedWidth: 86,
                 ),
               ),
-
               Expanded(child: body),
             ],
           ),
@@ -415,7 +423,6 @@ class _Sidebar extends StatelessWidget {
   final Color accentColor;
   final ValueChanged<int> onChanged;
   final VoidCallback onLogout;
-
   final double openWidth;
   final double closedWidth;
 
@@ -438,7 +445,9 @@ class _Sidebar extends StatelessWidget {
       decoration: BoxDecoration(
         color: Palette.white,
         border: Border(
-          right: BorderSide(color: mainColor.withValues(alpha: 0.55)),
+          right: BorderSide(
+            color: mainColor.withValues(alpha: 0.55),
+          ),
         ),
         boxShadow: [
           BoxShadow(
@@ -570,7 +579,8 @@ class _SidebarItemTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bg = selected ? mainColor.withValues(alpha: 0.22) : Colors.transparent;
+    final bg =
+        selected ? mainColor.withValues(alpha: 0.22) : Colors.transparent;
     final iconColor = selected ? Palette.primary : Palette.ink;
     final textColor = selected ? Palette.primary : Palette.ink;
 
@@ -580,8 +590,9 @@ class _SidebarItemTile extends StatelessWidget {
         color: bg,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color:
-              selected ? mainColor.withValues(alpha: 0.5) : Colors.transparent,
+          color: selected
+              ? mainColor.withValues(alpha: 0.5)
+              : Colors.transparent,
         ),
       ),
       child: InkWell(
@@ -606,7 +617,8 @@ class _SidebarItemTile extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       color: textColor,
-                      fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+                      fontWeight:
+                          selected ? FontWeight.w800 : FontWeight.w600,
                       fontSize: 13.5,
                     ),
                   ),
@@ -651,7 +663,11 @@ class _LogoutTile extends StatelessWidget {
             ),
             child: Row(
               children: [
-                Icon(Icons.logout_rounded, color: Colors.red.shade600, size: 21),
+                Icon(
+                  Icons.logout_rounded,
+                  color: Colors.red.shade600,
+                  size: 21,
+                ),
                 if (open) ...[
                   const SizedBox(width: 10),
                   Expanded(
@@ -676,6 +692,7 @@ class _LogoutTile extends StatelessWidget {
 
 class _SidebarFooter extends StatelessWidget {
   final bool open;
+
   const _SidebarFooter({required this.open});
 
   @override

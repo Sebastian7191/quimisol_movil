@@ -98,6 +98,10 @@ class _PedidoRutaMapPageState extends State<PedidoRutaMapPage> {
   double? _lastRouteALat, _lastRouteALng;
   double? _lastRouteBLat, _lastRouteBLng;
 
+  // distancia/duración actual calculada por Mapbox
+  double? _ultimaDistanciaKm;
+  double? _ultimaDuracionMin;
+
   @override
   void initState() {
     super.initState();
@@ -568,8 +572,20 @@ class _PedidoRutaMapPageState extends State<PedidoRutaMapPage> {
       final routes = (json['routes'] as List?) ?? [];
       if (routes.isEmpty) return;
 
-      final geometry = routes.first['geometry'];
+      final firstRoute = routes.first as Map<String, dynamic>;
+      final geometry = firstRoute['geometry'];
       final coords = (geometry?['coordinates'] as List?) ?? [];
+
+      final distanceMeters = _toDouble(firstRoute['distance']);
+      final durationSeconds = _toDouble(firstRoute['duration']);
+
+      if (distanceMeters != null) {
+        _ultimaDistanciaKm = distanceMeters / 1000.0;
+      }
+
+      if (durationSeconds != null) {
+        _ultimaDuracionMin = durationSeconds / 60.0;
+      }
 
       final featureCollection = {
         "type": "FeatureCollection",
@@ -617,18 +633,40 @@ class _PedidoRutaMapPageState extends State<PedidoRutaMapPage> {
     setState(() => _changingEstado = true);
 
     try {
+      final nextLower = next.trim().toLowerCase();
+
+      if (nextLower == 'en camino' &&
+          _aLat != null &&
+          _aLng != null &&
+          _bLat != null &&
+          _bLng != null) {
+        await _drawRoute();
+      }
+
+      final updateData = <String, dynamic>{
+        'estado': next,
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
+
+      if (nextLower == 'en camino' && _ultimaDistanciaKm != null) {
+        updateData['kilometraje'] = {
+          'distanciaKm': double.parse(_ultimaDistanciaKm!.toStringAsFixed(2)),
+          'fechaEnCamino': FieldValue.serverTimestamp(),
+          'repartidorUid': widget.repartidorUid,
+          if (_ultimaDuracionMin != null)
+            'duracionEstimadaMin':
+                double.parse(_ultimaDuracionMin!.toStringAsFixed(1)),
+        };
+      }
+
       await FirebaseFirestore.instance
           .collection('pedidos')
           .doc(widget.pedidoId)
-          .update({
-        'estado': next,
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
+          .update(updateData);
 
       if (!mounted) return;
       setState(() => _pedidoEstado = next);
 
-      final nextLower = next.trim().toLowerCase();
       if (nextLower == 'en camino') {
         await _startRealtimeIfNeeded();
       } else if (nextLower == 'entregado') {
