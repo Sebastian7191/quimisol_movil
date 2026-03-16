@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'dart:math';
+import 'dart:typed_data';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
 
 import 'package:quimisol_movil/features/pasajeros_features/wishlist/pages/wishlist_store.dart';
@@ -13,20 +15,18 @@ class CartStore extends ChangeNotifier {
 
   final _fire = FirebaseFirestore.instance;
   final _auth = FirebaseAuth.instance;
+  final _storage = FirebaseStorage.instance;
 
   final List<CartItem> _items = [];
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _sub;
 
   StreamSubscription<User?>? _authSub;
 
-  // ✅ estado por item (para mostrar loader en UI)
   final Map<String, bool> _updating = {};
   final Map<String, Timer> _updatingTimers = {};
 
-  // ✅ cache de stock por producto
   final Map<String, int> _stockCache = {};
 
-  // ✅ mensaje para UI (SnackBar)
   String? _toastMessage;
   String? consumeToast() {
     final t = _toastMessage;
@@ -61,8 +61,6 @@ class CartStore extends ChangeNotifier {
       }
     });
   }
-
-  /* ---------------- INIT / BIND ---------------- */
 
   void init() {
     _authSub?.cancel();
@@ -114,7 +112,6 @@ class CartStore extends ChangeNotifier {
           }),
         );
 
-      // 🔥 precargar stock en background (sin bloquear UI)
       for (final it in _items) {
         _prefetchStock(it.id);
       }
@@ -122,8 +119,6 @@ class CartStore extends ChangeNotifier {
       notifyListeners();
     });
   }
-
-  /* ---------------- HELPERS ---------------- */
 
   int _findIndex(String productId) => _items.indexWhere((e) => e.id == productId);
 
@@ -163,7 +158,58 @@ class CartStore extends ChangeNotifier {
     return 'Solo tenemos $stock unidad${stock == 1 ? "" : "es"} disponible${stock == 1 ? "" : "s"} por ahora 🙂';
   }
 
-  /* ---------------- ACCIONES ---------------- */
+  Future<CartCheckoutPreview?> buildCheckoutPreview({
+    double costoEnvio = 0.0,
+  }) async {
+    final uid = _auth.currentUser?.uid;
+    if (uid == null) return null;
+
+    final carritoSnap =
+        await _fire.collection('usuarios').doc(uid).collection('carrito').get();
+
+    if (carritoSnap.docs.isEmpty) return null;
+
+    final previewItems = <CartCheckoutItemPreview>[];
+    double subtotal = 0.0;
+
+    for (final d in carritoSnap.docs) {
+      final data = d.data();
+
+      final name = (data['name'] ?? '').toString();
+      final price = (data['price'] is num)
+          ? (data['price'] as num).toDouble()
+          : double.tryParse((data['price'] ?? '0').toString()) ?? 0.0;
+
+      final qty = (data['qty'] is num)
+          ? (data['qty'] as num).toInt()
+          : int.tryParse((data['qty'] ?? '1').toString()) ?? 1;
+
+      final imageUrl = (data['imageUrl'] ?? '').toString();
+      final fixedQty = qty <= 0 ? 1 : qty;
+      final subtotalItem = price * fixedQty;
+
+      subtotal += subtotalItem;
+
+      previewItems.add(
+        CartCheckoutItemPreview(
+          productId: d.id,
+          name: name,
+          price: price,
+          qty: fixedQty,
+          imageUrl: imageUrl,
+          subtotal: subtotalItem,
+        ),
+      );
+    }
+
+    return CartCheckoutPreview(
+      items: previewItems,
+      subtotal: subtotal,
+      costoEnvio: costoEnvio,
+      total: subtotal + costoEnvio,
+      conteoItems: previewItems.length,
+    );
+  }
 
   Future<void> addProductWithQty({
     required String productId,
@@ -177,7 +223,6 @@ class CartStore extends ChangeNotifier {
 
     final safeQty = qty <= 0 ? 1 : qty;
 
-    // ✅ límite por stock
     final stock = await _getStock(productId);
     if (stock > 0 && safeQty > stock) {
       _setToast(_stockMsg(stock));
@@ -197,7 +242,6 @@ class CartStore extends ChangeNotifier {
       }
 
       if (snap.exists) {
-        // si ya existe: sumar, pero sin pasar stock
         final currentQty = ((snap.data()?['qty'] ?? 1) is num)
             ? (snap.data()?['qty'] as num).toInt()
             : int.tryParse((snap.data()?['qty'] ?? '1').toString()) ?? 1;
@@ -230,7 +274,6 @@ class CartStore extends ChangeNotifier {
     final uid = _auth.currentUser?.uid;
     if (uid == null) return;
 
-    // ✅ límite por stock
     final stock = await _getStock(item.id);
     if (stock <= 0) {
       _setToast(_stockMsg(stock));
@@ -253,10 +296,6 @@ class CartStore extends ChangeNotifier {
       tx.delete(wishRef);
     });
   }
-
-  // -----------------------------
-  // ✅ OPTIMISTIC QTY (INSTANTE) + LIMITE STOCK
-  // -----------------------------
 
   Future<void> incQty(String productId) async {
     final uid = _auth.currentUser?.uid;
@@ -323,9 +362,6 @@ class CartStore extends ChangeNotifier {
     }
   }
 
-  // -----------------------------
-  // ✅ SET QTY MANUAL (TECLADO) + LIMITE STOCK
-  // -----------------------------
   Future<void> setQty(String productId, int qty) async {
     final uid = _auth.currentUser?.uid;
     if (uid == null) return;
@@ -342,7 +378,6 @@ class CartStore extends ChangeNotifier {
       if (newQty <= 0) return;
     }
 
-    // ✅ optimistic
     final current = _items[idx];
     final oldQty = current.qty;
     _items[idx] = current.copyWith(qty: newQty);
@@ -391,16 +426,91 @@ class CartStore extends ChangeNotifier {
     await batch.commit();
   }
 
-  /* ---------------- CHECKOUT -> PEDIDOS (ROOT) ---------------- */
+  Future<String?> _subirComprobante({
+    required String uid,
+    required Uint8List bytes,
+    String? fileName,
+    String tipoPago = 'qr',
+  }) async {
+    final cleanName = (fileName == null || fileName.trim().isEmpty)
+        ? 'comprobante_${DateTime.now().millisecondsSinceEpoch}.jpg'
+        : fileName.trim();
+
+    final ext = _extensionFromName(cleanName);
+    final finalName =
+        'comp_${DateTime.now().millisecondsSinceEpoch}_${_gen6Digits()}.$ext';
+    final path = 'pagos/comprobantes/$uid/$finalName';
+
+    final ref = _storage.ref().child(path);
+
+    await ref.putData(
+      bytes,
+      SettableMetadata(
+        contentType: _contentTypeFromExt(ext),
+        customMetadata: {
+          'uid': uid,
+          'tipo_pago': tipoPago,
+          'nombre_original': cleanName,
+        },
+      ),
+    );
+
+    return await ref.getDownloadURL();
+  }
+
+  String _extensionFromName(String fileName) {
+    final lower = fileName.toLowerCase();
+    if (lower.endsWith('.png')) return 'png';
+    if (lower.endsWith('.webp')) return 'webp';
+    if (lower.endsWith('.jpeg')) return 'jpeg';
+    if (lower.endsWith('.jpg')) return 'jpg';
+    if (lower.endsWith('.heic')) return 'heic';
+    return 'jpg';
+  }
+
+  String _contentTypeFromExt(String ext) {
+    switch (ext) {
+      case 'png':
+        return 'image/png';
+      case 'webp':
+        return 'image/webp';
+      case 'jpeg':
+      case 'jpg':
+        return 'image/jpeg';
+      case 'heic':
+        return 'image/heic';
+      default:
+        return 'image/jpeg';
+    }
+  }
 
   Future<String?> checkoutToPedidos({
     required UbicacionSeleccionada ubicacion,
+    String tipoPago = 'efectivo',
+    String estadoPago = 'pendiente',
+    Uint8List? comprobanteBytes,
+    String? comprobanteUrl,
+    String? comprobanteNombre,
+    String? qrImageUrl,
+    String? qrDescargaUrl,
+    String? observacionPago,
   }) async {
     final uid = _auth.currentUser?.uid;
     if (uid == null) return null;
 
     final carritoSnap = await _fire.collection('usuarios').doc(uid).collection('carrito').get();
     if (carritoSnap.docs.isEmpty) return null;
+
+    String? comprobanteUrlFinal = comprobanteUrl;
+
+    if (comprobanteBytes != null && comprobanteBytes.isNotEmpty) {
+      comprobanteUrlFinal = await _subirComprobante(
+        uid: uid,
+        bytes: comprobanteBytes,
+        fileName: comprobanteNombre,
+        tipoPago: tipoPago,
+      );
+    }
 
     final items = <Map<String, dynamic>>[];
     double totalProductos = 0.0;
@@ -428,6 +538,7 @@ class CartStore extends ChangeNotifier {
         'price': price,
         'qty': fixedQty,
         'imageUrl': imageUrl,
+        'subtotal': price * fixedQty,
       });
     }
 
@@ -446,30 +557,47 @@ class CartStore extends ChangeNotifier {
     final payload = <String, dynamic>{
       'codigo': code,
       'estado': 'pendiente',
+      'tipo_pago': tipoPago,
+      'estado_pago': estadoPago,
       'departamento': ubicacion.departamento,
       'direccion': ubicacion.direccion,
-      'total': totalProductos,
+      'total': totalFinal,
+      'subtotal': totalProductos,
       'costo_envio': costoEnvio,
       'fecha_entrega': null,
       'conteoItems': items.length,
       'items': items,
       'ubicacion': ubicacion.toJson(),
       'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
       'uid': uid,
+      'comprobante_url': comprobanteUrlFinal,
+      'comprobante_nombre': comprobanteNombre,
+      'qr_image_url': qrImageUrl,
+      'qr_descarga_url': qrDescargaUrl,
+      'observacion_pago': observacionPago,
     };
 
     final indexPayload = <String, dynamic>{
       'pedidoId': pedidoDoc.id,
       'codigo': code,
       'estado': 'pendiente',
+      'tipo_pago': tipoPago,
+      'estado_pago': estadoPago,
       'departamento': ubicacion.departamento,
       'direccion': ubicacion.direccion,
       'total': totalFinal,
+      'subtotal': totalProductos,
       'costo_envio': costoEnvio,
       'fecha_entrega': null,
       'conteoItems': items.length,
       'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
       'uid': uid,
+      'comprobante_url': comprobanteUrlFinal,
+      'comprobante_nombre': comprobanteNombre,
+      'qr_image_url': qrImageUrl,
+      'observacion_pago': observacionPago,
     };
 
     final batch = _fire.batch();
@@ -500,8 +628,6 @@ class CartStore extends ChangeNotifier {
     super.dispose();
   }
 }
-
-/* ---------------- MODEL ---------------- */
 
 class CartItem {
   final String id;
@@ -560,4 +686,38 @@ class UbicacionSeleccionada {
         'lat': lat,
         'lng': lng,
       };
+}
+
+class CartCheckoutItemPreview {
+  final String productId;
+  final String name;
+  final double price;
+  final int qty;
+  final String imageUrl;
+  final double subtotal;
+
+  const CartCheckoutItemPreview({
+    required this.productId,
+    required this.name,
+    required this.price,
+    required this.qty,
+    required this.imageUrl,
+    required this.subtotal,
+  });
+}
+
+class CartCheckoutPreview {
+  final List<CartCheckoutItemPreview> items;
+  final double subtotal;
+  final double costoEnvio;
+  final double total;
+  final int conteoItems;
+
+  const CartCheckoutPreview({
+    required this.items,
+    required this.subtotal,
+    required this.costoEnvio,
+    required this.total,
+    required this.conteoItems,
+  });
 }

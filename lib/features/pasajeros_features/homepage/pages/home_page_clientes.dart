@@ -443,17 +443,7 @@ class _HomeClienteState extends State<HomeCliente> {
                                 ),
                               ),
                             ),
-                            GestureDetector(
-                              onTap: () {},
-                              child: Text(
-                                'view all',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Palette.ink.withOpacity(0.55),
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
+                            
                           ],
                         ),
                         const SizedBox(height: 12),

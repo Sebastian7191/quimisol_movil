@@ -1,23 +1,10 @@
-// lib/features/pedidos/detalle_pedido.dart
-//
-// ✅ Detalle realtime del pedido (AHORA EN RAÍZ: /pedidos/{pedidoId})
-// ✅ Muestra TODOS los productos con: imagen + nombre + cantidad + precio + subtotal
-// ✅ Muestra costo_envio:
-//    - si 0 => "Gratis"
-//    - si >0 => "Bs. X.XX"
-// ✅ Total final = subtotal productos + costo_envio (si el campo "total" no viene o viene 0, se calcula igual)
-// ✅ ENTREGA:
-//    - si fecha_entrega != null => muestra fecha_entrega (con hora)
-//    - si fecha_entrega == null y fecha_envio != null => muestra fecha_envio (con hora)
-//    - si ambos null => "En revisión" (PERO SOLO EN LA FECHA, NO CAMBIA EL ESTADO)
-// ✅ Muestra repartidorNombre en el Resumen (si no hay => "Asignando…")
-// ✅ Fondo blanco, textos morados, cards rosadas
-// ✅ Abajo: Seguimiento con iconos (Pendiente, Aceptado, En curso, Completado)
-// ✅ Retrasado y Cancelado: ocultos por ahora (listos para activar cuando corresponda)
+import 'dart:typed_data';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:quimisol_movil/core/theme/palette.dart';
 
 class DetallePedidoPage extends StatefulWidget {
@@ -37,12 +24,18 @@ class DetallePedidoPage extends StatefulWidget {
 class _DetallePedidoPageState extends State<DetallePedidoPage> {
   final _auth = FirebaseAuth.instance;
   final _fire = FirebaseFirestore.instance;
+  final _storage = FirebaseStorage.instance;
+  final _picker = ImagePicker();
 
-  // 🔥 Ya no depende de /usuarios/{uid}/pedidos
+  static const int _maxFileSizeBytes = 5 * 1024 * 1024;
+
+  Uint8List? _nuevoComprobanteBytes;
+  String? _nuevoComprobanteNombre;
+  bool _pickingComprobante = false;
+  bool _reenviandoComprobante = false;
+
   DocumentReference<Map<String, dynamic>> get _pedidoDoc =>
       _fire.collection('pedidos').doc(widget.pedidoId);
-
-  // ---------------- parsing helpers ----------------
 
   double _asDouble(dynamic v) {
     if (v is num) return v.toDouble();
@@ -74,7 +67,6 @@ class _DetallePedidoPageState extends State<DetallePedidoPage> {
   String _repartidorNombreFromData(Map<String, dynamic> data) {
     dynamic v;
 
-    // claves más comunes
     if (data.containsKey('repartidorNombre')) v = data['repartidorNombre'];
     if ((v == null || _asString(v).trim().isEmpty) &&
         data.containsKey('nombreRepartidor')) {
@@ -89,8 +81,8 @@ class _DetallePedidoPageState extends State<DetallePedidoPage> {
       v = data['repartidorName'];
     }
 
-    // por si guardas un objeto repartidor { nombre: ... }
-    if ((v == null || _asString(v).trim().isEmpty) && data['repartidor'] is Map) {
+    if ((v == null || _asString(v).trim().isEmpty) &&
+        data['repartidor'] is Map) {
       final m = Map<String, dynamic>.from(data['repartidor']);
       v = m['nombre'] ?? m['name'];
     }
@@ -134,7 +126,36 @@ class _DetallePedidoPageState extends State<DetallePedidoPage> {
     return _itemQty(it) * _itemPrice(it);
   }
 
-  // ---------------- status mapping ----------------
+  String _tipoPagoLabel(String raw) {
+    final s = raw.trim().toLowerCase();
+    if (s.isEmpty) return '—';
+    if (s.contains('qr')) return 'QR';
+    if (s.contains('efect')) return 'Efectivo';
+    return raw;
+  }
+
+  _PaymentBadgeMeta _paymentBadge(String raw) {
+    final s = raw.trim().toLowerCase();
+    if (s.contains('rech')) {
+      return _PaymentBadgeMeta(
+        label: 'Rechazado',
+        bg: Palette.statsDanger,
+        icon: Icons.cancel_outlined,
+      );
+    }
+    if (s.contains('pag')) {
+      return _PaymentBadgeMeta(
+        label: 'Pagado',
+        bg: Palette.statsSuccess,
+        icon: Icons.check_circle_outline_rounded,
+      );
+    }
+    return _PaymentBadgeMeta(
+      label: 'Pendiente',
+      bg: Palette.statsWarning,
+      icon: Icons.timelapse_rounded,
+    );
+  }
 
   String _norm(String s) => s.trim().toLowerCase();
 
@@ -159,7 +180,6 @@ class _DetallePedidoPageState extends State<DetallePedidoPage> {
       return _TrackStep.completado;
     }
 
-    // especiales (ocultos por ahora)
     if (s == 'retrasado') return _TrackStep.retrasado;
     if (s == 'cancelado' || s == 'cancelada') return _TrackStep.cancelado;
 
@@ -226,6 +246,176 @@ class _DetallePedidoPageState extends State<DetallePedidoPage> {
 
   bool _isLoggedIn() => _auth.currentUser != null;
 
+  Future<void> _pickNuevoComprobante() async {
+    try {
+      setState(() => _pickingComprobante = true);
+
+      final XFile? file = await _picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 95,
+      );
+
+      if (file == null) return;
+
+      final bytes = await file.readAsBytes();
+
+      if (bytes.lengthInBytes > _maxFileSizeBytes) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('El comprobante supera el límite de 5 MB.'),
+          ),
+        );
+        return;
+      }
+
+      if (!mounted) return;
+      setState(() {
+        _nuevoComprobanteBytes = bytes;
+        _nuevoComprobanteNombre = file.name;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No se pudo seleccionar el comprobante: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _pickingComprobante = false);
+    }
+  }
+
+  String _extensionFromName(String fileName) {
+    final lower = fileName.toLowerCase();
+    if (lower.endsWith('.png')) return 'png';
+    if (lower.endsWith('.webp')) return 'webp';
+    if (lower.endsWith('.jpeg')) return 'jpeg';
+    if (lower.endsWith('.jpg')) return 'jpg';
+    if (lower.endsWith('.heic')) return 'heic';
+    return 'jpg';
+  }
+
+  String _contentTypeFromExt(String ext) {
+    switch (ext) {
+      case 'png':
+        return 'image/png';
+      case 'webp':
+        return 'image/webp';
+      case 'jpeg':
+      case 'jpg':
+        return 'image/jpeg';
+      case 'heic':
+        return 'image/heic';
+      default:
+        return 'image/jpeg';
+    }
+  }
+
+  Future<String> _subirNuevoComprobante({
+    required String uid,
+    required Uint8List bytes,
+    required String fileName,
+  }) async {
+    final ext = _extensionFromName(fileName);
+    final finalName = 'comp_${DateTime.now().millisecondsSinceEpoch}.$ext';
+    final path = 'pagos/comprobantes/$uid/$finalName';
+
+    final ref = _storage.ref().child(path);
+
+    await ref.putData(
+      bytes,
+      SettableMetadata(
+        contentType: _contentTypeFromExt(ext),
+        customMetadata: {
+          'uid': uid,
+          'pedidoId': widget.pedidoId,
+          'nombre_original': fileName,
+        },
+      ),
+    );
+
+    return await ref.getDownloadURL();
+  }
+
+  Future<void> _reenviarComprobante() async {
+    final uid = _auth.currentUser?.uid;
+    if (uid == null) return;
+
+    if (_nuevoComprobanteBytes == null || _nuevoComprobanteNombre == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Primero selecciona una nueva imagen.')),
+      );
+      return;
+    }
+
+    try {
+      setState(() => _reenviandoComprobante = true);
+
+      final nuevaUrl = await _subirNuevoComprobante(
+        uid: uid,
+        bytes: _nuevoComprobanteBytes!,
+        fileName: _nuevoComprobanteNombre!,
+      );
+
+      final pedidoRef = _fire.collection('pedidos').doc(widget.pedidoId);
+      final pedidoSnap = await pedidoRef.get();
+      final data = pedidoSnap.data() ?? <String, dynamic>{};
+
+      final uidCliente = (data['uid'] ?? uid).toString().trim();
+
+      final updatePayload = <String, dynamic>{
+        'comprobante_url': nuevaUrl,
+        'comprobante_nombre': _nuevoComprobanteNombre,
+        'estado_pago': 'pendiente',
+        'motivo_rechazo_pago': '',
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
+
+      final batch = _fire.batch();
+      batch.set(pedidoRef, updatePayload, SetOptions(merge: true));
+
+      if (uidCliente.isNotEmpty) {
+        final userPedidoRef = _fire
+            .collection('usuarios')
+            .doc(uidCliente)
+            .collection('pedidos')
+            .doc(widget.pedidoId);
+
+        batch.set(
+          userPedidoRef,
+          {
+            'comprobante_url': nuevaUrl,
+            'comprobante_nombre': _nuevoComprobanteNombre,
+            'estado_pago': 'pendiente',
+            'motivo_rechazo_pago': '',
+            'updatedAt': FieldValue.serverTimestamp(),
+          },
+          SetOptions(merge: true),
+        );
+      }
+
+      await batch.commit();
+
+      if (!mounted) return;
+      setState(() {
+        _nuevoComprobanteBytes = null;
+        _nuevoComprobanteNombre = null;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Comprobante reenviado correctamente.'),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error al reenviar comprobante: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _reenviandoComprobante = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final bg = Palette.fieldBg;
@@ -236,7 +426,6 @@ class _DetallePedidoPageState extends State<DetallePedidoPage> {
       body: SafeArea(
         child: Column(
           children: [
-            // AppBar sencillo
             Padding(
               padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
               child: Row(
@@ -260,7 +449,6 @@ class _DetallePedidoPageState extends State<DetallePedidoPage> {
                 ],
               ),
             ),
-
             Expanded(
               child: !_isLoggedIn()
                   ? Center(
@@ -313,12 +501,10 @@ class _DetallePedidoPageState extends State<DetallePedidoPage> {
                         final step = _stepFromRaw(estadoRaw);
                         final badge = _badgeFromStep(step);
 
-                        // ✅ Repartidor
                         final repartidorNombre = _repartidorNombreFromData(data);
 
-                        // ✅ ENTREGA
-                        final entregaRaw = data['fecha_entrega']; // puede ser null
-                        final envioRaw = data['fecha_envio']; // puede ser null también
+                        final entregaRaw = data['fecha_entrega'];
+                        final envioRaw = data['fecha_envio'];
 
                         final entregaText = (entregaRaw != null)
                             ? _formatTimestamp(entregaRaw)
@@ -326,14 +512,38 @@ class _DetallePedidoPageState extends State<DetallePedidoPage> {
                                 ? _formatTimestamp(envioRaw)
                                 : 'En revisión';
 
-                        // ✅ costo_envio
                         final costoEnvio = _asDouble(
                           data.containsKey('costo_envio')
                               ? data['costo_envio']
                               : data['costoEnvio'],
                         );
 
-                        // items
+                        final tipoPago = _asString(
+                          data['tipo_pago'] ?? data['tipoPago'],
+                        ).trim();
+
+                        final estadoPago = _asString(
+                          data['estado_pago'] ?? data['estadoPago'],
+                        ).trim();
+
+                        final motivoRechazoPago = _asString(
+                          data['motivo_rechazo_pago'],
+                        ).trim();
+
+                        final comprobanteUrl = _asString(
+                          data['comprobante_url'],
+                        ).trim();
+
+                        final comprobanteNombre = _asString(
+                          data['comprobante_nombre'],
+                        ).trim();
+
+                        final paymentBadge = _paymentBadge(estadoPago);
+                        final pagoRechazado =
+                            estadoPago.trim().toLowerCase() == 'rechazado';
+                        final esEfectivo =
+                            tipoPago.trim().toLowerCase().contains('efect');
+
                         final itemsRaw = data['items'];
                         final items = <Map<String, dynamic>>[];
                         if (itemsRaw is List) {
@@ -344,22 +554,18 @@ class _DetallePedidoPageState extends State<DetallePedidoPage> {
                           }
                         }
 
-                        // subtotal productos
                         final productsSubtotal = items.fold<double>(
                           0,
                           (acc, it) => acc + _itemSubtotal(it),
                         );
 
-                        // total productos
                         final totalDoc = _asDouble(data['total']);
                         final totalProductos =
                             totalDoc > 0 ? totalDoc : productsSubtotal;
 
-                        // total final
                         final totalFinal =
                             totalProductos + (costoEnvio > 0 ? costoEnvio : 0);
 
-                        // especiales listos pero ocultos
                         final showSpecial = false;
                         final isCancelled = step == _TrackStep.cancelado;
                         final isDelayed = step == _TrackStep.retrasado;
@@ -371,7 +577,6 @@ class _DetallePedidoPageState extends State<DetallePedidoPage> {
                                 padding:
                                     const EdgeInsets.fromLTRB(16, 8, 16, 140),
                                 children: [
-                                  // Card superior: Estado + Resumen
                                   Container(
                                     decoration: BoxDecoration(
                                       color: Palette.card,
@@ -435,8 +640,6 @@ class _DetallePedidoPageState extends State<DetallePedidoPage> {
                                           ],
                                         ),
                                         const SizedBox(height: 12),
-
-                                        // ✅ REPARTIDOR
                                         _ResumenRow(
                                           label: 'Repartidor',
                                           value: repartidorNombre.isEmpty
@@ -446,10 +649,7 @@ class _DetallePedidoPageState extends State<DetallePedidoPage> {
                                               ? Palette.statsWarning
                                               : purple,
                                         ),
-
                                         const SizedBox(height: 10),
-
-                                        // ✅ ENTREGA
                                         _ResumenRow(
                                           label: 'Entrega',
                                           value: entregaText,
@@ -458,14 +658,94 @@ class _DetallePedidoPageState extends State<DetallePedidoPage> {
                                               ? Palette.statsWarning
                                               : purple,
                                         ),
-
+                                        const SizedBox(height: 10),
+                                        _ResumenRow(
+                                          label: 'Tipo pago',
+                                          value: _tipoPagoLabel(tipoPago),
+                                        ),
+                                        const SizedBox(height: 10),
+                                        Row(
+                                          children: [
+                                            Text(
+                                              'Estado pago',
+                                              style: TextStyle(
+                                                color: purple.withOpacity(0.75),
+                                                fontWeight: FontWeight.w800,
+                                                fontSize: 12.5,
+                                              ),
+                                            ),
+                                            const Spacer(),
+                                            Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                horizontal: 10,
+                                                vertical: 6,
+                                              ),
+                                              decoration: BoxDecoration(
+                                                color: paymentBadge.bg,
+                                                borderRadius:
+                                                    BorderRadius.circular(999),
+                                              ),
+                                              child: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  Icon(
+                                                    paymentBadge.icon,
+                                                    size: 14,
+                                                    color: Colors.white,
+                                                  ),
+                                                  const SizedBox(width: 6),
+                                                  Text(
+                                                    paymentBadge.label,
+                                                    style: const TextStyle(
+                                                      color: Colors.white,
+                                                      fontWeight: FontWeight.w900,
+                                                      fontSize: 11.5,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        if (esEfectivo) ...[
+                                          const SizedBox(height: 10),
+                                          Container(
+                                            width: double.infinity,
+                                            padding: const EdgeInsets.all(12),
+                                            decoration: BoxDecoration(
+                                              color: Palette.statsWarning
+                                                  .withOpacity(0.10),
+                                              borderRadius:
+                                                  BorderRadius.circular(14),
+                                              border: Border.all(
+                                                color: Palette.statsWarning
+                                                    .withOpacity(0.22),
+                                              ),
+                                            ),
+                                            child: Text(
+                                              'Recuerda pagar al repartidor cuando tu entrega sea completada, por favor 😊',
+                                              style: TextStyle(
+                                                color: purple.withOpacity(0.92),
+                                                fontWeight: FontWeight.w700,
+                                                height: 1.35,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                        if (motivoRechazoPago.isNotEmpty) ...[
+                                          const SizedBox(height: 10),
+                                          _ReasonBox(
+                                            title: 'Motivo del rechazo',
+                                            text: motivoRechazoPago,
+                                          ),
+                                        ],
                                         const SizedBox(height: 10),
                                         Divider(
                                           color: purple.withOpacity(0.12),
                                           height: 1,
                                         ),
                                         const SizedBox(height: 10),
-
                                         _ResumenRow(
                                           label: 'Productos',
                                           value:
@@ -496,10 +776,155 @@ class _DetallePedidoPageState extends State<DetallePedidoPage> {
                                       ],
                                     ),
                                   ),
-
+                                  if (!esEfectivo && comprobanteUrl.isNotEmpty) ...[
+                                    const SizedBox(height: 14),
+                                    _ClientComprobanteCard(
+                                      comprobanteUrl: _nuevoComprobanteBytes != null
+                                          ? null
+                                          : comprobanteUrl,
+                                      comprobanteNombre:
+                                          _nuevoComprobanteNombre ??
+                                          comprobanteNombre,
+                                      localBytes: _nuevoComprobanteBytes,
+                                    ),
+                                  ] else if (!esEfectivo &&
+                                      _nuevoComprobanteBytes != null) ...[
+                                    const SizedBox(height: 14),
+                                    _ClientComprobanteCard(
+                                      comprobanteUrl: null,
+                                      comprobanteNombre:
+                                          _nuevoComprobanteNombre ?? '',
+                                      localBytes: _nuevoComprobanteBytes,
+                                    ),
+                                  ],
+                                  if (!esEfectivo && pagoRechazado) ...[
+                                    const SizedBox(height: 14),
+                                    Container(
+                                      decoration: BoxDecoration(
+                                        color: Palette.card,
+                                        borderRadius: BorderRadius.circular(18),
+                                        border: Border.all(
+                                          color: Colors.white.withOpacity(0.65),
+                                        ),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color:
+                                                Colors.black.withOpacity(0.06),
+                                            blurRadius: 18,
+                                            offset: const Offset(0, 10),
+                                          ),
+                                        ],
+                                      ),
+                                      padding: const EdgeInsets.all(14),
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Row(
+                                            children: [
+                                              Icon(
+                                                Icons.refresh_rounded,
+                                                color: purple,
+                                                size: 18,
+                                              ),
+                                              const SizedBox(width: 8),
+                                              Text(
+                                                'Reenviar comprobante',
+                                                style: TextStyle(
+                                                  color: purple,
+                                                  fontWeight: FontWeight.w900,
+                                                  fontSize: 14,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 10),
+                                          Text(
+                                            'Tu pago fue rechazado. Puedes subir una nueva imagen del comprobante y reenviarla para revisión.',
+                                            style: TextStyle(
+                                              color: purple.withOpacity(0.82),
+                                              fontWeight: FontWeight.w700,
+                                              height: 1.35,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 14),
+                                          Row(
+                                            children: [
+                                              Expanded(
+                                                child: OutlinedButton.icon(
+                                                  onPressed: _pickingComprobante
+                                                      ? null
+                                                      : _pickNuevoComprobante,
+                                                  icon: _pickingComprobante
+                                                      ? SizedBox(
+                                                          width: 16,
+                                                          height: 16,
+                                                          child:
+                                                              CircularProgressIndicator(
+                                                            strokeWidth: 2,
+                                                            color: purple,
+                                                          ),
+                                                        )
+                                                      : const Icon(
+                                                          Icons.image_outlined,
+                                                        ),
+                                                  label: Text(
+                                                    _nuevoComprobanteBytes == null
+                                                        ? 'Cambiar imagen de comprobante'
+                                                        : 'Cambiar nuevamente',
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 10),
+                                          SizedBox(
+                                            width: double.infinity,
+                                            child: ElevatedButton.icon(
+                                              onPressed:
+                                                  (_reenviandoComprobante ||
+                                                          _nuevoComprobanteBytes ==
+                                                              null)
+                                                      ? null
+                                                      : _reenviarComprobante,
+                                              icon: _reenviandoComprobante
+                                                  ? const SizedBox(
+                                                      width: 16,
+                                                      height: 16,
+                                                      child:
+                                                          CircularProgressIndicator(
+                                                        strokeWidth: 2,
+                                                        color: Colors.white,
+                                                      ),
+                                                    )
+                                                  : const Icon(
+                                                      Icons.send_rounded,
+                                                    ),
+                                              label: Text(
+                                                _reenviandoComprobante
+                                                    ? 'Reenviando...'
+                                                    : 'Reenviar comprobante',
+                                              ),
+                                              style: ElevatedButton.styleFrom(
+                                                backgroundColor: Palette.button,
+                                                foregroundColor: Colors.white,
+                                                elevation: 0,
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                  vertical: 14,
+                                                ),
+                                                shape: RoundedRectangleBorder(
+                                                  borderRadius:
+                                                      BorderRadius.circular(14),
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
                                   const SizedBox(height: 14),
-
-                                  // Título productos
                                   Row(
                                     children: [
                                       Icon(
@@ -527,7 +952,6 @@ class _DetallePedidoPageState extends State<DetallePedidoPage> {
                                     ],
                                   ),
                                   const SizedBox(height: 10),
-
                                   if (items.isEmpty)
                                     Padding(
                                       padding: const EdgeInsets.only(top: 18),
@@ -564,8 +988,6 @@ class _DetallePedidoPageState extends State<DetallePedidoPage> {
                                 ],
                               ),
                             ),
-
-                            // Barra inferior: Seguimiento
                             Container(
                               padding:
                                   const EdgeInsets.fromLTRB(16, 12, 16, 14),
@@ -573,7 +995,8 @@ class _DetallePedidoPageState extends State<DetallePedidoPage> {
                                 color: Palette.white,
                                 border: Border(
                                   top: BorderSide(
-                                      color: purple.withOpacity(0.10)),
+                                    color: purple.withOpacity(0.10),
+                                  ),
                                 ),
                                 boxShadow: [
                                   BoxShadow(
@@ -639,8 +1062,6 @@ class _DetallePedidoPageState extends State<DetallePedidoPage> {
   }
 }
 
-/* ---------------- UI: resumen rows ---------------- */
-
 class _ResumenRow extends StatelessWidget {
   const _ResumenRow({
     required this.label,
@@ -685,7 +1106,277 @@ class _ResumenRow extends StatelessWidget {
   }
 }
 
-/* ---------------- UI: item row ---------------- */
+class _ReasonBox extends StatelessWidget {
+  const _ReasonBox({
+    required this.title,
+    required this.text,
+  });
+
+  final String title;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Palette.statsDanger.withOpacity(0.10),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: Palette.statsDanger.withOpacity(0.25),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              color: Palette.statsDanger,
+              fontWeight: FontWeight.w900,
+              fontSize: 12.5,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            text,
+            style: TextStyle(
+              color: Palette.primary.withOpacity(0.92),
+              fontWeight: FontWeight.w700,
+              height: 1.35,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ClientComprobanteCard extends StatelessWidget {
+  const _ClientComprobanteCard({
+    required this.comprobanteUrl,
+    required this.comprobanteNombre,
+    required this.localBytes,
+  });
+
+  final String? comprobanteUrl;
+  final String comprobanteNombre;
+  final Uint8List? localBytes;
+
+  @override
+  Widget build(BuildContext context) {
+    final purple = Palette.primary;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Palette.card,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.white.withOpacity(0.65)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 18,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.receipt_long_rounded, color: purple, size: 18),
+              const SizedBox(width: 8),
+              Text(
+                'Comprobante',
+                style: TextStyle(
+                  color: purple,
+                  fontWeight: FontWeight.w900,
+                  fontSize: 14,
+                ),
+              ),
+            ],
+          ),
+          if (comprobanteNombre.trim().isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Text(
+              comprobanteNombre,
+              style: TextStyle(
+                color: purple.withOpacity(0.85),
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
+          const SizedBox(height: 10),
+          GestureDetector(
+            onTap: () {
+              showDialog(
+                context: context,
+                barrierColor: Colors.black.withOpacity(0.9),
+                builder: (_) => _ComprobanteZoomDialog(
+                  imageUrl: comprobanteUrl,
+                  title: comprobanteNombre,
+                  localBytes: localBytes,
+                ),
+              );
+            },
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Palette.white.withOpacity(0.75),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: purple.withOpacity(0.10)),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: AspectRatio(
+                  aspectRatio: 1.15,
+                  child: localBytes != null
+                      ? Image.memory(localBytes!, fit: BoxFit.contain)
+                      : Image.network(
+                          comprobanteUrl ?? '',
+                          fit: BoxFit.contain,
+                          errorBuilder: (_, __, ___) {
+                            return Center(
+                              child: Text(
+                                'No se pudo cargar el comprobante.',
+                                style: TextStyle(
+                                  color: purple.withOpacity(0.75),
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            );
+                          },
+                          loadingBuilder: (context, child, progress) {
+                            if (progress == null) return child;
+                            return const Center(
+                              child: CircularProgressIndicator(),
+                            );
+                          },
+                        ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Toca la imagen para verla completa.',
+            style: TextStyle(
+              color: purple.withOpacity(0.70),
+              fontWeight: FontWeight.w700,
+              fontSize: 12,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ComprobanteZoomDialog extends StatelessWidget {
+  const _ComprobanteZoomDialog({
+    required this.imageUrl,
+    required this.title,
+    required this.localBytes,
+  });
+
+  final String? imageUrl;
+  final String title;
+  final Uint8List? localBytes;
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      insetPadding: const EdgeInsets.all(12),
+      backgroundColor: Colors.transparent,
+      child: Stack(
+        children: [
+          Container(
+            width: double.infinity,
+            height: double.infinity,
+            color: Colors.black.withOpacity(0.92),
+            child: Column(
+              children: [
+                const SizedBox(height: 16),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          title.trim().isEmpty ? 'Comprobante' : title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.pop(context),
+                        icon: const Icon(
+                          Icons.close_rounded,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Expanded(
+                  child: InteractiveViewer(
+                    minScale: 0.8,
+                    maxScale: 5,
+                    panEnabled: true,
+                    child: Center(
+                      child: localBytes != null
+                          ? Image.memory(localBytes!, fit: BoxFit.contain)
+                          : Image.network(
+                              imageUrl ?? '',
+                              fit: BoxFit.contain,
+                              errorBuilder: (_, __, ___) {
+                                return const Text(
+                                  'No se pudo cargar la imagen.',
+                                  style: TextStyle(color: Colors.white),
+                                );
+                              },
+                              loadingBuilder: (context, child, progress) {
+                                if (progress == null) return child;
+                                return const CircularProgressIndicator(
+                                  color: Colors.white,
+                                );
+                              },
+                            ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 16),
+                  child: Text(
+                    'Usa dos dedos para hacer zoom y arrastra para mover la imagen.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Colors.white70,
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
 class _PedidoItemRow extends StatelessWidget {
   const _PedidoItemRow({
@@ -819,12 +1510,10 @@ class _Pill extends StatelessWidget {
   }
 }
 
-/* ---------------- Seguimiento (normal) ---------------- */
-
 class _TrackingRow extends StatelessWidget {
   const _TrackingRow({required this.activeIndex, required this.purple});
 
-  final int activeIndex; // 0..3
+  final int activeIndex;
   final Color purple;
 
   @override
@@ -846,9 +1535,7 @@ class _TrackingRow extends StatelessWidget {
             child: _TrackDot(
               label: steps[i].label,
               icon: steps[i].icon,
-              // ✅ si ya está finalizado, también el último cuenta como done
               done: isFinished ? (i <= activeIndex) : (i < activeIndex),
-              // ✅ si ya finalizó, no hay “active” morado (todo queda en done)
               active: isFinished ? false : (i == activeIndex),
             ),
           ),
@@ -942,8 +1629,6 @@ class _TrackNode {
   const _TrackNode(this.label, this.icon);
 }
 
-/* ---------------- Especiales (ocultos por ahora) ---------------- */
-
 enum _SpecialType { retrasado, cancelado }
 
 class _SpecialStateBanner extends StatelessWidget {
@@ -988,8 +1673,6 @@ class _SpecialStateBanner extends StatelessWidget {
   }
 }
 
-/* ---------------- Models ---------------- */
-
 enum _TrackStep {
   pendiente,
   aceptado,
@@ -1005,4 +1688,16 @@ class _BadgeMeta {
   final Color bg;
 
   _BadgeMeta(this.label, this.icon, this.bg);
+}
+
+class _PaymentBadgeMeta {
+  final String label;
+  final IconData icon;
+  final Color bg;
+
+  _PaymentBadgeMeta({
+    required this.label,
+    required this.icon,
+    required this.bg,
+  });
 }

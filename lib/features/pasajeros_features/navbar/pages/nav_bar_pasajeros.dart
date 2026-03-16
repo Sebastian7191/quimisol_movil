@@ -212,7 +212,7 @@ class _BottomPillNavbarAnimated extends StatelessWidget {
   Widget build(BuildContext context) {
     final items = const <_NavItem>[
       _NavItem(icon: Icons.storefront_rounded, label: 'Principal'),
-      _NavItem(icon: Icons.favorite_rounded, label: 'Deseados'),
+      _NavItem(icon: Icons.favorite_rounded, label: 'Favoritos'),
       _NavItem(icon: Icons.shopping_cart_outlined, label: 'Pedidos'),
       _NavItem(icon: Icons.support_agent_rounded, label: 'Soporte'),
       _NavItem(icon: Icons.person_outline_rounded, label: 'Perfil'),

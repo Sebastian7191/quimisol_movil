@@ -26,7 +26,9 @@ class PedidosController {
 
       return p.codigo.toLowerCase().contains(q) ||
           p.direccion.toLowerCase().contains(q) ||
-          p.departamento.toLowerCase().contains(q);
+          p.departamento.toLowerCase().contains(q) ||
+          p.tipoPago.toLowerCase().contains(q) ||
+          p.estadoPago.toLowerCase().contains(q);
     }).toList();
   }
 
@@ -61,7 +63,7 @@ class PedidosController {
     return row.copyWith(fechaLabel: fecha, totalLabel: total);
   }
 
-  // Formato de moneda 
+  // Formato de moneda
   String money(double v) {
     final s = v.toStringAsFixed(2);
     return "$s Bs";

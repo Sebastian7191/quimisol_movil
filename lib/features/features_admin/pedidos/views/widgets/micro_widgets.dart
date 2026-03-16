@@ -23,6 +23,54 @@ String normalizeEstado(dynamic v) {
   return s;
 }
 
+String normalizeTipoPago(dynamic v) {
+  final s = (v ?? '').toString().trim().toLowerCase();
+  if (s.isEmpty) return 'efectivo';
+
+  if (s.contains('qr')) return 'qr';
+  if (s.contains('efect')) return 'efectivo';
+
+  return s;
+}
+
+String normalizeEstadoPago(dynamic v) {
+  final s = (v ?? '').toString().trim().toLowerCase();
+  if (s.isEmpty) return 'pendiente';
+
+  if (s.contains('pend')) return 'pendiente';
+  if (s.contains('pag')) return 'pagado';
+  if (s.contains('rech')) return 'rechazado';
+  if (s.contains('verif')) return 'verificando';
+
+  return s;
+}
+
+String labelTipoPago(String v) {
+  switch (normalizeTipoPago(v)) {
+    case 'qr':
+      return 'QR';
+    case 'efectivo':
+      return 'Efectivo';
+    default:
+      return v.isEmpty ? '-' : v;
+  }
+}
+
+String labelEstadoPago(String v) {
+  switch (normalizeEstadoPago(v)) {
+    case 'pendiente':
+      return 'Pendiente';
+    case 'pagado':
+      return 'Pagado';
+    case 'rechazado':
+      return 'Rechazado';
+    case 'verificando':
+      return 'Verificando';
+    default:
+      return v.isEmpty ? '-' : v;
+  }
+}
+
 Color estadoColor(String s) {
   switch (normalizeEstado(s)) {
     case kEstadoEntregado:
@@ -34,6 +82,20 @@ Color estadoColor(String s) {
     case kEstadoAceptado:
       return Palette.secondary;
     case kEstadoPendiente:
+    default:
+      return Palette.primary;
+  }
+}
+
+Color estadoPagoColor(String s) {
+  switch (normalizeEstadoPago(s)) {
+    case 'pagado':
+      return Palette.statsSuccess;
+    case 'rechazado':
+      return Palette.statsDanger;
+    case 'verificando':
+      return Palette.button;
+    case 'pendiente':
     default:
       return Palette.primary;
   }
@@ -69,6 +131,30 @@ Widget statusPill(String estado) {
     ),
     child: Text(
       labelFor(estado),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: TextStyle(
+        color: ink,
+        fontWeight: FontWeight.w900,
+        fontSize: 12,
+      ),
+    ),
+  );
+}
+
+Widget paymentPill(String estadoPago) {
+  final ink = Palette.ink;
+  final c = estadoPagoColor(estadoPago);
+
+  return Container(
+    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+    decoration: BoxDecoration(
+      color: c.withValues(alpha: 0.14),
+      borderRadius: BorderRadius.circular(999),
+      border: Border.all(color: c.withValues(alpha: 0.28)),
+    ),
+    child: Text(
+      labelEstadoPago(estadoPago),
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
       style: TextStyle(
@@ -284,8 +370,14 @@ class PedidoCard extends StatelessWidget {
     final address = p.direccion.trim();
     final depto = p.departamento.trim();
     final conteo = p.conteoItems;
-    final fecha = p.fechaLabel.isNotEmpty ? p.fechaLabel : formatDateTime(p.createdAt);
-    final totalLabel = p.totalLabel.isNotEmpty ? p.totalLabel : '${p.totalFinal.toStringAsFixed(2)} Bs';
+    final fecha =
+        p.fechaLabel.isNotEmpty ? p.fechaLabel : formatDateTime(p.createdAt);
+    final totalLabel = p.totalLabel.isNotEmpty
+        ? p.totalLabel
+        : '${p.totalFinal.toStringAsFixed(2)} Bs';
+
+    final tipoPago = labelTipoPago(p.tipoPago);
+    final estadoPago = p.estadoPago;
 
     return LayoutBuilder(
       builder: (context, box) {
@@ -409,9 +501,27 @@ class PedidoCard extends StatelessWidget {
                           spacing: 10,
                           runSpacing: 8,
                           children: [
-                            if (depto.isNotEmpty) miniPill(Icons.map_rounded, depto),
-                            miniPill(Icons.shopping_bag_rounded, 'Items: $conteo'),
+                            if (depto.isNotEmpty)
+                              miniPill(Icons.map_rounded, depto),
+                            miniPill(
+                              Icons.shopping_bag_rounded,
+                              'Items: $conteo',
+                            ),
                             miniPill(Icons.payments_rounded, totalLabel),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 10,
+                          runSpacing: 8,
+                          children: [
+                            miniPill(
+                              p.tipoPago == 'qr'
+                                  ? Icons.qr_code_rounded
+                                  : Icons.payments_outlined,
+                              'Pago: $tipoPago',
+                            ),
+                            paymentPill(estadoPago),
                           ],
                         ),
                       ],

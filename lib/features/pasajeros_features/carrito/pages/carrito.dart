@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 
 import 'package:quimisol_movil/core/theme/palette.dart';
 import 'package:quimisol_movil/features/pasajeros_features/carrito/pages/carrito_store.dart';
+import 'package:quimisol_movil/features/pasajeros_features/pagos/pages/metodo_pago_page.dart';
 
 class CarritoPage extends StatefulWidget {
   const CarritoPage({super.key});
@@ -276,6 +277,46 @@ class _CarritoPageState extends State<CarritoPage> {
     }
   }
 
+  Future<void> _goToPaymentPage() async {
+    if (_uid.isEmpty) return;
+    if (_items.isEmpty) return;
+
+    if (_selectedUbic == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Selecciona una ubicación para la entrega.'),
+        ),
+      );
+      return;
+    }
+
+    if (_allowedDeptos.isNotEmpty &&
+        !_allowedDeptos
+            .map(_norm)
+            .contains(_norm(_selectedUbic!.departamento))) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'La ubicación debe ser del mismo departamento del almacén.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => MetodoPagoPage(
+          ubicacion: _selectedUbic!,
+          subtotal: _subtotal,
+          shipping: _shipping,
+          total: _total,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final primary = Palette.button;
@@ -474,7 +515,7 @@ class _CarritoPageState extends State<CarritoPage> {
                   ),
                   onPressed: (_items.isEmpty || _paying || _loadingDeptos)
                       ? null
-                      : _payNow,
+                      : _goToPaymentPage,
                   child: _paying
                       ? const SizedBox(
                           width: 18,
@@ -972,11 +1013,10 @@ class _CartCard extends StatelessWidget {
                                                 key: const ValueKey('load'),
                                                 width: 14,
                                                 height: 14,
-                                                child:
-                                                    CircularProgressIndicator(
-                                                      strokeWidth: 2,
-                                                      color: primary,
-                                                    ),
+                                                child: CircularProgressIndicator(
+                                                  strokeWidth: 2,
+                                                  color: primary,
+                                                ),
                                               )
                                             : const SizedBox(
                                                 key: ValueKey('none'),
@@ -997,7 +1037,7 @@ class _CartCard extends StatelessWidget {
                                     ),
                                     const SizedBox(height: 3),
                                     Text(
-                                      line, // ✅ debajo (no a lado)
+                                      line,
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                       style: TextStyle(
@@ -1107,7 +1147,6 @@ class _QtyPillState extends State<_QtyPill> {
               onTap: widget.onMinus,
               color: widget.primary,
             ),
-
             SizedBox(
               width: 34,
               child: TextField(
@@ -1130,7 +1169,6 @@ class _QtyPillState extends State<_QtyPill> {
                 onTapOutside: (_) => _commit(),
               ),
             ),
-
             _QtyBtn(
               icon: Icons.add_rounded,
               onTap: widget.onPlus,

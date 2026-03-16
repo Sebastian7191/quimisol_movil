@@ -13,7 +13,6 @@ class PedidoDetalleData {
 
   final String uidCliente;
 
-  // ✅ NUEVO: almacenId (si existe en el pedido)
   final String almacenId;
 
   final DateTime? fechaEnvio;
@@ -28,6 +27,12 @@ class PedidoDetalleData {
   final List<PedidoItemData> items;
 
   final DateTime? createdAt;
+
+  final String tipoPago;
+  final String estadoPago;
+  final String comprobanteUrl;
+  final String comprobanteNombre;
+  final String motivoRechazoPago;
 
   PedidoDetalleData({
     required this.id,
@@ -46,6 +51,11 @@ class PedidoDetalleData {
     required this.totalFinal,
     required this.items,
     required this.createdAt,
+    required this.tipoPago,
+    required this.estadoPago,
+    required this.comprobanteUrl,
+    required this.comprobanteNombre,
+    required this.motivoRechazoPago,
   });
 
   factory PedidoDetalleData.fromDoc(
@@ -64,7 +74,6 @@ class PedidoDetalleData {
     final totalProductos = items.fold<double>(0, (sumT, e) => sumT + e.subtotal);
     final costoEnvio = _asDouble(data['costo_envio']);
 
-    // ✅ almacenId desde el pedido (varias posibles llaves)
     final almacenId = (data['almacenId'] ??
             data['almacen_id'] ??
             data['almacenUid'] ??
@@ -73,7 +82,6 @@ class PedidoDetalleData {
         .toString()
         .trim();
 
-    // ✅ departamento: primero el campo directo, si no, desde ubicacion
     final dep = ((data['departamento'] ?? '').toString().trim().isNotEmpty
             ? (data['departamento'] ?? '').toString()
             : (ubic['departamento'] ?? '').toString())
@@ -95,26 +103,30 @@ class PedidoDetalleData {
       id: doc.id,
       codigo: (data['codigo'] ?? '—').toString(),
       estado: (data['estado'] ?? 'pendiente').toString(),
-
       direccion: direccion,
       departamento: dep,
       ubicacionNombre: ubicNombre,
-
       uidCliente: (data['uid'] ?? '').toString().trim(),
-
       almacenId: almacenId,
-
       fechaEnvio: _tsToDate(data['fecha_envio']),
       costoEnvio: costoEnvio,
-
       repartidorUid: repUidRaw.isEmpty ? null : repUidRaw,
       repartidorNombre: repNombreRaw.isEmpty ? null : repNombreRaw,
-
       totalProductos: totalProductos,
       totalFinal: totalProductos + costoEnvio,
-
       items: items,
       createdAt: _tsToDate(data['createdAt']),
+      tipoPago: _normalizeTipoPago(
+        data['tipo_pago'] ?? data['tipoPago'],
+      ),
+      estadoPago: _normalizeEstadoPago(
+        data['estado_pago'] ?? data['estadoPago'],
+      ),
+      comprobanteUrl: (data['comprobante_url'] ?? '').toString().trim(),
+      comprobanteNombre: (data['comprobante_nombre'] ?? '').toString().trim(),
+      motivoRechazoPago: (data['motivo_rechazo_pago'] ?? '')
+          .toString()
+          .trim(),
     );
   }
 }
@@ -137,4 +149,25 @@ Map<String, dynamic> _asMap(dynamic v) {
   if (v is Map) return Map<String, dynamic>.from(v);
   return <String, dynamic>{};
 }
- 
+
+String _normalizeTipoPago(dynamic v) {
+  final s = (v ?? '').toString().trim().toLowerCase();
+  if (s.isEmpty) return 'efectivo';
+
+  if (s.contains('qr')) return 'qr';
+  if (s.contains('efect')) return 'efectivo';
+
+  return s;
+}
+
+String _normalizeEstadoPago(dynamic v) {
+  final s = (v ?? '').toString().trim().toLowerCase();
+  if (s.isEmpty) return 'pendiente';
+
+  if (s.contains('pend')) return 'pendiente';
+  if (s.contains('pag')) return 'pagado';
+  if (s.contains('rech')) return 'rechazado';
+  if (s.contains('verif')) return 'verificando';
+
+  return s;
+}

@@ -1,7 +1,13 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:quimisol_movil/core/theme/palette.dart';
+import 'package:quimisol_movil/features/features_admin/laboratorios/models/cliente_mayorista_option.dart';
+import 'package:quimisol_movil/features/features_admin/laboratorios/widgets/laboratorios_form/form_parte1.dart';
+import 'package:quimisol_movil/features/features_admin/laboratorios/widgets/laboratorios_form/form_parte2.dart';
+import 'package:quimisol_movil/features/features_admin/laboratorios/widgets/laboratorios_form/form_parte3.dart';
+import 'package:quimisol_movil/features/features_admin/laboratorios/widgets/laboratorios_form/form_parte4.dart';
+import 'package:quimisol_movil/features/features_admin/laboratorios/widgets/laboratorios_form/form_parte5.dart';
+import 'package:quimisol_movil/features/features_admin/laboratorios/widgets/laboratorios_form/laboratorio_form_models.dart';
 
 class LaboratorioFormPage extends StatefulWidget {
   final Map<String, dynamic>? initialData;
@@ -70,20 +76,13 @@ class _LaboratorioFormPageState extends State<LaboratorioFormPage> {
     'L',
   ];
 
-  final List<String> _tiposEnvase = const [
-    'P',
-    'V',
-    'VA',
-    'VB',
-    'B',
-  ];
+  final List<String> _tiposEnvase = const ['P', 'V', 'VA', 'VB', 'B'];
 
-  final List<String> _cumpleOptions = const [
-    'SI',
-    'NO',
-    'N/A',
-    '-',
-  ];
+  final List<String> _cumpleOptions = const ['SI', 'NO', 'N/A', '-'];
+
+  List<ClienteMayoristaOption> _clientesMayoristas = [];
+  String? _clienteMayoristaSeleccionadoId;
+  bool _cargandoClientesMayoristas = true;
 
   @override
   void initState() {
@@ -92,16 +91,25 @@ class _LaboratorioFormPageState extends State<LaboratorioFormPage> {
     final data = widget.initialData ?? {};
 
     final encabezado = Map<String, dynamic>.from(data['encabezado'] ?? {});
-    final infoCliente =
-        Map<String, dynamic>.from(data['informacionGeneralCliente'] ?? {});
-    final datosGenerales = Map<String, dynamic>.from(data['datosGenerales'] ?? {});
-    final descripcionMuestras =
-        Map<String, dynamic>.from(data['descripcionMuestras'] ?? {});
-    final infoMuestras =
-        Map<String, dynamic>.from(data['informacionMuestras'] ?? {});
+    final infoCliente = Map<String, dynamic>.from(
+      data['informacionGeneralCliente'] ?? {},
+    );
+    final datosGenerales = Map<String, dynamic>.from(
+      data['datosGenerales'] ?? {},
+    );
+    final descripcionMuestras = Map<String, dynamic>.from(
+      data['descripcionMuestras'] ?? {},
+    );
+    final infoMuestras = Map<String, dynamic>.from(
+      data['informacionMuestras'] ?? {},
+    );
     final recepcion = Map<String, dynamic>.from(data['recepcion'] ?? {});
-    final entregadoPor = Map<String, dynamic>.from(recepcion['entregadoPor'] ?? {});
-    final recibidoPor = Map<String, dynamic>.from(recepcion['recibidoPor'] ?? {});
+    final entregadoPor = Map<String, dynamic>.from(
+      recepcion['entregadoPor'] ?? {},
+    );
+    final recibidoPor = Map<String, dynamic>.from(
+      recepcion['recibidoPor'] ?? {},
+    );
 
     _idCtrl = TextEditingController(
       text: (data['id'] ?? _generarId()).toString(),
@@ -178,31 +186,33 @@ class _LaboratorioFormPageState extends State<LaboratorioFormPage> {
 
     _temperaturaNoAplica = datosGenerales['temperaturaNoAplica'] == true;
     _muestreoPorQuimisol = datosGenerales['muestreoPorQuimisol'] == true;
-    _muestraTomadaPorCliente = datosGenerales['muestraTomadaPorCliente'] == true;
+    _muestraTomadaPorCliente =
+        datosGenerales['muestraTomadaPorCliente'] == true;
 
     final muestrasData = (descripcionMuestras['muestras'] as List?) ?? [];
     if (muestrasData.isNotEmpty) {
       _muestras = muestrasData
-          .map((e) => MuestraFormItem.fromMap(
-                Map<String, dynamic>.from(e),
-                tiposMuestraValidos: _tiposMuestra,
-                tiposEnvaseValidos: _tiposEnvase,
-              ))
+          .map(
+            (e) => MuestraFormItem.fromMap(
+              Map<String, dynamic>.from(e),
+              tiposMuestraValidos: _tiposMuestra,
+              tiposEnvaseValidos: _tiposEnvase,
+            ),
+          )
           .toList();
     } else {
-      _muestras = List.generate(
-        2,
-        (index) => MuestraFormItem(no: index + 1),
-      );
+      _muestras = List.generate(2, (index) => MuestraFormItem(no: index + 1));
     }
 
     final checklistData = (infoMuestras['items'] as List?) ?? [];
     if (checklistData.isNotEmpty) {
       _checklist = checklistData
-          .map((e) => ChecklistFormItem.fromMap(
-                Map<String, dynamic>.from(e),
-                cumpleValidos: _cumpleOptions,
-              ))
+          .map(
+            (e) => ChecklistFormItem.fromMap(
+              Map<String, dynamic>.from(e),
+              cumpleValidos: _cumpleOptions,
+            ),
+          )
           .toList();
     } else {
       _checklist = [
@@ -255,11 +265,74 @@ class _LaboratorioFormPageState extends State<LaboratorioFormPage> {
 
     _reordenarMuestras();
     _reordenarChecklist();
+    _cargarClientesMayoristas();
   }
 
   String _generarId() {
     final now = DateTime.now();
     return 'LAB-${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}-${now.millisecond.toString().padLeft(3, '0')}';
+  }
+
+  Future<void> _cargarClientesMayoristas() async {
+    try {
+      final snap = await FirebaseFirestore.instance
+          .collection('clientes_mayoristas')
+          .get();
+
+      final items = snap.docs.map((doc) {
+        final data = doc.data();
+        final nombre = (data['name'] ?? '').toString().trim();
+
+        return ClienteMayoristaOption(
+          id: doc.id,
+          nombre: nombre.isEmpty ? 'Sin nombre' : nombre,
+        );
+      }).toList();
+
+      String? selectedId;
+      final empresaActual = _empresaClienteCtrl.text.trim();
+
+      if (empresaActual.isNotEmpty) {
+        for (final item in items) {
+          if (item.nombre == empresaActual) {
+            selectedId = item.id;
+            break;
+          }
+        }
+      }
+
+      if (!mounted) return;
+      setState(() {
+        _clientesMayoristas = items;
+        _clienteMayoristaSeleccionadoId = selectedId;
+        _cargandoClientesMayoristas = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _clientesMayoristas = [];
+        _clienteMayoristaSeleccionadoId = null;
+        _cargandoClientesMayoristas = false;
+      });
+    }
+  }
+
+  void _onClienteMayoristaChanged(String? clienteId) {
+    setState(() {
+      _clienteMayoristaSeleccionadoId = clienteId;
+
+      ClienteMayoristaOption? seleccionado;
+      for (final item in _clientesMayoristas) {
+        if (item.id == clienteId) {
+          seleccionado = item;
+          break;
+        }
+      }
+
+      final nombre = seleccionado?.nombre ?? '';
+      _empresaClienteCtrl.text = nombre;
+      _solicitanteCtrl.text = nombre;
+    });
   }
 
   void _reordenarMuestras() {
@@ -350,22 +423,54 @@ class _LaboratorioFormPageState extends State<LaboratorioFormPage> {
   String? _validarFecha(String? value) {
     final v = (value ?? '').trim();
     if (v.isEmpty) return null;
+
     final regex = RegExp(r'^\d{2}/\d{2}/\d{4}$');
     if (!regex.hasMatch(v)) return 'Usa formato MM/DD/YYYY';
+
+    final parts = v.split('/');
+    final mes = int.tryParse(parts[0]) ?? -1;
+    final dia = int.tryParse(parts[1]) ?? -1;
+    final anio = int.tryParse(parts[2]) ?? -1;
+
+    if (mes < 1 || mes > 12) return 'Mes inválido';
+    if (anio < 1 || anio > DateTime.now().year) return 'Año inválido';
+    if (dia < 1) return 'Día inválido';
+
+    final fecha = DateTime.tryParse(
+      '${anio.toString().padLeft(4, '0')}-${mes.toString().padLeft(2, '0')}-${dia.toString().padLeft(2, '0')}',
+    );
+
+    if (fecha == null ||
+        fecha.year != anio ||
+        fecha.month != mes ||
+        fecha.day != dia) {
+      return 'Fecha inválida';
+    }
+
+    final hoy = DateTime.now();
+    final hoySinHora = DateTime(hoy.year, hoy.month, hoy.day);
+    if (fecha.isAfter(hoySinHora)) {
+      return 'La fecha no puede ser futura';
+    }
+
     return null;
   }
 
   String? _validarHora(String? value) {
     final v = (value ?? '').trim();
     if (v.isEmpty) return null;
+
     final regex = RegExp(r'^\d{2}:\d{2}$');
     if (!regex.hasMatch(v)) return 'Usa formato HH:mm';
+
     final parts = v.split(':');
     final hh = int.tryParse(parts[0]) ?? -1;
     final mm = int.tryParse(parts[1]) ?? -1;
+
     if (hh < 0 || hh > 23 || mm < 0 || mm > 59) {
       return 'Hora inválida';
     }
+
     return null;
   }
 
@@ -442,8 +547,7 @@ class _LaboratorioFormPageState extends State<LaboratorioFormPage> {
           'nombre': _recibidoNombreCtrl.text.trim(),
           'fecha': _recibidoFechaCtrl.text.trim(),
         },
-        'observacionesAdicionales':
-            _observacionesAdicionalesCtrl.text.trim(),
+        'observacionesAdicionales': _observacionesAdicionalesCtrl.text.trim(),
       },
     };
 
@@ -481,7 +585,7 @@ class _LaboratorioFormPageState extends State<LaboratorioFormPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('No se pudo guardar: $e'),
-          backgroundColor: Colors.red.shade600,
+          backgroundColor: Colors.red,
         ),
       );
       return;
@@ -490,6 +594,11 @@ class _LaboratorioFormPageState extends State<LaboratorioFormPage> {
     if (mounted) {
       setState(() => _guardando = false);
     }
+  }
+
+  T? _safeDropdownValue<T>(T? value, List<T> items) {
+    if (value == null) return null;
+    return items.contains(value) ? value : null;
   }
 
   @override
@@ -512,29 +621,6 @@ class _LaboratorioFormPageState extends State<LaboratorioFormPage> {
               ),
             ),
             iconTheme: const IconThemeData(color: Colors.black87),
-            actions: [
-              Padding(
-                padding: const EdgeInsets.only(right: 12),
-                child: ElevatedButton.icon(
-                  onPressed: _guardando ? null : _guardar,
-                  icon: _guardando
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : const Icon(Icons.save_rounded),
-                  label: Text(_guardando ? 'Guardando...' : 'Guardar'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Palette.button,
-                    foregroundColor: Colors.white,
-                  ),
-                ),
-              ),
-            ],
           ),
           body: SafeArea(
             child: Form(
@@ -546,515 +632,88 @@ class _LaboratorioFormPageState extends State<LaboratorioFormPage> {
                     constraints: const BoxConstraints(maxWidth: 1200),
                     child: Column(
                       children: [
-                        _sectionCard(
-                          title: 'Cabecera del documento',
-                          child: Wrap(
-                            spacing: 12,
-                            runSpacing: 12,
-                            children: [
-                              _field(_codigoCtrl, 'Código', width: 220),
-                              _readOnlyField(_versionCtrl, 'Versión', width: 160),
-                              _field(_vigenciaCtrl, 'Vigencia', width: 180),
-                            ],
-                          ),
+                        FormParte1CabeceraCliente(
+                          isMobile: isMobile,
+                          codigoCtrl: _codigoCtrl,
+                          versionCtrl: _versionCtrl,
+                          vigenciaCtrl: _vigenciaCtrl,
+                          empresaClienteCtrl: _empresaClienteCtrl,
+                          solicitanteCtrl: _solicitanteCtrl,
+                          proyectoInstalacionCtrl: _proyectoInstalacionCtrl,
+                          direccionCtrl: _direccionCtrl,
+                          clientesMayoristas: _clientesMayoristas,
+                          clienteSeleccionadoId:
+                              _clienteMayoristaSeleccionadoId,
+                          cargandoClientesMayoristas:
+                              _cargandoClientesMayoristas,
+                          onClienteChanged: _onClienteMayoristaChanged,
                         ),
                         const SizedBox(height: 14),
-                        _sectionCard(
-                          title: 'I. Información general del cliente',
-                          child: Wrap(
-                            spacing: 12,
-                            runSpacing: 12,
-                            children: [
-                              _field(
-                                _empresaClienteCtrl,
-                                'Empresa / Cliente',
-                                width: isMobile ? double.infinity : 360,
-                                requiredField: true,
-                              ),
-                              _field(
-                                _solicitanteCtrl,
-                                'Solicitante',
-                                width: isMobile ? double.infinity : 360,
-                                requiredField: true,
-                              ),
-                              _field(
-                                _proyectoInstalacionCtrl,
-                                'Proyecto / Instalación',
-                                width: isMobile ? double.infinity : 360,
-                              ),
-                              _field(
-                                _direccionCtrl,
-                                'Dirección',
-                                width: isMobile ? double.infinity : 360,
-                              ),
-                            ],
-                          ),
+                        FormParte2DatosGenerales(
+                          isMobile: isMobile,
+                          fechaMuestreoCtrl: _fechaMuestreoCtrl,
+                          fechaRecepcionCtrl: _fechaRecepcionCtrl,
+                          horaRecepcionCtrl: _horaRecepcionCtrl,
+                          numeroCotizacionCtrl: _numeroCotizacionCtrl,
+                          temperaturaCtrl: _temperaturaCtrl,
+                          nombreTecnicoCtrl: _nombreTecnicoCtrl,
+                          temperaturaNoAplica: _temperaturaNoAplica,
+                          muestreoPorQuimisol: _muestreoPorQuimisol,
+                          muestraTomadaPorCliente: _muestraTomadaPorCliente,
+                          onTemperaturaNoAplicaChanged: (v) {
+                            setState(() => _temperaturaNoAplica = v ?? false);
+                          },
+                          onMuestreoPorQuimisolChanged: (v) {
+                            setState(() => _muestreoPorQuimisol = v ?? false);
+                          },
+                          onMuestraTomadaPorClienteChanged: (v) {
+                            setState(
+                              () => _muestraTomadaPorCliente = v ?? false,
+                            );
+                          },
+                          validarFecha: _validarFecha,
+                          validarHora: _validarHora,
                         ),
                         const SizedBox(height: 14),
-                        _sectionCard(
-                          title: 'II. Datos generales',
-                          child: Column(
-                            children: [
-                              Wrap(
-                                spacing: 12,
-                                runSpacing: 12,
-                                children: [
-                                  _field(
-                                    _fechaMuestreoCtrl,
-                                    'Fecha de muestreo',
-                                    width: 220,
-                                    inputFormatters: [
-                                      FilteringTextInputFormatter.digitsOnly,
-                                      DateTextInputFormatter(),
-                                    ],
-                                    keyboardType: TextInputType.number,
-                                    validator: _validarFecha,
-                                  ),
-                                  _field(
-                                    _fechaRecepcionCtrl,
-                                    'Fecha de recepción de muestra',
-                                    width: 260,
-                                    requiredField: true,
-                                    inputFormatters: [
-                                      FilteringTextInputFormatter.digitsOnly,
-                                      DateTextInputFormatter(),
-                                    ],
-                                    keyboardType: TextInputType.number,
-                                    validator: (v) {
-                                      if (v == null || v.trim().isEmpty) {
-                                        return 'Requerido';
-                                      }
-                                      return _validarFecha(v);
-                                    },
-                                  ),
-                                  _field(
-                                    _horaRecepcionCtrl,
-                                    'Hora de recepción de muestra',
-                                    width: 220,
-                                    requiredField: true,
-                                    inputFormatters: [
-                                      FilteringTextInputFormatter.digitsOnly,
-                                      TimeTextInputFormatter(),
-                                    ],
-                                    keyboardType: TextInputType.number,
-                                    validator: (v) {
-                                      if (v == null || v.trim().isEmpty) {
-                                        return 'Requerido';
-                                      }
-                                      return _validarHora(v);
-                                    },
-                                  ),
-                                  _field(
-                                    _numeroCotizacionCtrl,
-                                    'Número de cotización',
-                                    width: 220,
-                                  ),
-                                  _field(
-                                    _temperaturaCtrl,
-                                    'Temperatura del recipiente de la muestra (°C)',
-                                    width: isMobile ? double.infinity : 320,
-                                  ),
-                                  _field(
-                                    _nombreTecnicoCtrl,
-                                    'QUIMISOL / Nombre Tec.',
-                                    width: isMobile ? double.infinity : 320,
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 10),
-                              Wrap(
-                                spacing: 14,
-                                runSpacing: 8,
-                                children: [
-                                  CheckboxListTile(
-                                    dense: true,
-                                    value: _temperaturaNoAplica,
-                                    onChanged: (v) {
-                                      setState(() {
-                                        _temperaturaNoAplica = v ?? false;
-                                      });
-                                    },
-                                    title: const Text('No aplica'),
-                                    contentPadding: EdgeInsets.zero,
-                                    controlAffinity:
-                                        ListTileControlAffinity.leading,
-                                  ),
-                                  CheckboxListTile(
-                                    dense: true,
-                                    value: _muestreoPorQuimisol,
-                                    onChanged: (v) {
-                                      setState(() {
-                                        _muestreoPorQuimisol = v ?? false;
-                                      });
-                                    },
-                                    title: const Text('Muestreo por QUIMISOL'),
-                                    contentPadding: EdgeInsets.zero,
-                                    controlAffinity:
-                                        ListTileControlAffinity.leading,
-                                  ),
-                                  CheckboxListTile(
-                                    dense: true,
-                                    value: _muestraTomadaPorCliente,
-                                    onChanged: (v) {
-                                      setState(() {
-                                        _muestraTomadaPorCliente = v ?? false;
-                                      });
-                                    },
-                                    title:
-                                        const Text('Muestra tomada por cliente'),
-                                    contentPadding: EdgeInsets.zero,
-                                    controlAffinity:
-                                        ListTileControlAffinity.leading,
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
+                        FormParte3Muestras(
+                          isMobile: isMobile,
+                          muestras: _muestras,
+                          tiposMuestra: _tiposMuestra,
+                          tiposEnvase: _tiposEnvase,
+                          safeDropdownValue: _safeDropdownValue,
+                          onAgregarMuestra: _agregarMuestra,
+                          onEliminarMuestra: _eliminarMuestra,
+                          onTipoMuestraChanged: (item, value) {
+                            setState(() => item.tipoMuestra = value);
+                          },
+                          onTipoEnvaseChanged: (item, value) {
+                            setState(() => item.tipoEnvase = value);
+                          },
                         ),
                         const SizedBox(height: 14),
-                        _sectionCard(
-                          title: 'III. Descripción de las muestras',
-                          subtitle:
-                              'Tipo de muestra:\n'
-                              'AP = Agua Potable\n'
-                              'AC = Agua de consumo\n'
-                              'ARD = Agua Residual Doméstica\n'
-                              'ARI = Agua residual Industrial\n'
-                              'AB = Agua Subterránea\n'
-                              'AS = Agua Superficial\n'
-                              'S = Suelo\n'
-                              'Z = Cenizas\n'
-                              'L = Líquida\n\n'
-                              'Tipo de envase:\n'
-                              'P = Plástico\n'
-                              'V = Vidrio\n'
-                              'VA = Vidrio Ámbar\n'
-                              'VB = Vidrio Bacteriológico\n'
-                              'B = Bolsa plástica',
-                          child: Column(
-                            children: [
-                              ...List.generate(_muestras.length, (index) {
-                                final item = _muestras[index];
-                                return Container(
-                                  margin: const EdgeInsets.only(bottom: 12),
-                                  padding: const EdgeInsets.all(12),
-                                  decoration: BoxDecoration(
-                                    color: Palette.fieldBg,
-                                    borderRadius: BorderRadius.circular(16),
-                                    border: Border.all(
-                                      color: Palette.primary.withValues(
-                                        alpha: 0.08,
-                                      ),
-                                    ),
-                                  ),
-                                  child: Column(
-                                    children: [
-                                      Row(
-                                        children: [
-                                          Text(
-                                            'Muestra ${item.no}',
-                                            style: const TextStyle(
-                                              fontWeight: FontWeight.w800,
-                                              fontSize: 15,
-                                            ),
-                                          ),
-                                          const Spacer(),
-                                          if (_muestras.length > 1)
-                                            IconButton(
-                                              onPressed: () =>
-                                                  _eliminarMuestra(index),
-                                              icon: Icon(
-                                                Icons.delete_rounded,
-                                                color: Colors.red.shade600,
-                                              ),
-                                            ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Wrap(
-                                        spacing: 12,
-                                        runSpacing: 12,
-                                        children: [
-                                          _field(
-                                            item.codigoMuestraCtrl,
-                                            'Códigos de muestras',
-                                            width: isMobile
-                                                ? double.infinity
-                                                : 260,
-                                            requiredField: true,
-                                            maxLines: 2,
-                                          ),
-                                          _dropdownField<String>(
-                                            label: 'Tipo muestra',
-                                            value: _safeDropdownValue(
-                                              item.tipoMuestra,
-                                              _tiposMuestra,
-                                            ),
-                                            width: 180,
-                                            items: _tiposMuestra,
-                                            onChanged: (v) {
-                                              setState(() {
-                                                item.tipoMuestra = v;
-                                              });
-                                            },
-                                          ),
-                                          _field(
-                                            item.cantidadCtrl,
-                                            'Cantidad',
-                                            width: 150,
-                                          ),
-                                          _field(
-                                            item.volumenPesoCtrl,
-                                            'Volumen / Peso',
-                                            width: 180,
-                                          ),
-                                          _dropdownField<String>(
-                                            label: 'Tipo envase',
-                                            value: _safeDropdownValue(
-                                              item.tipoEnvase,
-                                              _tiposEnvase,
-                                            ),
-                                            width: 180,
-                                            items: _tiposEnvase,
-                                            onChanged: (v) {
-                                              setState(() {
-                                                item.tipoEnvase = v;
-                                              });
-                                            },
-                                          ),
-                                          _field(
-                                            item.descripcionCtrl,
-                                            'Descripción',
-                                            width: isMobile
-                                                ? double.infinity
-                                                : 320,
-                                          ),
-                                          _field(
-                                            item.numeroLaboratorioCtrl,
-                                            'No. de laboratorio',
-                                            width: 180,
-                                          ),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
-                                );
-                              }),
-                              const SizedBox(height: 4),
-                              Align(
-                                alignment: Alignment.centerRight,
-                                child: ElevatedButton.icon(
-                                  onPressed: _agregarMuestra,
-                                  icon: const Icon(Icons.add_rounded),
-                                  label: const Text('Agregar muestra'),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Palette.primary,
-                                    foregroundColor: Colors.white,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
+                        FormParte4InfoMuestras(
+                          isMobile: isMobile,
+                          checklist: _checklist,
+                          cumpleOptions: _cumpleOptions,
+                          totalMuestrasCtrl: _totalMuestrasCtrl,
+                          safeDropdownValue: _safeDropdownValue,
+                          onAgregarChecklist: _agregarChecklist,
+                          onEliminarChecklist: _eliminarChecklist,
+                          onCumpleChanged: (item, value) {
+                            setState(() => item.cumple = value);
+                          },
                         ),
                         const SizedBox(height: 14),
-                        _sectionCard(
-                          title: 'IV. Información de las muestras',
-                          child: Column(
-                            children: [
-                              ...List.generate(_checklist.length, (index) {
-                                final item = _checklist[index];
-                                return Container(
-                                  margin: const EdgeInsets.only(bottom: 10),
-                                  padding: const EdgeInsets.all(12),
-                                  decoration: BoxDecoration(
-                                    color: Palette.fieldBg,
-                                    borderRadius: BorderRadius.circular(14),
-                                    border: Border.all(
-                                      color: Palette.primary.withValues(
-                                        alpha: 0.08,
-                                      ),
-                                    ),
-                                  ),
-                                  child: Column(
-                                    children: [
-                                      Row(
-                                        children: [
-                                          Text(
-                                            'Información ${index + 1}',
-                                            style: const TextStyle(
-                                              fontWeight: FontWeight.w800,
-                                              fontSize: 15,
-                                            ),
-                                          ),
-                                          const Spacer(),
-                                          if (_checklist.length > 1)
-                                            IconButton(
-                                              onPressed: () =>
-                                                  _eliminarChecklist(index),
-                                              icon: Icon(
-                                                Icons.delete_rounded,
-                                                color: Colors.red.shade600,
-                                              ),
-                                            ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Wrap(
-                                        spacing: 12,
-                                        runSpacing: 12,
-                                        children: [
-                                          _field(
-                                            item.detalleCtrl,
-                                            'Detalle',
-                                            width: isMobile
-                                                ? double.infinity
-                                                : 520,
-                                            maxLines: 2,
-                                          ),
-                                          _dropdownField<String>(
-                                            label: 'Cumple',
-                                            value: _safeDropdownValue(
-                                              item.cumple,
-                                              _cumpleOptions,
-                                            ),
-                                            width: 180,
-                                            items: _cumpleOptions,
-                                            onChanged: (v) {
-                                              setState(() {
-                                                item.cumple = v;
-                                              });
-                                            },
-                                          ),
-                                          _field(
-                                            item.observacionesCtrl,
-                                            'Observaciones',
-                                            width: isMobile
-                                                ? double.infinity
-                                                : 320,
-                                          ),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
-                                );
-                              }),
-                              const SizedBox(height: 4),
-                              Align(
-                                alignment: Alignment.centerRight,
-                                child: ElevatedButton.icon(
-                                  onPressed: _agregarChecklist,
-                                  icon: const Icon(Icons.add_rounded),
-                                  label: const Text(
-                                    'Agregar información de muestras',
-                                  ),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Palette.primary,
-                                    foregroundColor: Colors.white,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 12),
-                              _field(
-                                _totalMuestrasCtrl,
-                                'Total de muestras entregadas',
-                                width: 220,
-                                requiredField: true,
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 14),
-                        _sectionCard(
-                          title: 'V. Recepción',
-                          child: Column(
-                            children: [
-                              Wrap(
-                                spacing: 12,
-                                runSpacing: 12,
-                                children: [
-                                  _miniGroup(
-                                    title: 'Entregado por',
-                                    children: [
-                                      _field(
-                                        _entregadoFirmaCtrl,
-                                        'Firma',
-                                        width: double.infinity,
-                                      ),
-                                      _field(
-                                        _entregadoNombreCtrl,
-                                        'Nombre',
-                                        width: double.infinity,
-                                        requiredField: true,
-                                      ),
-                                      _field(
-                                        _entregadoFechaCtrl,
-                                        'Fecha',
-                                        width: double.infinity,
-                                        requiredField: true,
-                                        inputFormatters: [
-                                          FilteringTextInputFormatter
-                                              .digitsOnly,
-                                          DateTextInputFormatter(),
-                                        ],
-                                        keyboardType: TextInputType.number,
-                                        validator: (v) {
-                                          if (v == null || v.trim().isEmpty) {
-                                            return 'Requerido';
-                                          }
-                                          return _validarFecha(v);
-                                        },
-                                      ),
-                                    ],
-                                  ),
-                                  _miniGroup(
-                                    title: 'Recibido por',
-                                    children: [
-                                      _field(
-                                        _recibidoFirmaCtrl,
-                                        'Firma',
-                                        width: double.infinity,
-                                      ),
-                                      _field(
-                                        _recibidoNombreCtrl,
-                                        'Nombre',
-                                        width: double.infinity,
-                                        requiredField: true,
-                                      ),
-                                      _field(
-                                        _recibidoFechaCtrl,
-                                        'Fecha',
-                                        width: double.infinity,
-                                        requiredField: true,
-                                        inputFormatters: [
-                                          FilteringTextInputFormatter
-                                              .digitsOnly,
-                                          DateTextInputFormatter(),
-                                        ],
-                                        keyboardType: TextInputType.number,
-                                        validator: (v) {
-                                          if (v == null || v.trim().isEmpty) {
-                                            return 'Requerido';
-                                          }
-                                          return _validarFecha(v);
-                                        },
-                                      ),
-                                    ],
-                                  ),
-                                  _miniGroup(
-                                    title: 'Observaciones adicionales',
-                                    children: [
-                                      _field(
-                                        _observacionesAdicionalesCtrl,
-                                        'Observaciones adicionales',
-                                        width: double.infinity,
-                                        maxLines: 6,
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
+                        FormParte5Recepcion(
+                          entregadoFirmaCtrl: _entregadoFirmaCtrl,
+                          entregadoNombreCtrl: _entregadoNombreCtrl,
+                          entregadoFechaCtrl: _entregadoFechaCtrl,
+                          recibidoFirmaCtrl: _recibidoFirmaCtrl,
+                          recibidoNombreCtrl: _recibidoNombreCtrl,
+                          recibidoFechaCtrl: _recibidoFechaCtrl,
+                          observacionesAdicionalesCtrl:
+                              _observacionesAdicionalesCtrl,
+                          validarFecha: _validarFecha,
                         ),
                         const SizedBox(height: 18),
                         Row(
@@ -1067,8 +726,9 @@ class _LaboratorioFormPageState extends State<LaboratorioFormPage> {
                                 icon: const Icon(Icons.arrow_back_rounded),
                                 label: const Text('Cancelar'),
                                 style: OutlinedButton.styleFrom(
-                                  padding:
-                                      const EdgeInsets.symmetric(vertical: 14),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 14,
+                                  ),
                                 ),
                               ),
                             ),
@@ -1096,8 +756,9 @@ class _LaboratorioFormPageState extends State<LaboratorioFormPage> {
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: Palette.button,
                                   foregroundColor: Colors.white,
-                                  padding:
-                                      const EdgeInsets.symmetric(vertical: 14),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 14,
+                                  ),
                                 ),
                               ),
                             ),
@@ -1113,386 +774,6 @@ class _LaboratorioFormPageState extends State<LaboratorioFormPage> {
           ),
         );
       },
-    );
-  }
-
-  T? _safeDropdownValue<T>(T? value, List<T> items) {
-    if (value == null) return null;
-    return items.contains(value) ? value : null;
-  }
-
-  Widget _sectionCard({
-    required String title,
-    String? subtitle,
-    required Widget child,
-  }) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: Palette.primary.withValues(alpha: 0.1),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 5),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: const TextStyle(
-              fontWeight: FontWeight.w900,
-              fontSize: 18,
-              color: Colors.black87,
-            ),
-          ),
-          if (subtitle != null) ...[
-            const SizedBox(height: 6),
-            Text(
-              subtitle,
-              style: TextStyle(
-                fontSize: 12.5,
-                color: Colors.black.withValues(alpha: 0.62),
-                fontWeight: FontWeight.w500,
-                height: 1.4,
-              ),
-            ),
-          ],
-          const SizedBox(height: 14),
-          child,
-        ],
-      ),
-    );
-  }
-
-  Widget _miniGroup({
-    required String title,
-    required List<Widget> children,
-  }) {
-    return Container(
-      width: 340,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Palette.fieldBg,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: Palette.primary.withValues(alpha: 0.08),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: const TextStyle(
-              fontWeight: FontWeight.w800,
-              fontSize: 15,
-            ),
-          ),
-          const SizedBox(height: 10),
-          ...children.expand((e) => [e, const SizedBox(height: 10)]).toList()
-            ..removeLast(),
-        ],
-      ),
-    );
-  }
-
-  Widget _field(
-    TextEditingController controller,
-    String label, {
-    double width = 260,
-    bool requiredField = false,
-    int maxLines = 1,
-    TextInputType? keyboardType,
-    List<TextInputFormatter>? inputFormatters,
-    String? Function(String?)? validator,
-  }) {
-    return SizedBox(
-      width: width == double.infinity ? null : width,
-      child: TextFormField(
-        controller: controller,
-        maxLines: maxLines,
-        keyboardType: keyboardType,
-        inputFormatters: inputFormatters,
-        validator: validator ??
-            (requiredField
-                ? (v) {
-                    if (v == null || v.trim().isEmpty) {
-                      return 'Requerido';
-                    }
-                    return null;
-                  }
-                : null),
-        decoration: InputDecoration(
-          labelText: label,
-          filled: true,
-          fillColor: Colors.white,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: BorderSide(
-              color: Palette.primary.withValues(alpha: 0.12),
-            ),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: BorderSide(
-              color: Palette.button.withValues(alpha: 0.45),
-              width: 1.2,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _readOnlyField(
-    TextEditingController controller,
-    String label, {
-    double width = 260,
-  }) {
-    return SizedBox(
-      width: width == double.infinity ? null : width,
-      child: TextFormField(
-        controller: controller,
-        readOnly: true,
-        enabled: false,
-        decoration: InputDecoration(
-          labelText: label,
-          filled: true,
-          fillColor: Colors.grey.shade100,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-          ),
-          disabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: BorderSide(
-              color: Palette.primary.withValues(alpha: 0.12),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _dropdownField<T>({
-    required String label,
-    required T? value,
-    required List<T> items,
-    required ValueChanged<T?> onChanged,
-    double width = 220,
-  }) {
-    final safeValue = items.contains(value) ? value : null;
-
-    return SizedBox(
-      width: width,
-      child: DropdownButtonFormField<T>(
-        value: safeValue,
-        onChanged: onChanged,
-        decoration: InputDecoration(
-          labelText: label,
-          filled: true,
-          fillColor: Colors.white,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: BorderSide(
-              color: Palette.primary.withValues(alpha: 0.12),
-            ),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: BorderSide(
-              color: Palette.button.withValues(alpha: 0.45),
-              width: 1.2,
-            ),
-          ),
-        ),
-        items: items
-            .toSet()
-            .map(
-              (e) => DropdownMenuItem<T>(
-                value: e,
-                child: Text(e.toString()),
-              ),
-            )
-            .toList(),
-      ),
-    );
-  }
-}
-
-class MuestraFormItem {
-  int no;
-  final TextEditingController codigoMuestraCtrl;
-  final TextEditingController cantidadCtrl;
-  final TextEditingController volumenPesoCtrl;
-  final TextEditingController descripcionCtrl;
-  final TextEditingController numeroLaboratorioCtrl;
-  String? tipoMuestra;
-  String? tipoEnvase;
-
-  MuestraFormItem({
-    required this.no,
-    String codigoMuestra = '',
-    String cantidad = '',
-    String volumenPeso = '',
-    String descripcion = '',
-    String numeroLaboratorio = '',
-    this.tipoMuestra,
-    this.tipoEnvase,
-  })  : codigoMuestraCtrl = TextEditingController(text: codigoMuestra),
-        cantidadCtrl = TextEditingController(text: cantidad),
-        volumenPesoCtrl = TextEditingController(text: volumenPeso),
-        descripcionCtrl = TextEditingController(text: descripcion),
-        numeroLaboratorioCtrl = TextEditingController(text: numeroLaboratorio);
-
-  factory MuestraFormItem.fromMap(
-    Map<String, dynamic> map, {
-    required List<String> tiposMuestraValidos,
-    required List<String> tiposEnvaseValidos,
-  }) {
-    final tipoMuestraRaw = map['tipoMuestra']?.toString().trim();
-    final tipoEnvaseRaw = map['tipoEnvase']?.toString().trim();
-
-    return MuestraFormItem(
-      no: (map['no'] ?? 1) as int,
-      codigoMuestra: (map['codigoMuestra'] ?? '').toString(),
-      cantidad: (map['cantidad'] ?? '').toString(),
-      volumenPeso: (map['volumenPeso'] ?? '').toString(),
-      descripcion: (map['descripcion'] ?? '').toString(),
-      numeroLaboratorio: (map['numeroLaboratorio'] ?? '').toString(),
-      tipoMuestra: tiposMuestraValidos.contains(tipoMuestraRaw)
-          ? tipoMuestraRaw
-          : null,
-      tipoEnvase:
-          tiposEnvaseValidos.contains(tipoEnvaseRaw) ? tipoEnvaseRaw : null,
-    );
-  }
-
-  Map<String, dynamic> toMap() {
-    return {
-      'no': no,
-      'codigoMuestra': codigoMuestraCtrl.text.trim(),
-      'tipoMuestra': tipoMuestra ?? '',
-      'cantidad': cantidadCtrl.text.trim(),
-      'volumenPeso': volumenPesoCtrl.text.trim(),
-      'tipoEnvase': tipoEnvase ?? '',
-      'descripcion': descripcionCtrl.text.trim(),
-      'numeroLaboratorio': numeroLaboratorioCtrl.text.trim(),
-    };
-  }
-
-  void dispose() {
-    codigoMuestraCtrl.dispose();
-    cantidadCtrl.dispose();
-    volumenPesoCtrl.dispose();
-    descripcionCtrl.dispose();
-    numeroLaboratorioCtrl.dispose();
-  }
-}
-
-class ChecklistFormItem {
-  final TextEditingController ordenCtrl;
-  final TextEditingController detalleCtrl;
-  final TextEditingController observacionesCtrl;
-  String? cumple;
-
-  ChecklistFormItem({
-    int orden = 1,
-    String detalle = '',
-    this.cumple,
-    String observaciones = '',
-  })  : ordenCtrl = TextEditingController(text: '$orden'),
-        detalleCtrl = TextEditingController(text: detalle),
-        observacionesCtrl = TextEditingController(text: observaciones);
-
-  factory ChecklistFormItem.fromMap(
-    Map<String, dynamic> map, {
-    required List<String> cumpleValidos,
-  }) {
-    final cumpleRaw = map['cumple']?.toString().trim();
-
-    return ChecklistFormItem(
-      orden: int.tryParse((map['orden'] ?? '1').toString()) ?? 1,
-      detalle: (map['detalle'] ?? '').toString(),
-      cumple: cumpleValidos.contains(cumpleRaw) ? cumpleRaw : null,
-      observaciones: (map['observaciones'] ?? '').toString(),
-    );
-  }
-
-  Map<String, dynamic> toMap() {
-    return {
-      'orden': int.tryParse(ordenCtrl.text.trim()) ?? 0,
-      'detalle': detalleCtrl.text.trim(),
-      'cumple': cumple ?? '',
-      'observaciones': observacionesCtrl.text.trim(),
-    };
-  }
-
-  void dispose() {
-    ordenCtrl.dispose();
-    detalleCtrl.dispose();
-    observacionesCtrl.dispose();
-  }
-}
-
-class DateTextInputFormatter extends TextInputFormatter {
-  @override
-  TextEditingValue formatEditUpdate(
-    TextEditingValue oldValue,
-    TextEditingValue newValue,
-  ) {
-    final digits = newValue.text.replaceAll(RegExp(r'[^0-9]'), '');
-    final buffer = StringBuffer();
-
-    for (int i = 0; i < digits.length && i < 8; i++) {
-      buffer.write(digits[i]);
-      if ((i == 1 || i == 3) && i != digits.length - 1) {
-        buffer.write('/');
-      }
-    }
-
-    final text = buffer.toString();
-    return TextEditingValue(
-      text: text,
-      selection: TextSelection.collapsed(offset: text.length),
-    );
-  }
-}
-
-class TimeTextInputFormatter extends TextInputFormatter {
-  @override
-  TextEditingValue formatEditUpdate(
-    TextEditingValue oldValue,
-    TextEditingValue newValue,
-  ) {
-    final digits = newValue.text.replaceAll(RegExp(r'[^0-9]'), '');
-    final buffer = StringBuffer();
-
-    for (int i = 0; i < digits.length && i < 4; i++) {
-      buffer.write(digits[i]);
-      if (i == 1 && i != digits.length - 1) {
-        buffer.write(':');
-      }
-    }
-
-    final text = buffer.toString();
-    return TextEditingValue(
-      text: text,
-      selection: TextSelection.collapsed(offset: text.length),
     );
   }
 }

@@ -110,11 +110,53 @@ class _MisPedidosPageState extends State<MisPedidosPage> {
     return double.tryParse((v ?? '').toString()) ?? 0.0;
   }
 
+  String _tipoPagoLabel(String raw) {
+    final s = raw.trim().toLowerCase();
+    if (s.isEmpty) return '—';
+    if (s.contains('qr')) return 'QR';
+    if (s.contains('efect')) return 'Efectivo';
+    return raw;
+  }
+
+  String _estadoPagoLabel(String raw) {
+    final s = raw.trim().toLowerCase();
+    if (s.isEmpty) return 'Pendiente';
+    if (s.contains('rech')) return 'Rechazado';
+    if (s.contains('pag')) return 'Pagado';
+    if (s.contains('pend')) return 'Pendiente';
+    return raw;
+  }
+
+  _PagoMeta _pagoMeta(String raw) {
+    final s = raw.trim().toLowerCase();
+
+    if (s.contains('rech')) {
+      return _PagoMeta(
+        label: 'Rechazado',
+        icon: Icons.cancel_outlined,
+        color: Palette.statsDanger,
+      );
+    }
+
+    if (s.contains('pag')) {
+      return _PagoMeta(
+        label: 'Pagado',
+        icon: Icons.check_circle_outline_rounded,
+        color: Palette.statsSuccess,
+      );
+    }
+
+    return _PagoMeta(
+      label: 'Pendiente',
+      icon: Icons.timelapse_rounded,
+      color: Palette.statsWarning,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final primary = Palette.button;
     final purpleText = Palette.primary;
-    final ink = Palette.ink;
     final bg = Palette.fieldBg;
     final chipBg = Palette.button.withOpacity(0.10);
 
@@ -127,7 +169,7 @@ class _MisPedidosPageState extends State<MisPedidosPage> {
               padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
               child: Row(
                 children: [
-                  const SizedBox(width: 48), // 👈 sin flecha
+                  const SizedBox(width: 48),
                   const Spacer(),
                   Text(
                     'Mis Pedidos',
@@ -138,31 +180,6 @@ class _MisPedidosPageState extends State<MisPedidosPage> {
                     ),
                   ),
                   const Spacer(),
-                  /*InkWell(
-                    onTap: () {},
-                    borderRadius: BorderRadius.circular(14),
-                    child: Container(
-                      height: 38,
-                      width: 38,
-                      decoration: BoxDecoration(
-                        color: Palette.white,
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: ink.withOpacity(0.06)),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.04),
-                            blurRadius: 16,
-                            offset: const Offset(0, 10),
-                          ),
-                        ],
-                      ),
-                      child: Icon(
-                        Icons.search_rounded,
-                        color: purpleText.withOpacity(0.90),
-                        size: 20,
-                      ),
-                    ),
-                  ),*/
                 ],
               ),
             ),
@@ -285,6 +302,14 @@ class _MisPedidosPageState extends State<MisPedidosPage> {
 
                           final code = (data['codigo'] ?? d.id).toString();
 
+                          final rawTipoPago =
+                              (data['tipo_pago'] ?? data['tipoPago'] ?? '')
+                                  .toString();
+
+                          final rawEstadoPago =
+                              (data['estado_pago'] ?? data['estadoPago'] ?? '')
+                                  .toString();
+
                           return _PedidoModel(
                             id: d.id,
                             code: code,
@@ -293,6 +318,9 @@ class _MisPedidosPageState extends State<MisPedidosPage> {
                             itemsCount: itemsCount,
                             status: st,
                             rawEstado: rawStatus,
+                            tipoPago: _tipoPagoLabel(rawTipoPago),
+                            estadoPago: _estadoPagoLabel(rawEstadoPago),
+                            pagoMeta: _pagoMeta(rawEstadoPago),
                           );
                         }).toList();
 
@@ -541,6 +569,28 @@ class _PedidoCard extends StatelessWidget {
                           ),
                         ],
                       ),
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _InfoMiniCard(
+                              label: 'Tipo de pago',
+                              value: pedido.tipoPago,
+                              icon: Icons.account_balance_wallet_outlined,
+                              valueColor: purpleText,
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: _PagoMiniCard(
+                              label: 'Estado pago',
+                              value: pedido.estadoPago,
+                              icon: pedido.pagoMeta.icon,
+                              valueColor: pedido.pagoMeta.color,
+                            ),
+                          ),
+                        ],
+                      ),
                       const SizedBox(height: 12),
                       Container(
                         padding: const EdgeInsets.symmetric(
@@ -695,6 +745,80 @@ class _InfoMiniCard extends StatelessWidget {
   }
 }
 
+class _PagoMiniCard extends StatelessWidget {
+  const _PagoMiniCard({
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.valueColor,
+  });
+
+  final String label;
+  final String value;
+  final IconData icon;
+  final Color valueColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
+      decoration: BoxDecoration(
+        color: valueColor.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: valueColor.withOpacity(0.18),
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            height: 34,
+            width: 34,
+            decoration: BoxDecoration(
+              color: valueColor.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(
+              icon,
+              size: 18,
+              color: valueColor,
+            ),
+          ),
+          const SizedBox(width: 9),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: valueColor.withOpacity(0.70),
+                    fontWeight: FontWeight.w700,
+                    fontSize: 10.5,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: valueColor,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 11.8,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 /* ---------------- Status Meta ---------------- */
 
 class _StatusMeta {
@@ -767,6 +891,9 @@ class _PedidoModel {
   final int itemsCount;
   final _PedidoStatus status;
   final String rawEstado;
+  final String tipoPago;
+  final String estadoPago;
+  final _PagoMeta pagoMeta;
 
   const _PedidoModel({
     required this.id,
@@ -776,5 +903,20 @@ class _PedidoModel {
     required this.itemsCount,
     required this.status,
     required this.rawEstado,
+    required this.tipoPago,
+    required this.estadoPago,
+    required this.pagoMeta,
+  });
+}
+
+class _PagoMeta {
+  final String label;
+  final IconData icon;
+  final Color color;
+
+  const _PagoMeta({
+    required this.label,
+    required this.icon,
+    required this.color,
   });
 }

@@ -15,7 +15,6 @@ import 'widgets/detalle_widgets/repartidor_picker.dart';
 import 'widgets/detalle_widgets/section_card.dart';
 import 'widgets/detalle_widgets/entrega_info.dart';
 
-// Abre diálogo de detalle exclusivamente con pedidoId.
 Future<void> showPedidoDetalleDialog(
   BuildContext context,
   String pedidoId, {
@@ -96,31 +95,53 @@ class _PedidoDetalleForm extends StatefulWidget {
 class _PedidoDetalleFormState extends State<_PedidoDetalleForm> {
   bool _saving = false;
 
-  // Editable local state
   late String _estadoEdit;
+  late String _estadoPagoEdit;
   DateTime? _fechaEnvioEdit;
   double? _costoEnvioEdit;
   String? _repartidorUidEdit;
   String? _repartidorNombreEdit;
+
   late TextEditingController _costoCtrl;
+  late TextEditingController _motivoRechazoCtrl;
+
+  bool get _esEfectivo =>
+      widget.pedido.tipoPago.trim().toLowerCase().contains('efect');
 
   @override
   void initState() {
     super.initState();
     _estadoEdit = normalizeEstado(widget.pedido.estado);
+    _estadoPagoEdit = _normalizeEstadoPago(widget.pedido.estadoPago);
     _fechaEnvioEdit = widget.pedido.fechaEnvio;
     _costoEnvioEdit = widget.pedido.costoEnvio;
     _repartidorUidEdit = widget.pedido.repartidorUid;
     _repartidorNombreEdit = widget.pedido.repartidorNombre;
+
     _costoCtrl = TextEditingController(
       text: _moneyNoSuffix(_costoEnvioEdit ?? 0),
     );
+    _motivoRechazoCtrl = TextEditingController(
+      text: widget.pedido.motivoRechazoPago,
+    );
+
+    if (!_esEfectivo && _estadoPagoEdit == 'rechazado') {
+      _estadoEdit = kEstadoPendiente;
+    }
   }
 
   @override
   void dispose() {
     _costoCtrl.dispose();
+    _motivoRechazoCtrl.dispose();
     super.dispose();
+  }
+
+  String _normalizeEstadoPago(String? v) {
+    final s = (v ?? '').trim().toLowerCase();
+    if (s.contains('pag')) return 'pagado';
+    if (s.contains('rech')) return 'rechazado';
+    return 'pendiente';
   }
 
   void _applyCostoFromText() {
@@ -160,12 +181,28 @@ class _PedidoDetalleFormState extends State<_PedidoDetalleForm> {
 
   Future<void> _saveChanges() async {
     _applyCostoFromText();
+
+    if (!_esEfectivo &&
+        _estadoPagoEdit == 'rechazado' &&
+        _motivoRechazoCtrl.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Debes escribir el motivo del rechazo del pago.'),
+        ),
+      );
+      return;
+    }
+
     setState(() => _saving = true);
 
     try {
       await widget.controller.guardarCambios(
         pedidoId: widget.pedido.id,
         nuevoEstado: _estadoEdit,
+        nuevoEstadoPago: _esEfectivo ? 'pendiente' : _estadoPagoEdit,
+        motivoRechazoPago: (!_esEfectivo && _estadoPagoEdit == 'rechazado')
+            ? _motivoRechazoCtrl.text.trim()
+            : null,
         fechaEnvio: _fechaEnvioEdit,
         costoEnvio: _costoEnvioEdit ?? 0,
         repartidorUid: _repartidorUidEdit,
@@ -175,7 +212,7 @@ class _PedidoDetalleFormState extends State<_PedidoDetalleForm> {
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('Pedido actualizado ✅')));
+      ).showSnackBar(const SnackBar(content: Text('Pedido actualizado ✅')));
       Navigator.pop(context);
     } catch (e) {
       if (!mounted) return;
@@ -196,22 +233,22 @@ class _PedidoDetalleFormState extends State<_PedidoDetalleForm> {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // HEADER
         Header(
           codigo: pedido.codigo,
-          estado: normalizeEstado(pedido.estado),
+          estado: normalizeEstado(
+            (!_esEfectivo && _estadoPagoEdit == 'rechazado')
+                ? kEstadoPendiente
+                : pedido.estado,
+          ),
           createdAt: pedido.createdAt,
           onClose: _saving ? null : () => Navigator.pop(context),
         ),
-
-        // BODY
         Flexible(
           child: SingleChildScrollView(
             padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Entrega & Cliente (responsive layout)
                 LayoutBuilder(
                   builder: (context, c) {
                     final isWide = c.maxWidth >= 780;
@@ -250,26 +287,22 @@ class _PedidoDetalleFormState extends State<_PedidoDetalleForm> {
                     );
                   },
                 ),
-
                 const SizedBox(height: 14),
-
-                // Gestión
                 SectionCard(
                   title: 'Gestión',
                   icon: Icons.tune_rounded,
                   child: _GestionSection(
                     pedido: pedido,
                     estadoEdit: _estadoEdit,
-                    onEstadoChanged: _saving
+                    onEstadoChanged:
+                        (_saving || (!_esEfectivo && _estadoPagoEdit == 'rechazado'))
                         ? null
                         : (v) => setState(() => _estadoEdit = v),
                     fechaEnvioEdit: _fechaEnvioEdit,
                     onPickFecha: _saving ? null : _pickFechaEnvio,
                     costoCtrl: _costoCtrl,
                     costoEnvioEdit: _costoEnvioEdit,
-                    onCostoChanged: _saving
-                        ? null
-                        : (_) => _applyCostoFromText(),
+                    onCostoChanged: _saving ? null : (_) => _applyCostoFromText(),
                     repartidorUidEdit: _repartidorUidEdit,
                     repartidorNombreEdit: _repartidorNombreEdit,
                     onRepartidorChanged: _saving
@@ -283,10 +316,29 @@ class _PedidoDetalleFormState extends State<_PedidoDetalleForm> {
                     controller: widget.controller,
                   ),
                 ),
-
                 const SizedBox(height: 14),
-
-                // Items
+                SectionCard(
+                  title: 'Pago',
+                  icon: Icons.payments_rounded,
+                  child: _PagoInfoWidget(
+                    pedido: pedido,
+                    estadoPagoEdit: _estadoPagoEdit,
+                    motivoRechazoCtrl: _motivoRechazoCtrl,
+                    onEstadoPagoChanged: _saving || _esEfectivo
+                        ? null
+                        : (v) {
+                            setState(() {
+                              _estadoPagoEdit = v;
+                              if (v == 'rechazado') {
+                                _estadoEdit = kEstadoPendiente;
+                              } else if (_motivoRechazoCtrl.text.trim().isNotEmpty) {
+                                _motivoRechazoCtrl.clear();
+                              }
+                            });
+                          },
+                  ),
+                ),
+                const SizedBox(height: 14),
                 SectionCard(
                   title: 'Productos',
                   icon: Icons.shopping_bag_rounded,
@@ -304,7 +356,7 @@ class _PedidoDetalleFormState extends State<_PedidoDetalleForm> {
                     ),
                     child: Text(
                       '${pedido.items.length}',
-                      style: TextStyle(
+                      style: const TextStyle(
                         color: Palette.ink,
                         fontWeight: FontWeight.w900,
                         fontSize: 12,
@@ -312,7 +364,7 @@ class _PedidoDetalleFormState extends State<_PedidoDetalleForm> {
                     ),
                   ),
                   child: pedido.items.isEmpty
-                      ? EmptyBox(text: 'No hay items en este pedido.')
+                      ? const EmptyBox(text: 'No hay items en este pedido.')
                       : Column(
                           children: [
                             for (int i = 0; i < pedido.items.length; i++)
@@ -325,10 +377,7 @@ class _PedidoDetalleFormState extends State<_PedidoDetalleForm> {
                           ],
                         ),
                 ),
-
                 const SizedBox(height: 14),
-
-                // Totals
                 SectionCard(
                   title: 'Totales',
                   icon: Icons.calculate_rounded,
@@ -342,8 +391,6 @@ class _PedidoDetalleFormState extends State<_PedidoDetalleForm> {
             ),
           ),
         ),
-
-        // FOOTER
         Footer(
           isSaving: _saving,
           onClose: _saving ? null : () => Navigator.pop(context),
@@ -354,7 +401,6 @@ class _PedidoDetalleFormState extends State<_PedidoDetalleForm> {
   }
 }
 
-/* ===================== WIDGETS ===================== */
 class _ClienteInfoWidget extends StatelessWidget {
   const _ClienteInfoWidget({
     required this.uidCliente,
@@ -469,7 +515,7 @@ class _GestionSection extends StatelessWidget {
           label: 'Repartidor',
           child: RepartidorPickerWidget(
             departamento: pedido.departamento,
-            almacenId: '',
+            almacenId: pedido.almacenId,
             valueUid: repartidorUidEdit,
             valueNombre: repartidorNombreEdit,
             onChanged: onRepartidorChanged,
@@ -477,6 +523,356 @@ class _GestionSection extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _PagoInfoWidget extends StatelessWidget {
+  const _PagoInfoWidget({
+    required this.pedido,
+    required this.estadoPagoEdit,
+    required this.motivoRechazoCtrl,
+    required this.onEstadoPagoChanged,
+  });
+
+  final PedidoDetalleData pedido;
+  final String estadoPagoEdit;
+  final TextEditingController motivoRechazoCtrl;
+  final ValueChanged<String>? onEstadoPagoChanged;
+
+  String _tipoPagoLabel(String v) {
+    final s = v.trim().toLowerCase();
+    if (s.isEmpty) return '—';
+    if (s.contains('qr')) return 'QR';
+    if (s.contains('efect')) return 'Efectivo';
+    return v;
+  }
+
+  String _estadoPagoLabel(String v) {
+    final s = v.trim().toLowerCase();
+    if (s.isEmpty) return 'Pendiente';
+    if (s.contains('rech')) return 'Rechazado';
+    if (s.contains('pag')) return 'Pagado';
+    if (s.contains('pend')) return 'Pendiente';
+    return v;
+  }
+
+  bool get _esEfectivo => pedido.tipoPago.trim().toLowerCase().contains('efect');
+
+  @override
+  Widget build(BuildContext context) {
+    if (_esEfectivo) {
+      return Column(
+        children: [
+          _KeyValueList(
+            rows: [
+              _KV('Tipo de pago', 'Efectivo', isStrong: true),
+              _KV('Estado pago', _estadoPagoLabel(pedido.estadoPago)),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Palette.fieldBg,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: Palette.ink.withValues(alpha: 0.06)),
+            ),
+            child: const Text(
+              'Este pedido será pagado en efectivo al momento de la entrega. No requiere comprobante ni validación de imagen.',
+              style: TextStyle(
+                color: Palette.ink,
+                fontWeight: FontWeight.w700,
+                height: 1.35,
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
+    return Column(
+      children: [
+        _KeyValueList(
+          rows: [
+            _KV('Tipo de pago', _tipoPagoLabel(pedido.tipoPago), isStrong: true),
+          ],
+        ),
+        const SizedBox(height: 10),
+        EditRow(
+          label: 'Estado pago',
+          child: _EstadoPagoDropdown(
+            value: estadoPagoEdit,
+            onChanged: onEstadoPagoChanged,
+          ),
+        ),
+        if (estadoPagoEdit == 'rechazado') ...[
+          const SizedBox(height: 12),
+          EditRow(
+            label: 'Motivo rechazo',
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: Palette.fieldBg,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: Palette.ink.withValues(alpha: 0.06)),
+              ),
+              child: TextField(
+                controller: motivoRechazoCtrl,
+                minLines: 3,
+                maxLines: 5,
+                decoration: const InputDecoration(
+                  hintText: 'Describe por qué se está rechazando el pago...',
+                  border: InputBorder.none,
+                  isDense: true,
+                ),
+                style: const TextStyle(
+                  color: Palette.ink,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ),
+        ],
+        const SizedBox(height: 12),
+        _ComprobanteWidget(
+          comprobanteUrl: pedido.comprobanteUrl,
+          comprobanteNombre: pedido.comprobanteNombre,
+        ),
+      ],
+    );
+  }
+}
+
+class _ComprobanteWidget extends StatelessWidget {
+  const _ComprobanteWidget({
+    required this.comprobanteUrl,
+    required this.comprobanteNombre,
+  });
+
+  final String comprobanteUrl;
+  final String comprobanteNombre;
+
+  @override
+  Widget build(BuildContext context) {
+    if (comprobanteUrl.trim().isEmpty) {
+      return const EmptyBox(text: 'No hay comprobante registrado.');
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (comprobanteNombre.trim().isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Text(
+              comprobanteNombre,
+              style: const TextStyle(
+                color: Palette.ink,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+        GestureDetector(
+          onTap: () {
+            showDialog(
+              context: context,
+              barrierColor: Colors.black.withOpacity(0.9),
+              builder: (_) => _ComprobanteZoomDialog(
+                imageUrl: comprobanteUrl,
+                title: comprobanteNombre,
+              ),
+            );
+          },
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: Palette.fieldBg,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Palette.ink.withValues(alpha: 0.06)),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: AspectRatio(
+                aspectRatio: 1.15,
+                child: Image.network(
+                  comprobanteUrl,
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, __, ___) {
+                    return const Center(
+                      child: Text('No se pudo cargar el comprobante.'),
+                    );
+                  },
+                  loadingBuilder: (context, child, progress) {
+                    if (progress == null) return child;
+                    return const Center(
+                      child: CircularProgressIndicator(),
+                    );
+                  },
+                ),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Toca la imagen para verla completa.',
+          style: TextStyle(
+            color: Palette.ink.withValues(alpha: 0.62),
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ComprobanteZoomDialog extends StatelessWidget {
+  const _ComprobanteZoomDialog({
+    required this.imageUrl,
+    required this.title,
+  });
+
+  final String imageUrl;
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      insetPadding: const EdgeInsets.all(12),
+      backgroundColor: Colors.transparent,
+      child: Stack(
+        children: [
+          Container(
+            width: double.infinity,
+            height: double.infinity,
+            color: Colors.black.withOpacity(0.92),
+            child: Column(
+              children: [
+                const SizedBox(height: 16),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          title.trim().isEmpty ? 'Comprobante' : title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.pop(context),
+                        icon: const Icon(Icons.close_rounded, color: Colors.white),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Expanded(
+                  child: InteractiveViewer(
+                    minScale: 0.8,
+                    maxScale: 5,
+                    panEnabled: true,
+                    child: Center(
+                      child: Image.network(
+                        imageUrl,
+                        fit: BoxFit.contain,
+                        errorBuilder: (_, __, ___) {
+                          return const Text(
+                            'No se pudo cargar la imagen.',
+                            style: TextStyle(color: Colors.white),
+                          );
+                        },
+                        loadingBuilder: (context, child, progress) {
+                          if (progress == null) return child;
+                          return const CircularProgressIndicator(color: Colors.white);
+                        },
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 16),
+                  child: Text(
+                    'Usa dos dedos para hacer zoom y arrastra para mover la imagen.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Colors.white70,
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _EstadoPagoDropdown extends StatelessWidget {
+  const _EstadoPagoDropdown({
+    required this.value,
+    required this.onChanged,
+  });
+
+  final String value;
+  final ValueChanged<String>? onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    const options = ['pendiente', 'rechazado', 'pagado'];
+    final current = options.contains(value) ? value : 'pendiente';
+
+    String labelFor(String e) {
+      switch (e) {
+        case 'pendiente':
+          return 'Pendiente';
+        case 'rechazado':
+          return 'Rechazado';
+        case 'pagado':
+          return 'Pagado';
+        default:
+          return e;
+      }
+    }
+
+    return Container(
+      height: 44,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        color: Palette.fieldBg,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Palette.ink.withValues(alpha: 0.06)),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: current,
+          isExpanded: true,
+          items: options
+              .map(
+                (e) => DropdownMenuItem<String>(
+                  value: e,
+                  child: Text(labelFor(e)),
+                ),
+              )
+              .toList(),
+          onChanged: onChanged == null ? null : (v) => onChanged!(v ?? 'pendiente'),
+        ),
+      ),
     );
   }
 }
@@ -489,12 +885,31 @@ class _EstadoDropdown extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final options = [
-      'pendiente',
-      'aceptado',
-      'en camino',
-      'entregado',
-      'cancelado',
+      kEstadoPendiente,
+      kEstadoAceptado,
+      kEstadoEnCamino,
+      kEstadoEntregado,
+      kEstadoCancelado,
     ];
+
+    String labelFor(String e) {
+      switch (e) {
+        case kEstadoPendiente:
+          return 'Pendiente';
+        case kEstadoAceptado:
+          return 'Aceptado';
+        case kEstadoEnCamino:
+          return 'En camino';
+        case kEstadoEntregado:
+          return 'Entregado';
+        case kEstadoCancelado:
+          return 'Cancelado';
+        default:
+          return e;
+      }
+    }
+
+    final current = options.contains(value) ? value : options.first;
 
     return Container(
       height: 44,
@@ -506,14 +921,17 @@ class _EstadoDropdown extends StatelessWidget {
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
-          value: options.contains(value) ? value : options.first,
+          value: current,
           isExpanded: true,
           items: options
-              .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+              .map(
+                (e) => DropdownMenuItem<String>(
+                  value: e,
+                  child: Text(labelFor(e)),
+                ),
+              )
               .toList(),
-          onChanged: onChanged == null
-              ? null
-              : (v) => onChanged!(v ?? options.first),
+          onChanged: onChanged == null ? null : (v) => onChanged!(v ?? options.first),
         ),
       ),
     );
@@ -543,7 +961,10 @@ class _FechaEnvioField extends StatelessWidget {
               value == null
                   ? '—'
                   : DateFormat('dd/MM/yyyy HH:mm', 'es_BO').format(value!),
-              style: TextStyle(color: Palette.ink, fontWeight: FontWeight.w900),
+              style: const TextStyle(
+                color: Palette.ink,
+                fontWeight: FontWeight.w900,
+              ),
             ),
           ),
         ),
@@ -583,15 +1004,16 @@ class _CostoEnvioField extends StatelessWidget {
           Expanded(
             child: TextField(
               controller: controller,
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-              ),
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
               onChanged: onChanged,
               decoration: const InputDecoration(
                 border: InputBorder.none,
                 isDense: true,
               ),
-              style: TextStyle(color: Palette.ink, fontWeight: FontWeight.w900),
+              style: const TextStyle(
+                color: Palette.ink,
+                fontWeight: FontWeight.w900,
+              ),
             ),
           ),
           Container(
@@ -643,7 +1065,7 @@ class _ItemTile extends StatelessWidget {
                   item.nombre,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
+                  style: const TextStyle(
                     color: Palette.ink,
                     fontWeight: FontWeight.w900,
                     fontSize: 13.2,
@@ -656,7 +1078,10 @@ class _ItemTile extends StatelessWidget {
                   runSpacing: 6,
                   children: [
                     _Pill(text: 'Cant: ${item.cantidad}'),
-                    _Pill(text: 'Precio: ${_money(item.precio)}', icon: Icons.price_check),
+                    _Pill(
+                      text: 'Precio: ${_money(item.precio)}',
+                      icon: Icons.price_check,
+                    ),
                   ],
                 ),
               ],
@@ -674,7 +1099,7 @@ class _ItemTile extends StatelessWidget {
             ),
             child: Text(
               _money(item.subtotal),
-              style: TextStyle(
+              style: const TextStyle(
                 color: Palette.ink,
                 fontWeight: FontWeight.w900,
                 fontSize: 12.5,
@@ -833,8 +1258,6 @@ class _Pill extends StatelessWidget {
     );
   }
 }
-
-/* ===================== HELPERS ===================== */
 
 String _money(double v) {
   final f = NumberFormat('#,##0.00', 'es_BO');

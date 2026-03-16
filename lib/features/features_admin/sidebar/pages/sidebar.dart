@@ -5,6 +5,7 @@
 // - Mobile: sidebar overlay (drawer) con botón ☰ y scrim
 // ✅ Incluye chat footer global para admin
 // ✅ Nuevo módulo: Laboratorios
+// ✅ Nuevo módulo: Pagos
 
 import 'dart:async';
 import 'dart:math' as math;
@@ -16,6 +17,7 @@ import 'package:quimisol_movil/features/features_admin/banners/views/banners.dar
 import 'package:quimisol_movil/features/features_admin/categorias/views/categorias.dart';
 import 'package:quimisol_movil/features/features_admin/home/views/dashboard_page.dart';
 import 'package:quimisol_movil/features/features_admin/laboratorios/pages/lista_laboratorios.dart';
+import 'package:quimisol_movil/features/features_admin/pagos/pages/pagos.dart';
 import 'package:quimisol_movil/features/features_admin/pedidos/views/pedidos.dart';
 import 'package:quimisol_movil/features/features_admin/productos/views/productos.dart';
 import 'package:quimisol_movil/features/features_admin/soporte/pages/admin_chat_footer_panel.dart';
@@ -88,6 +90,11 @@ class _SidebarShellPageState extends State<SidebarShellPage> {
       label: 'Pedidos',
       route: '/pedidos',
     ),
+    _SideItem(
+      icon: Icons.payments_rounded,
+      label: 'Pagos',
+      route: '/pagos',
+    ),
   ];
 
   void _cancelCloseTimer() {
@@ -132,6 +139,7 @@ class _SidebarShellPageState extends State<SidebarShellPage> {
     if (path.startsWith('/banners')) return 6;
     if (path.startsWith('/laboratorios')) return 7;
     if (path.startsWith('/pedidos')) return 8;
+    if (path.startsWith('/pagos')) return 9;
     return 0;
   }
 
@@ -241,6 +249,7 @@ class _SidebarShellPageState extends State<SidebarShellPage> {
       const BannersPage(),
       const LaboratoriosPage(),
       const PedidosPage(),
+      const PagosPage(),
     ];
 
     return LayoutBuilder(

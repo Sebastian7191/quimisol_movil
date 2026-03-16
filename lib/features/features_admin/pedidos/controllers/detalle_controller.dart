@@ -1,112 +1,181 @@
-// lib/features/pedidos/controllers/detalle_controller.dart
-
 import 'package:cloud_firestore/cloud_firestore.dart';
+
 import '../data/detalle_data.dart';
 
 class PedidoDetalleController {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseFirestore _fire = FirebaseFirestore.instance;
 
-  // Obtiene los datos completos del pedido tipados
   Future<PedidoDetalleData> fetchPedido(String pedidoId) async {
-    final doc = await _firestore.collection('pedidos').doc(pedidoId).get();
-    return PedidoDetalleData.fromDoc(doc);
-  }
-
-  // Obtiene cliente info (nombre, email)
-  Future<Map<String, String>> fetchClienteInfo(String clienteUid) async {
-    try {
-      final doc = await _firestore.collection('usuarios').doc(clienteUid).get();
-      final data = doc.data() ?? {};
-      return {
-        'nombre': (data['name'] ?? data['nombre'] ?? 'Cliente').toString(),
-        'email': (data['email'] ?? '').toString(),
-      };
-    } catch (_) {
-      return {'nombre': 'Cliente', 'email': ''};
+    final doc = await _fire.collection('pedidos').doc(pedidoId).get();
+    if (!doc.exists) {
+      throw Exception('No existe el pedido.');
     }
+    return PedidoDetalleData.fromDoc(
+      doc as DocumentSnapshot<Map<String, dynamic>>,
+    );
   }
 
-  // ✅ Obtiene repartidores (colección raíz /repartidores) filtrando por almacenId
-  // - Si hay almacenId: where almacenId == X
-  // - Si NO hay: busca almacenes por departamento, luego whereIn(almacenId in [...]) en chunks de 10
+  Future<Map<String, String>> fetchClienteInfo(String uid) async {
+    if (uid.trim().isEmpty) {
+      return {'nombre': '—', 'email': '—'};
+    }
+
+    final doc = await _fire.collection('usuarios').doc(uid).get();
+    final data = doc.data() ?? <String, dynamic>{};
+
+    final nombre =
+        (data['nombre'] ??
+                data['name'] ??
+                data['displayName'] ??
+                data['fullName'] ??
+                '—')
+            .toString()
+            .trim();
+
+    final email = (data['email'] ?? '—').toString().trim();
+
+    return {
+      'nombre': nombre.isEmpty ? '—' : nombre,
+      'email': email.isEmpty ? '—' : email,
+    };
+  }
+
   Future<List<QueryDocumentSnapshot<Map<String, dynamic>>>> fetchRepartidores({
-    String? departamento,
-    String? almacenId,
+    required String departamento,
+    required String almacenId,
   }) async {
-    final alm = (almacenId ?? '').trim();
-    if (alm.isNotEmpty) {
-      final q = await _firestore
-          .collection('repartidores')
-          .where('almacenId', isEqualTo: alm)
-          .get();
-      return q.docs;
-    }
+    final dep = departamento.trim().toLowerCase();
+    final alm = almacenId.trim();
 
-    final dep = (departamento ?? '').trim();
-    if (dep.isEmpty) return [];
-
-    final almacenesSnap = await _firestore
-        .collection('almacenes')
-        .where('departamento', isEqualTo: dep)
-        .get();
-
-    final ids = almacenesSnap.docs.map((d) => d.id).toList();
-    if (ids.isEmpty) return [];
+    final snap = await _fire.collection('usuarios').get();
 
     final out = <QueryDocumentSnapshot<Map<String, dynamic>>>[];
 
-    for (final chunk in _chunks(ids, 10)) {
-      final q = await _firestore
-          .collection('repartidores')
-          .where('almacenId', whereIn: chunk)
-          .get();
-      out.addAll(q.docs);
+    for (final d in snap.docs) {
+      final data = d.data();
+
+      final rol = (data['rol'] ?? data['role'] ?? '').toString().toLowerCase();
+      final activo = (data['activo'] ?? data['isActive'] ?? true) == true;
+
+      if (!activo) continue;
+
+      final isRepartidor =
+          rol.contains('repartidor') ||
+          rol.contains('delivery') ||
+          rol == 'driver';
+
+      if (!isRepartidor) continue;
+
+      final depUser = (data['departamento'] ?? '')
+          .toString()
+          .trim()
+          .toLowerCase();
+
+      if (dep.isNotEmpty && depUser.isNotEmpty && depUser != dep) {
+        continue;
+      }
+
+      final almacenUser =
+          (data['almacenId'] ??
+                  data['almacen_id'] ??
+                  data['almacenUid'] ??
+                  data['almacen_uid'] ??
+                  '')
+              .toString()
+              .trim();
+
+      if (alm.isNotEmpty && almacenUser.isNotEmpty && almacenUser != alm) {
+        continue;
+      }
+
+      out.add(d);
     }
 
     return out;
   }
 
-  // Guarda cambios al pedido
   Future<void> guardarCambios({
     required String pedidoId,
     required String nuevoEstado,
+    required String nuevoEstadoPago,
+    String? motivoRechazoPago,
     DateTime? fechaEnvio,
-    double? costoEnvio,
+    required double costoEnvio,
     String? repartidorUid,
     String? repartidorNombre,
   }) async {
-    final data = <String, dynamic>{};
+    final pedidoRef = _fire.collection('pedidos').doc(pedidoId);
+    final pedidoSnap = await pedidoRef.get();
 
-    data['estado'] = nuevoEstado;
-
-    // fecha envio
-    data['fecha_envio'] = fechaEnvio == null ? null : Timestamp.fromDate(fechaEnvio);
-
-    // costo envio
-    if (costoEnvio != null) {
-      data['costo_envio'] = costoEnvio;
+    if (!pedidoSnap.exists) {
+      throw Exception('El pedido no existe.');
     }
 
-    // ✅ si no hay repartidor => borra asignación
-    final repUid = (repartidorUid ?? '').trim();
-    if (repUid.isEmpty) {
-      data['repartidorUid'] = FieldValue.delete();
-      data['repartidorNombre'] = FieldValue.delete();
+    final data = pedidoSnap.data() ?? <String, dynamic>{};
+    final uid = (data['uid'] ?? '').toString().trim();
+
+    final subtotalRaw = data['subtotal'];
+    final subtotal = subtotalRaw is num
+        ? subtotalRaw.toDouble()
+        : double.tryParse((subtotalRaw ?? '0').toString()) ?? 0.0;
+
+    final totalFinal = subtotal + costoEnvio;
+
+    final estadoPagoFinal = nuevoEstadoPago.trim().toLowerCase();
+    final estadoFinal =
+        estadoPagoFinal == 'rechazado' ? 'pendiente' : nuevoEstado;
+    final motivoFinal =
+        estadoPagoFinal == 'rechazado'
+            ? (motivoRechazoPago ?? '').trim()
+            : '';
+
+    final payload = <String, dynamic>{
+      'estado': estadoFinal,
+      'estado_pago': estadoPagoFinal,
+      'motivo_rechazo_pago': motivoFinal,
+      'costo_envio': costoEnvio,
+      'total': totalFinal,
+      'updatedAt': FieldValue.serverTimestamp(),
+      'repartidorUid': repartidorUid,
+      'repartidorNombre': repartidorNombre,
+      'repartidor_uid': repartidorUid,
+      'repartidor_nombre': repartidorNombre,
+    };
+
+    if (fechaEnvio != null) {
+      payload['fecha_envio'] = Timestamp.fromDate(fechaEnvio);
     } else {
-      data['repartidorUid'] = repUid;
-      final repNom = (repartidorNombre ?? '').trim();
-      if (repNom.isNotEmpty) data['repartidorNombre'] = repNom;
+      payload['fecha_envio'] = null;
     }
 
-    data['updatedAt'] = FieldValue.serverTimestamp();
+    final batch = _fire.batch();
+    batch.set(pedidoRef, payload, SetOptions(merge: true));
 
-    await _firestore.collection('pedidos').doc(pedidoId).update(data);
-  }
-}
+    if (uid.isNotEmpty) {
+      final userPedidoRef = _fire
+          .collection('usuarios')
+          .doc(uid)
+          .collection('pedidos')
+          .doc(pedidoId);
 
-Iterable<List<T>> _chunks<T>(List<T> list, int size) sync* {
-  for (int i = 0; i < list.length; i += size) {
-    final end = (i + size > list.length) ? list.length : i + size;
-    yield list.sublist(i, end);
+      batch.set(
+        userPedidoRef,
+        {
+          'estado': estadoFinal,
+          'estado_pago': estadoPagoFinal,
+          'motivo_rechazo_pago': motivoFinal,
+          'costo_envio': costoEnvio,
+          'total': totalFinal,
+          'updatedAt': FieldValue.serverTimestamp(),
+          'repartidorUid': repartidorUid,
+          'repartidorNombre': repartidorNombre,
+          'repartidor_uid': repartidorUid,
+          'repartidor_nombre': repartidorNombre,
+        },
+        SetOptions(merge: true),
+      );
+    }
+
+    await batch.commit();
   }
 }

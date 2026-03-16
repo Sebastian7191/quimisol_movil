@@ -163,7 +163,6 @@ exports.notificarNuevoPedido = onDocumentCreated(
       const pedido = snap.data() || {};
       const pedidoId = event.params.pedidoId;
 
-      // ✅ intenta leer departamento del pedido
       const pedidoDepto = String(
         pedido.departamento ||
           pedido?.ubicacion?.departamento ||
@@ -176,7 +175,6 @@ exports.notificarNuevoPedido = onDocumentCreated(
         return;
       }
 
-      // ✅ almacenes del mismo departamento
       const almacenesSnap = await admin
         .firestore()
         .collection("almacenes")
@@ -198,7 +196,6 @@ exports.notificarNuevoPedido = onDocumentCreated(
         return;
       }
 
-      // ✅ buscar admins cuyo almacenId esté dentro de esos almacenes
       const usuariosSnap = await admin.firestore().collection("usuarios").get();
 
       const adminUids = usuariosSnap.docs
@@ -403,7 +400,6 @@ exports.notificarPedidoEntregado = onDocumentUpdated(
       const estadoAntes = norm(beforeData.estado);
       const estadoDespues = norm(afterData.estado);
 
-      // ✅ Solo cuando cambia realmente a entregado
       if (estadoAntes === "entregado" || estadoDespues !== "entregado") {
         logger.info("No corresponde enviar push de entregado", {
           pedidoId,
@@ -413,7 +409,6 @@ exports.notificarPedidoEntregado = onDocumentUpdated(
         return;
       }
 
-      // ✅ Buscar UID del cliente en varios posibles campos
       const uidCliente = String(
         afterData.clienteUid ||
           afterData.userUid ||
@@ -421,7 +416,7 @@ exports.notificarPedidoEntregado = onDocumentUpdated(
           afterData.uidCliente ||
           afterData.uidUsuario ||
           afterData.createdBy ||
-          ""
+          "",
       ).trim();
 
       if (!uidCliente) {
@@ -436,7 +431,7 @@ exports.notificarPedidoEntregado = onDocumentUpdated(
       const codigoPedido = String(
         afterData.codigo ||
           afterData.codigoPedido ||
-          ""
+          "",
       ).trim();
 
       const titulo = "Pedido entregado";
@@ -470,6 +465,136 @@ exports.notificarPedidoEntregado = onDocumentUpdated(
       });
     } catch (error) {
       logger.error("Error en notificarPedidoEntregado", error);
+    }
+  },
+);
+
+/* =========================================================
+ * 4) NOTIFICAR AL CLIENTE CUANDO CAMBIA EL ESTADO DE PAGO
+ * Trigger: pedidos/{pedidoId}
+ * =======================================================*/
+
+exports.notificarCambioEstadoPago = onDocumentUpdated(
+  {
+    document: "pedidos/{pedidoId}",
+    region: "us-central1",
+  },
+  async (event) => {
+    try {
+      const beforeSnap = event.data?.before;
+      const afterSnap = event.data?.after;
+
+      if (!beforeSnap || !afterSnap) {
+        logger.warn("No hay snapshots before/after en notificarCambioEstadoPago");
+        return;
+      }
+
+      const beforeData = beforeSnap.data() || {};
+      const afterData = afterSnap.data() || {};
+      const pedidoId = event.params.pedidoId;
+
+      const estadoPagoAntes = norm(
+        beforeData.estado_pago || beforeData.estadoPago,
+      );
+      const estadoPagoDespues = norm(
+        afterData.estado_pago || afterData.estadoPago,
+      );
+
+      if (estadoPagoAntes === estadoPagoDespues) {
+        logger.info("estado_pago no cambió, no se envía push", {
+          pedidoId,
+          estadoPagoAntes,
+          estadoPagoDespues,
+        });
+        return;
+      }
+
+      if (estadoPagoDespues !== "rechazado" && estadoPagoDespues !== "pagado") {
+        logger.info("Cambio de estado_pago no requiere push", {
+          pedidoId,
+          estadoPagoAntes,
+          estadoPagoDespues,
+        });
+        return;
+      }
+
+      const uidCliente = String(
+        afterData.clienteUid ||
+          afterData.userUid ||
+          afterData.usuarioUid ||
+          afterData.uidCliente ||
+          afterData.uidUsuario ||
+          afterData.createdBy ||
+          afterData.uid ||
+          "",
+      ).trim();
+
+      if (!uidCliente) {
+        logger.warn("Pedido con cambio de estado_pago pero sin uid del cliente", {
+          pedidoId,
+          estadoPagoAntes,
+          estadoPagoDespues,
+        });
+        return;
+      }
+
+      const codigoPedido = String(
+        afterData.codigo ||
+          afterData.codigoPedido ||
+          "",
+      ).trim();
+
+      let title = "";
+      let body = "";
+      let type = "";
+
+      if (estadoPagoDespues === "rechazado") {
+        title = "Pago rechazado";
+        body = codigoPedido
+          ? `El pedido ${codigoPedido} fue rechazado en la forma de pago. Toca aquí para más detalles.`
+          : "Tu forma de pago fue rechazada. Toca aquí para más detalles.";
+        type = "pedido_pago_rechazado";
+      }
+
+      if (estadoPagoDespues === "pagado") {
+        title = "Pago aceptado";
+        body = codigoPedido
+          ? `Tu pedido ${codigoPedido} fue aceptado. Toca aquí para ver los detalles.`
+          : "Tu pedido fue aceptado. Toca aquí para ver los detalles.";
+        type = "pedido_pago_aceptado";
+      }
+
+      await sendPushToUserByUid({
+        uidDestino: uidCliente,
+        title,
+        body,
+        data: {
+          type,
+          pedidoId,
+          codigo: codigoPedido,
+          estadoPago: estadoPagoDespues,
+          target: "detalle_pedido",
+        },
+        androidChannelId: "orders_channel",
+        logContext: {
+          trigger: "notificarCambioEstadoPago",
+          pedidoId,
+          uidCliente,
+          codigoPedido,
+          estadoPagoAntes,
+          estadoPagoDespues,
+        },
+      });
+
+      logger.info("Push por cambio de estado_pago enviada correctamente", {
+        pedidoId,
+        uidCliente,
+        codigoPedido,
+        estadoPagoAntes,
+        estadoPagoDespues,
+      });
+    } catch (error) {
+      logger.error("Error en notificarCambioEstadoPago", error);
     }
   },
 );

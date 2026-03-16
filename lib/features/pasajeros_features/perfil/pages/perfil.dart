@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 import 'package:quimisol_movil/core/theme/palette.dart';
 import 'package:quimisol_movil/features/pasajeros_features/carrito/pages/carrito.dart';
+import 'package:quimisol_movil/features/pasajeros_features/laboratorios/pages/laboratorios_clientes.dart';
 import 'package:quimisol_movil/features/pasajeros_features/ubicaciones/pages/lista_ubicaciones.dart';
 import 'perfil_form.dart';
 
@@ -63,6 +64,19 @@ class _PerfilPageState extends State<PerfilPage> {
     Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => const CarritoPage()),
+    );
+  }
+
+  void _openLaboratorios(String clienteNombre) {
+    if (clienteNombre.trim().isEmpty) return;
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => LaboratoriosClientesPage(
+          clienteNombre: clienteNombre,
+        ),
+      ),
     );
   }
 
@@ -149,7 +163,7 @@ class _PerfilPageState extends State<PerfilPage> {
                         ),
                         _QuickTile(
                           icon: Icons.favorite_border_rounded,
-                          label: 'Deseados',
+                          label: 'Favoritos',
                           color: pink,
                           onTap: _openDeseados,
                         ),
@@ -167,9 +181,7 @@ class _PerfilPageState extends State<PerfilPage> {
                             icon: Icons.science_rounded,
                             label: 'Laboratorios',
                             color: pink,
-                            onTap: () {
-                              // Modular.to.pushNamed('/laboratorios');
-                            },
+                            onTap: () => _openLaboratorios(name),
                           ),
                         );
                       }
@@ -204,10 +216,20 @@ class _PerfilPageState extends State<PerfilPage> {
 
                   _MenuRowSimple(
                     icon: Icons.favorite_border_rounded,
-                    label: 'Deseados',
+                    label: 'Favoritos',
                     accent: pink,
                     onTap: _openDeseados,
                   ),
+
+                  if (isClienteMayorista) ...[
+                    const SizedBox(height: 18),
+                    _MenuRowSimple(
+                      icon: Icons.science_rounded,
+                      label: 'Laboratorios',
+                      accent: pink,
+                      onTap: () => _openLaboratorios(name),
+                    ),
+                  ],
 
                   const SizedBox(height: 26),
 
