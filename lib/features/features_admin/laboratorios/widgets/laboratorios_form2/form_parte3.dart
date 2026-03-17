@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:quimisol_movil/core/theme/palette.dart';
-import 'package:quimisol_movil/features/features_admin/laboratorios/widgets/laboratorios_form/laboratorio_form_models.dart';
+import 'package:quimisol_movil/features/features_admin/laboratorios/widgets/laboratorios_form2/laboratorio_form_models.dart';
 import 'form_ui_helpers.dart';
 
 class FormParte3Muestras extends StatelessWidget {

@@ -87,6 +87,45 @@ class _RepartidorViajesPageState extends State<RepartidorViajesPage> {
     return s[0].toUpperCase() + s.substring(1);
   }
 
+  String _normalizeText(dynamic value) {
+    return (value ?? '').toString().trim().toLowerCase();
+  }
+
+  bool _isEstadoActivo(dynamic estadoRaw) {
+    final estado = _normalizeText(estadoRaw);
+
+    return estado == 'aceptado' ||
+        estado == 'en camino' ||
+        estado == 'en_camino' ||
+        estado == 'encamino' ||
+        estado == 'en curso' ||
+        estado == 'en_curso' ||
+        estado == 'encurso';
+  }
+
+  String _estadoBonito(dynamic estadoRaw) {
+    final estado = _normalizeText(estadoRaw);
+
+    if (estado == 'aceptado') return 'Aceptado';
+    if (estado == 'en camino' ||
+        estado == 'en_camino' ||
+        estado == 'encamino') {
+      return 'En camino';
+    }
+    if (estado == 'en curso' ||
+        estado == 'en_curso' ||
+        estado == 'encurso') {
+      return 'En curso';
+    }
+    if (estado == 'entregado') return 'Entregado';
+    if (estado == 'cancelado') return 'Cancelado';
+    if (estado == 'pendiente') return 'Pendiente';
+
+    final raw = (estadoRaw ?? '').toString().trim();
+    if (raw.isEmpty) return 'Pendiente';
+    return raw;
+  }
+
   String _labelForDay(DateTime day, DateTime todayKey) {
     final diff = _dayDiff(day, todayKey);
     if (diff == 0) return 'Hoy';
@@ -110,14 +149,28 @@ class _RepartidorViajesPageState extends State<RepartidorViajesPage> {
       stream: FirebaseFirestore.instance
           .collection('pedidos')
           .where('repartidorUid', isEqualTo: uid)
-          .where('estado', whereIn: const ['aceptado', 'En camino'])
           .snapshots(),
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
           return const Center(child: CircularProgressIndicator());
         }
 
-        final docs = snapshot.data!.docs;
+        if (snapshot.hasError) {
+          return Center(
+            child: Text(
+              'Error al cargar pedidos',
+              style: TextStyle(
+                fontWeight: FontWeight.w700,
+                color: Palette.ink.withOpacity(0.6),
+              ),
+            ),
+          );
+        }
+
+        final docs = snapshot.data!.docs.where((doc) {
+          final data = doc.data();
+          return _isEstadoActivo(data['estado']);
+        }).toList();
 
         // ✅ armamos lista con dist + fecha_envio
         final pedidos = docs.map((doc) {
@@ -136,15 +189,18 @@ class _RepartidorViajesPageState extends State<RepartidorViajesPage> {
                 )
               : 99999.0;
 
-          final fechaEnvio = _tsToDate(data['fecha_envio']); // ✅ el campo
+          final fechaEnvio = _tsToDate(data['fecha_envio']);
           final day = fechaEnvio == null ? null : _dayKey(fechaEnvio);
 
           return {
             'id': doc.id,
-            'data': data,
+            'data': {
+              ...data,
+              'estado': _estadoBonito(data['estado']),
+            },
             'dist': dist,
             'fecha_envio': fechaEnvio,
-            'day': day, // DateTime(yyyy,mm,dd) o null
+            'day': day,
           };
         }).toList();
 
@@ -333,7 +389,7 @@ class _EstadoChip extends StatelessWidget {
     if (x.contains('cancel') || x.contains('rechaz')) {
       return Palette.statsDanger.withOpacity(0.18);
     }
-    if (x.contains('camino') || x.contains('ruta') || x.contains('proceso')) {
+    if (x.contains('camino') || x.contains('ruta') || x.contains('curso') || x.contains('proceso')) {
       return Colors.orange.withOpacity(0.18);
     }
     if (x.contains('acept')) return Palette.primary.withOpacity(0.14);
@@ -344,9 +400,10 @@ class _EstadoChip extends StatelessWidget {
   Color _fg(String s) {
     final x = s.trim().toLowerCase();
     if (x.contains('entreg')) return Palette.statsSuccess;
-    if (x.contains('cancel') || x.contains('rechaz'))
+    if (x.contains('cancel') || x.contains('rechaz')) {
       return Palette.statsDanger;
-    if (x.contains('camino') || x.contains('ruta') || x.contains('proceso')) {
+    }
+    if (x.contains('camino') || x.contains('ruta') || x.contains('curso') || x.contains('proceso')) {
       return Colors.orange.shade800;
     }
     if (x.contains('acept')) return Palette.primary;
@@ -357,9 +414,10 @@ class _EstadoChip extends StatelessWidget {
   IconData _icon(String s) {
     final x = s.trim().toLowerCase();
     if (x.contains('entreg')) return Icons.check_circle_rounded;
-    if (x.contains('cancel') || x.contains('rechaz'))
+    if (x.contains('cancel') || x.contains('rechaz')) {
       return Icons.cancel_rounded;
-    if (x.contains('camino') || x.contains('ruta')) {
+    }
+    if (x.contains('camino') || x.contains('ruta') || x.contains('curso')) {
       return Icons.local_shipping_rounded;
     }
     if (x.contains('acept')) return Icons.thumb_up_alt_rounded;
@@ -416,7 +474,7 @@ class _PedidoCard extends StatelessWidget {
         : [];
 
     final clienteFoto = data['clientePhoto'];
-    final total = (data['total'] as num).toDouble();
+    final total = ((data['total'] as num?) ?? 0).toDouble();
 
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
@@ -484,8 +542,8 @@ class _PedidoCard extends StatelessWidget {
             padding: const EdgeInsets.all(14),
             child: Column(
               children: items.map((i) {
-                final qty = (i['qty'] ?? 1) as num;
-                final price = (i['price'] ?? 0) as num;
+                final qty = ((i['qty'] ?? i['cantidad'] ?? 1) as num).toDouble();
+                final price = ((i['price'] ?? i['precio'] ?? 0) as num).toDouble();
                 final subtotal = qty * price;
 
                 return Padding(
@@ -495,10 +553,18 @@ class _PedidoCard extends StatelessWidget {
                       ClipRRect(
                         borderRadius: BorderRadius.circular(10),
                         child: Image.network(
-                          i['imageUrl'],
+                          (i['imageUrl'] ?? '').toString(),
                           width: 52,
                           height: 52,
                           fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) {
+                            return Container(
+                              width: 52,
+                              height: 52,
+                              color: Colors.grey.shade200,
+                              child: const Icon(Icons.image_not_supported_outlined),
+                            );
+                          },
                         ),
                       ),
                       const SizedBox(width: 10),
@@ -507,7 +573,7 @@ class _PedidoCard extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              (i['name'] ?? '').toString(),
+                              (i['name'] ?? i['nombre'] ?? '').toString(),
                               style: TextStyle(
                                 fontWeight: FontWeight.w700,
                                 color: Palette.ink,
@@ -515,7 +581,7 @@ class _PedidoCard extends StatelessWidget {
                             ),
                             const SizedBox(height: 2),
                             Text(
-                              'Cantidad: $qty',
+                              'Cantidad: ${qty.toStringAsFixed(qty % 1 == 0 ? 0 : 2)}',
                               style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,

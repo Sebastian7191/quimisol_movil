@@ -295,7 +295,8 @@ class _PedidoDetalleFormState extends State<_PedidoDetalleForm> {
                     pedido: pedido,
                     estadoEdit: _estadoEdit,
                     onEstadoChanged:
-                        (_saving || (!_esEfectivo && _estadoPagoEdit == 'rechazado'))
+                        (_saving ||
+                            (!_esEfectivo && _estadoPagoEdit == 'rechazado'))
                         ? null
                         : (v) => setState(() => _estadoEdit = v),
                     fechaEnvioEdit: _fechaEnvioEdit,
@@ -331,7 +332,9 @@ class _PedidoDetalleFormState extends State<_PedidoDetalleForm> {
                               _estadoPagoEdit = v;
                               if (v == 'rechazado') {
                                 _estadoEdit = kEstadoPendiente;
-                              } else if (_motivoRechazoCtrl.text.trim().isNotEmpty) {
+                              } else if (_motivoRechazoCtrl.text
+                                  .trim()
+                                  .isNotEmpty) {
                                 _motivoRechazoCtrl.clear();
                               }
                             });
@@ -491,37 +494,122 @@ class _GestionSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, c) {
+        final isMobile = c.maxWidth < 640;
+
+        if (isMobile) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _GestionFieldBlock(
+                label: 'Estado',
+                child: _EstadoDropdown(
+                  value: estadoEdit,
+                  onChanged: onEstadoChanged,
+                ),
+              ),
+              const SizedBox(height: 14),
+              _GestionFieldBlock(
+                label: 'Fecha envío',
+                child: _FechaEnvioField(
+                  value: fechaEnvioEdit,
+                  onTap: onPickFecha,
+                  compact: true,
+                ),
+              ),
+              const SizedBox(height: 14),
+              _GestionFieldBlock(
+                label: 'Costo envío',
+                child: _CostoEnvioField(
+                  controller: costoCtrl,
+                  onChanged: onCostoChanged,
+                ),
+              ),
+              const SizedBox(height: 14),
+              _GestionFieldBlock(
+                label: 'Repartidor',
+                child: RepartidorPickerWidget(
+                  departamento: pedido.departamento,
+                  almacenId: pedido.almacenId,
+                  valueUid: repartidorUidEdit,
+                  valueNombre: repartidorNombreEdit,
+                  onChanged: onRepartidorChanged,
+                  controller: controller,
+                ),
+              ),
+            ],
+          );
+        }
+
+        return Column(
+          children: [
+            EditRow(
+              label: 'Estado',
+              child: _EstadoDropdown(
+                value: estadoEdit,
+                onChanged: onEstadoChanged,
+              ),
+            ),
+            const SizedBox(height: 10),
+            EditRow(
+              label: 'Fecha envío',
+              child: _FechaEnvioField(
+                value: fechaEnvioEdit,
+                onTap: onPickFecha,
+              ),
+            ),
+            const SizedBox(height: 10),
+            EditRow(
+              label: 'Costo envío',
+              child: _CostoEnvioField(
+                controller: costoCtrl,
+                onChanged: onCostoChanged,
+              ),
+            ),
+            const SizedBox(height: 10),
+            EditRow(
+              label: 'Repartidor',
+              child: RepartidorPickerWidget(
+                departamento: pedido.departamento,
+                almacenId: pedido.almacenId,
+                valueUid: repartidorUidEdit,
+                valueNombre: repartidorNombreEdit,
+                onChanged: onRepartidorChanged,
+                controller: controller,
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _GestionFieldBlock extends StatelessWidget {
+  const _GestionFieldBlock({
+    required this.label,
+    required this.child,
+  });
+
+  final String label;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        EditRow(
-          label: 'Estado',
-          child: _EstadoDropdown(value: estadoEdit, onChanged: onEstadoChanged),
-        ),
-        const SizedBox(height: 10),
-        EditRow(
-          label: 'Fecha envío',
-          child: _FechaEnvioField(value: fechaEnvioEdit, onTap: onPickFecha),
-        ),
-        const SizedBox(height: 10),
-        EditRow(
-          label: 'Costo envío',
-          child: _CostoEnvioField(
-            controller: costoCtrl,
-            onChanged: onCostoChanged,
+        Text(
+          label,
+          style: TextStyle(
+            color: Palette.ink.withValues(alpha: 0.72),
+            fontWeight: FontWeight.w900,
+            fontSize: 12.5,
           ),
         ),
-        const SizedBox(height: 10),
-        EditRow(
-          label: 'Repartidor',
-          child: RepartidorPickerWidget(
-            departamento: pedido.departamento,
-            almacenId: pedido.almacenId,
-            valueUid: repartidorUidEdit,
-            valueNombre: repartidorNombreEdit,
-            onChanged: onRepartidorChanged,
-            controller: controller,
-          ),
-        ),
+        const SizedBox(height: 8),
+        child,
       ],
     );
   }
@@ -771,7 +859,10 @@ class _ComprobanteZoomDialog extends StatelessWidget {
                       ),
                       IconButton(
                         onPressed: () => Navigator.pop(context),
-                        icon: const Icon(Icons.close_rounded, color: Colors.white),
+                        icon: const Icon(
+                          Icons.close_rounded,
+                          color: Colors.white,
+                        ),
                       ),
                     ],
                   ),
@@ -794,7 +885,9 @@ class _ComprobanteZoomDialog extends StatelessWidget {
                         },
                         loadingBuilder: (context, child, progress) {
                           if (progress == null) return child;
-                          return const CircularProgressIndicator(color: Colors.white);
+                          return const CircularProgressIndicator(
+                            color: Colors.white,
+                          );
                         },
                       ),
                     ),
@@ -870,7 +963,9 @@ class _EstadoPagoDropdown extends StatelessWidget {
                 ),
               )
               .toList(),
-          onChanged: onChanged == null ? null : (v) => onChanged!(v ?? 'pendiente'),
+          onChanged: onChanged == null
+              ? null
+              : (v) => onChanged!(v ?? 'pendiente'),
         ),
       ),
     );
@@ -931,7 +1026,9 @@ class _EstadoDropdown extends StatelessWidget {
                 ),
               )
               .toList(),
-          onChanged: onChanged == null ? null : (v) => onChanged!(v ?? options.first),
+          onChanged: onChanged == null
+              ? null
+              : (v) => onChanged!(v ?? options.first),
         ),
       ),
     );
@@ -939,41 +1036,65 @@ class _EstadoDropdown extends StatelessWidget {
 }
 
 class _FechaEnvioField extends StatelessWidget {
-  const _FechaEnvioField({required this.value, required this.onTap});
+  const _FechaEnvioField({
+    required this.value,
+    required this.onTap,
+    this.compact = false,
+  });
+
   final DateTime? value;
   final VoidCallback? onTap;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
+    final field = Container(
+      alignment: Alignment.centerLeft,
+      height: 44,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        color: Palette.fieldBg,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Palette.ink.withValues(alpha: 0.06)),
+      ),
+      child: Text(
+        value == null
+            ? '—'
+            : DateFormat('dd/MM/yyyy HH:mm', 'es_BO').format(value!),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: const TextStyle(
+          color: Palette.ink,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+    );
+
+    final button = OutlinedButton.icon(
+      onPressed: onTap,
+      icon: const Icon(Icons.calendar_month_rounded),
+      label: const Text('Editar'),
+      style: OutlinedButton.styleFrom(
+        minimumSize: Size(compact ? double.infinity : 0, 44),
+      ),
+    );
+
+    if (compact) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          field,
+          const SizedBox(height: 10),
+          button,
+        ],
+      );
+    }
+
     return Row(
       children: [
-        Expanded(
-          child: Container(
-            alignment: Alignment.centerLeft,
-            height: 44,
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            decoration: BoxDecoration(
-              color: Palette.fieldBg,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: Palette.ink.withValues(alpha: 0.06)),
-            ),
-            child: Text(
-              value == null
-                  ? '—'
-                  : DateFormat('dd/MM/yyyy HH:mm', 'es_BO').format(value!),
-              style: const TextStyle(
-                color: Palette.ink,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-          ),
-        ),
+        Expanded(child: field),
         const SizedBox(width: 10),
-        OutlinedButton.icon(
-          onPressed: onTap,
-          icon: const Icon(Icons.calendar_month_rounded),
-          label: const Text('Editar'),
-        ),
+        button,
       ],
     );
   }
@@ -1046,36 +1167,50 @@ class _ItemTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Palette.fieldBg,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Palette.ink.withValues(alpha: 0.06)),
-      ),
-      padding: const EdgeInsets.all(10),
-      child: Row(
-        children: [
-          _Thumb(url: item.imageUrl),
-          const SizedBox(width: 10),
-          Expanded(
+    return LayoutBuilder(
+      builder: (context, c) {
+        final isMobile = c.maxWidth < 560;
+
+        if (isMobile) {
+          return Container(
+            decoration: BoxDecoration(
+              color: Palette.fieldBg,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Palette.ink.withValues(alpha: 0.06)),
+            ),
+            padding: const EdgeInsets.all(12),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  item.nombre,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Palette.ink,
-                    fontWeight: FontWeight.w900,
-                    fontSize: 13.2,
-                    height: 1.15,
-                  ),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _Thumb(url: item.imageUrl),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            item.nombre,
+                            maxLines: 3,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: Palette.ink,
+                              fontWeight: FontWeight.w900,
+                              fontSize: 13.4,
+                              height: 1.2,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 10),
                 Wrap(
                   spacing: 8,
-                  runSpacing: 6,
+                  runSpacing: 8,
                   children: [
                     _Pill(text: 'Cant: ${item.cantidad}'),
                     _Pill(
@@ -1084,30 +1219,103 @@ class _ItemTile extends StatelessWidget {
                     ),
                   ],
                 ),
+                const SizedBox(height: 10),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Palette.button.withValues(alpha: 0.28),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: Palette.primary.withValues(alpha: 0.10),
+                      ),
+                    ),
+                    child: Text(
+                      'Subtotal: ${_money(item.subtotal)}',
+                      style: const TextStyle(
+                        color: Palette.ink,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 12.5,
+                      ),
+                    ),
+                  ),
+                ),
               ],
             ),
+          );
+        }
+
+        return Container(
+          decoration: BoxDecoration(
+            color: Palette.fieldBg,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Palette.ink.withValues(alpha: 0.06)),
           ),
-          const SizedBox(width: 10),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-            decoration: BoxDecoration(
-              color: Palette.button.withValues(alpha: 0.28),
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(
-                color: Palette.primary.withValues(alpha: 0.10),
+          padding: const EdgeInsets.all(10),
+          child: Row(
+            children: [
+              _Thumb(url: item.imageUrl),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      item.nombre,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Palette.ink,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 13.2,
+                        height: 1.15,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 6,
+                      children: [
+                        _Pill(text: 'Cant: ${item.cantidad}'),
+                        _Pill(
+                          text: 'Precio: ${_money(item.precio)}',
+                          icon: Icons.price_check,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
-            ),
-            child: Text(
-              _money(item.subtotal),
-              style: const TextStyle(
-                color: Palette.ink,
-                fontWeight: FontWeight.w900,
-                fontSize: 12.5,
+              const SizedBox(width: 10),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: Palette.button.withValues(alpha: 0.28),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: Palette.primary.withValues(alpha: 0.10),
+                  ),
+                ),
+                child: Text(
+                  _money(item.subtotal),
+                  style: const TextStyle(
+                    color: Palette.ink,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 12.5,
+                  ),
+                ),
               ),
-            ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 }

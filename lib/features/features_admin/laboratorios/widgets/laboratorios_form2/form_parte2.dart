@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:quimisol_movil/features/features_admin/laboratorios/widgets/laboratorios_form/laboratorio_input_formatters.dart';
+import 'package:quimisol_movil/features/features_admin/laboratorios/widgets/laboratorios_form2/laboratorio_input_formatters.dart';
 import 'form_ui_helpers.dart';
 
 class FormParte2DatosGenerales extends StatelessWidget {

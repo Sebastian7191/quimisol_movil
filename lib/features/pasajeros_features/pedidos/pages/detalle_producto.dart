@@ -1,11 +1,16 @@
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:image_gallery_saver_plus/image_gallery_saver_plus.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:quimisol_movil/core/theme/palette.dart';
+import 'package:share_plus/share_plus.dart';
 
 class DetallePedidoPage extends StatefulWidget {
   const DetallePedidoPage({
@@ -34,8 +39,18 @@ class _DetallePedidoPageState extends State<DetallePedidoPage> {
   bool _pickingComprobante = false;
   bool _reenviandoComprobante = false;
 
+  bool _savingQr = false;
+  bool _sharingQr = false;
+  String? _qrImageUrl;
+
   DocumentReference<Map<String, dynamic>> get _pedidoDoc =>
       _fire.collection('pedidos').doc(widget.pedidoId);
+
+  @override
+  void initState() {
+    super.initState();
+    _loadQrConfig();
+  }
 
   double _asDouble(dynamic v) {
     if (v is num) return v.toDouble();
@@ -245,6 +260,129 @@ class _DetallePedidoPageState extends State<DetallePedidoPage> {
   }
 
   bool _isLoggedIn() => _auth.currentUser != null;
+
+  Future<void> _loadQrConfig() async {
+    try {
+      final qrDoc = await _fire.collection('pagos').doc('config_qr').get();
+      final qrData = qrDoc.data();
+
+      final qrActive =
+          (qrData?['activo'] as bool?) ??
+          (qrData?['qrActive'] as bool?) ??
+          false;
+
+      final qrUrl = (qrData?['qrImageUrl'] ?? '').toString().trim();
+
+      if (!mounted) return;
+      setState(() {
+        _qrImageUrl = (qrActive && qrUrl.isNotEmpty) ? qrUrl : null;
+      });
+    } catch (_) {}
+  }
+
+  Future<Uint8List> _downloadQrBytes() async {
+    if (_qrImageUrl == null || _qrImageUrl!.isEmpty) {
+      throw Exception('No hay imagen QR disponible.');
+    }
+
+    final response = await http.get(Uri.parse(_qrImageUrl!));
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception('No se pudo descargar la imagen QR.');
+    }
+
+    return response.bodyBytes;
+  }
+
+  Future<void> _guardarQr() async {
+    try {
+      if (_qrImageUrl == null || _qrImageUrl!.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No hay imagen QR para guardar.')),
+        );
+        return;
+      }
+
+      setState(() => _savingQr = true);
+
+      final bytes = await _downloadQrBytes();
+      final fileName = 'qr_pago_${DateTime.now().millisecondsSinceEpoch}';
+
+      final result = await ImageGallerySaverPlus.saveImage(
+        bytes,
+        quality: 100,
+        name: fileName,
+      );
+
+      final success =
+          result['isSuccess'] == true ||
+          result['isSuccess'] == 1 ||
+          result['filePath'] != null;
+
+      if (!mounted) return;
+
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Imagen QR guardada correctamente.'),
+            backgroundColor: Colors.green.shade600,
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('No se pudo guardar la imagen QR.'),
+            backgroundColor: Colors.red.shade600,
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error al guardar el QR: $e'),
+          backgroundColor: Colors.red.shade600,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _savingQr = false);
+    }
+  }
+
+  Future<void> _compartirQr() async {
+    try {
+      if (_qrImageUrl == null || _qrImageUrl!.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No hay imagen QR para compartir.')),
+        );
+        return;
+      }
+
+      setState(() => _sharingQr = true);
+
+      final bytes = await _downloadQrBytes();
+      final tempDir = await getTemporaryDirectory();
+      final file = File(
+        '${tempDir.path}/qr_pago_${DateTime.now().millisecondsSinceEpoch}.png',
+      );
+
+      await file.writeAsBytes(bytes, flush: true);
+
+      await Share.shareXFiles(
+        [XFile(file.path)],
+        text: 'Te comparto el código QR para realizar el pago.',
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error al compartir el QR: $e'),
+          backgroundColor: Colors.red.shade600,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _sharingQr = false);
+    }
+  }
 
   Future<void> _pickNuevoComprobante() async {
     try {
@@ -600,9 +738,9 @@ class _DetallePedidoPageState extends State<DetallePedidoPage> {
                                             Container(
                                               padding:
                                                   const EdgeInsets.symmetric(
-                                                horizontal: 10,
-                                                vertical: 7,
-                                              ),
+                                                    horizontal: 10,
+                                                    vertical: 7,
+                                                  ),
                                               decoration: BoxDecoration(
                                                 color: badge.bg,
                                                 borderRadius:
@@ -678,9 +816,9 @@ class _DetallePedidoPageState extends State<DetallePedidoPage> {
                                             Container(
                                               padding:
                                                   const EdgeInsets.symmetric(
-                                                horizontal: 10,
-                                                vertical: 6,
-                                              ),
+                                                    horizontal: 10,
+                                                    vertical: 6,
+                                                  ),
                                               decoration: BoxDecoration(
                                                 color: paymentBadge.bg,
                                                 borderRadius:
@@ -699,7 +837,8 @@ class _DetallePedidoPageState extends State<DetallePedidoPage> {
                                                     paymentBadge.label,
                                                     style: const TextStyle(
                                                       color: Colors.white,
-                                                      fontWeight: FontWeight.w900,
+                                                      fontWeight:
+                                                          FontWeight.w900,
                                                       fontSize: 11.5,
                                                     ),
                                                   ),
@@ -776,7 +915,9 @@ class _DetallePedidoPageState extends State<DetallePedidoPage> {
                                       ],
                                     ),
                                   ),
-                                  if (!esEfectivo && comprobanteUrl.isNotEmpty) ...[
+                                  if (!esEfectivo &&
+                                      !pagoRechazado &&
+                                      comprobanteUrl.isNotEmpty) ...[
                                     const SizedBox(height: 14),
                                     _ClientComprobanteCard(
                                       comprobanteUrl: _nuevoComprobanteBytes != null
@@ -788,6 +929,7 @@ class _DetallePedidoPageState extends State<DetallePedidoPage> {
                                       localBytes: _nuevoComprobanteBytes,
                                     ),
                                   ] else if (!esEfectivo &&
+                                      !pagoRechazado &&
                                       _nuevoComprobanteBytes != null) ...[
                                     const SizedBox(height: 14),
                                     _ClientComprobanteCard(
@@ -829,7 +971,7 @@ class _DetallePedidoPageState extends State<DetallePedidoPage> {
                                               ),
                                               const SizedBox(width: 8),
                                               Text(
-                                                'Reenviar comprobante',
+                                                'Pago rechazado',
                                                 style: TextStyle(
                                                   color: purple,
                                                   fontWeight: FontWeight.w900,
@@ -840,7 +982,7 @@ class _DetallePedidoPageState extends State<DetallePedidoPage> {
                                           ),
                                           const SizedBox(height: 10),
                                           Text(
-                                            'Tu pago fue rechazado. Puedes subir una nueva imagen del comprobante y reenviarla para revisión.',
+                                            'Tu pago fue rechazado. Vuelve a realizar el pago usando el QR y luego sube un nuevo comprobante para enviarlo nuevamente a revisión.',
                                             style: TextStyle(
                                               color: purple.withOpacity(0.82),
                                               fontWeight: FontWeight.w700,
@@ -848,54 +990,253 @@ class _DetallePedidoPageState extends State<DetallePedidoPage> {
                                             ),
                                           ),
                                           const SizedBox(height: 14),
+                                          Container(
+                                            width: double.infinity,
+                                            padding: const EdgeInsets.all(18),
+                                            decoration: BoxDecoration(
+                                              color: Palette.fieldBg,
+                                              borderRadius:
+                                                  BorderRadius.circular(20),
+                                              border: Border.all(
+                                                color: purple.withOpacity(0.06),
+                                              ),
+                                            ),
+                                            child: Center(
+                                              child:
+                                                  (_qrImageUrl != null &&
+                                                      _qrImageUrl!.isNotEmpty)
+                                                  ? ClipRRect(
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                            18,
+                                                          ),
+                                                      child: Container(
+                                                        constraints:
+                                                            const BoxConstraints(
+                                                              maxHeight: 320,
+                                                              maxWidth: 320,
+                                                            ),
+                                                        color: Colors.white,
+                                                        padding:
+                                                            const EdgeInsets.all(
+                                                              10,
+                                                            ),
+                                                        child: Image.network(
+                                                          _qrImageUrl!,
+                                                          fit: BoxFit.contain,
+                                                        ),
+                                                      ),
+                                                    )
+                                                  : Column(
+                                                      children: [
+                                                        Icon(
+                                                          Icons
+                                                              .qr_code_2_rounded,
+                                                          size: 70,
+                                                          color: purple
+                                                              .withOpacity(
+                                                                0.28,
+                                                              ),
+                                                        ),
+                                                        const SizedBox(
+                                                          height: 10,
+                                                        ),
+                                                        Text(
+                                                          'No hay QR disponible',
+                                                          style: TextStyle(
+                                                            color: purple
+                                                                .withOpacity(
+                                                                  0.60,
+                                                                ),
+                                                            fontWeight:
+                                                                FontWeight.w800,
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                            ),
+                                          ),
+                                          const SizedBox(height: 16),
                                           Row(
                                             children: [
                                               Expanded(
-                                                child: OutlinedButton.icon(
-                                                  onPressed: _pickingComprobante
+                                                child: ElevatedButton.icon(
+                                                  onPressed: _savingQr
                                                       ? null
-                                                      : _pickNuevoComprobante,
-                                                  icon: _pickingComprobante
+                                                      : _guardarQr,
+                                                  icon: _savingQr
+                                                      ? const SizedBox(
+                                                          width: 16,
+                                                          height: 16,
+                                                          child:
+                                                              CircularProgressIndicator(
+                                                                strokeWidth: 2,
+                                                                color:
+                                                                    Colors.white,
+                                                              ),
+                                                        )
+                                                      : const Icon(
+                                                          Icons
+                                                              .download_rounded,
+                                                        ),
+                                                  label: Text(
+                                                    _savingQr
+                                                        ? 'Guardando...'
+                                                        : 'Guardar',
+                                                  ),
+                                                  style:
+                                                      ElevatedButton.styleFrom(
+                                                        backgroundColor:
+                                                            Palette.button,
+                                                        foregroundColor:
+                                                            Colors.white,
+                                                        elevation: 0,
+                                                        padding:
+                                                            const EdgeInsets.symmetric(
+                                                              vertical: 14,
+                                                            ),
+                                                        shape: RoundedRectangleBorder(
+                                                          borderRadius:
+                                                              BorderRadius.circular(
+                                                                14,
+                                                              ),
+                                                        ),
+                                                      ),
+                                                ),
+                                              ),
+                                              const SizedBox(width: 12),
+                                              Expanded(
+                                                child: OutlinedButton.icon(
+                                                  onPressed: _sharingQr
+                                                      ? null
+                                                      : _compartirQr,
+                                                  icon: _sharingQr
                                                       ? SizedBox(
                                                           width: 16,
                                                           height: 16,
                                                           child:
                                                               CircularProgressIndicator(
-                                                            strokeWidth: 2,
-                                                            color: purple,
-                                                          ),
+                                                                strokeWidth: 2,
+                                                                color: Palette
+                                                                    .button,
+                                                              ),
                                                         )
                                                       : const Icon(
-                                                          Icons.image_outlined,
+                                                          Icons.share_rounded,
                                                         ),
                                                   label: Text(
-                                                    _nuevoComprobanteBytes == null
-                                                        ? 'Cambiar imagen de comprobante'
-                                                        : 'Cambiar nuevamente',
+                                                    _sharingQr
+                                                        ? 'Compartiendo...'
+                                                        : 'Compartir',
                                                   ),
+                                                  style:
+                                                      OutlinedButton.styleFrom(
+                                                        foregroundColor:
+                                                            Palette.button,
+                                                        side: BorderSide(
+                                                          color: Palette.button,
+                                                        ),
+                                                        padding:
+                                                            const EdgeInsets.symmetric(
+                                                              vertical: 14,
+                                                            ),
+                                                        shape: RoundedRectangleBorder(
+                                                          borderRadius:
+                                                              BorderRadius.circular(
+                                                                14,
+                                                              ),
+                                                        ),
+                                                      ),
                                                 ),
                                               ),
                                             ],
                                           ),
-                                          const SizedBox(height: 10),
+                                          const SizedBox(height: 18),
+                                          SizedBox(
+                                            width: double.infinity,
+                                            child: ElevatedButton.icon(
+                                              onPressed: _pickingComprobante
+                                                  ? null
+                                                  : _pickNuevoComprobante,
+                                              icon: _pickingComprobante
+                                                  ? const SizedBox(
+                                                      width: 16,
+                                                      height: 16,
+                                                      child:
+                                                          CircularProgressIndicator(
+                                                            strokeWidth: 2,
+                                                            color: Colors.white,
+                                                          ),
+                                                    )
+                                                  : const Icon(
+                                                      Icons.upload_file_rounded,
+                                                    ),
+                                              label: Text(
+                                                _nuevoComprobanteBytes == null
+                                                    ? 'Comprobante'
+                                                    : 'Cambiar comprobante',
+                                              ),
+                                              style: ElevatedButton.styleFrom(
+                                                backgroundColor: Palette.button,
+                                                foregroundColor: Colors.white,
+                                                elevation: 0,
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                      vertical: 14,
+                                                    ),
+                                                shape: RoundedRectangleBorder(
+                                                  borderRadius:
+                                                      BorderRadius.circular(14),
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                          if (_nuevoComprobanteBytes != null) ...[
+                                            const SizedBox(height: 12),
+                                            Container(
+                                              width: double.infinity,
+                                              padding: const EdgeInsets.all(12),
+                                              decoration: BoxDecoration(
+                                                color: Palette.fieldBg,
+                                                borderRadius:
+                                                    BorderRadius.circular(18),
+                                                border: Border.all(
+                                                  color: purple.withOpacity(
+                                                    0.06,
+                                                  ),
+                                                ),
+                                              ),
+                                              child: ClipRRect(
+                                                borderRadius:
+                                                    BorderRadius.circular(14),
+                                                child: Image.memory(
+                                                  _nuevoComprobanteBytes!,
+                                                  fit: BoxFit.contain,
+                                                  height: 240,
+                                                  width: double.infinity,
+                                                ),
+                                              ),
+                                            ),
+                                            const SizedBox(height: 12),
+                                          ],
                                           SizedBox(
                                             width: double.infinity,
                                             child: ElevatedButton.icon(
                                               onPressed:
                                                   (_reenviandoComprobante ||
-                                                          _nuevoComprobanteBytes ==
-                                                              null)
-                                                      ? null
-                                                      : _reenviarComprobante,
+                                                      _nuevoComprobanteBytes ==
+                                                          null)
+                                                  ? null
+                                                  : _reenviarComprobante,
                                               icon: _reenviandoComprobante
                                                   ? const SizedBox(
                                                       width: 16,
                                                       height: 16,
                                                       child:
                                                           CircularProgressIndicator(
-                                                        strokeWidth: 2,
-                                                        color: Colors.white,
-                                                      ),
+                                                            strokeWidth: 2,
+                                                            color: Colors.white,
+                                                          ),
                                                     )
                                                   : const Icon(
                                                       Icons.send_rounded,
@@ -911,8 +1252,8 @@ class _DetallePedidoPageState extends State<DetallePedidoPage> {
                                                 elevation: 0,
                                                 padding:
                                                     const EdgeInsets.symmetric(
-                                                  vertical: 14,
-                                                ),
+                                                      vertical: 14,
+                                                    ),
                                                 shape: RoundedRectangleBorder(
                                                   borderRadius:
                                                       BorderRadius.circular(14),
@@ -1199,16 +1540,6 @@ class _ClientComprobanteCard extends StatelessWidget {
               ),
             ],
           ),
-          if (comprobanteNombre.trim().isNotEmpty) ...[
-            const SizedBox(height: 10),
-            Text(
-              comprobanteNombre,
-              style: TextStyle(
-                color: purple.withOpacity(0.85),
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ],
           const SizedBox(height: 10),
           GestureDetector(
             onTap: () {
@@ -1217,7 +1548,7 @@ class _ClientComprobanteCard extends StatelessWidget {
                 barrierColor: Colors.black.withOpacity(0.9),
                 builder: (_) => _ComprobanteZoomDialog(
                   imageUrl: comprobanteUrl,
-                  title: comprobanteNombre,
+                  title: 'Comprobante',
                   localBytes: localBytes,
                 ),
               );

@@ -42,7 +42,7 @@ class AgregadoUbicacionPage extends StatefulWidget {
 
 class _AgregadoUbicacionPageState extends State<AgregadoUbicacionPage> {
   static const String _kMapboxToken =
-      'TOKEN_MAPBOX_AQUI'; // Reemplaza con tu token Mapbox válido
+      'MAPBOX_TOKEN'; // Reemplaza con tu token Mapbox válido
   String get _mapboxToken => _kMapboxToken;
 
   final MapController _mapCtrl = MapController();
@@ -364,8 +364,9 @@ class _AgregadoUbicacionPageState extends State<AgregadoUbicacionPage> {
       final niceAddress = parts.where((e) => e.trim().isNotEmpty).join(', ');
 
       setState(() {
-        _address =
-            niceAddress.isNotEmpty ? niceAddress : 'Dirección no disponible';
+        _address = niceAddress.isNotEmpty
+            ? niceAddress
+            : 'Dirección no disponible';
         _department = depNorm; // ✅ guardado interno normalizado (minúsculas)
       });
     } catch (e) {
@@ -518,7 +519,8 @@ class _AgregadoUbicacionPageState extends State<AgregadoUbicacionPage> {
             title: name.isNotEmpty ? name : subtitle,
             subtitle: subtitle,
             mapboxId: null,
-            sourceType: (m['place_type'] is List &&
+            sourceType:
+                (m['place_type'] is List &&
                     (m['place_type'] as List).isNotEmpty)
                 ? ((m['place_type'] as List).first as String?) ?? ''
                 : '',
@@ -602,8 +604,9 @@ class _AgregadoUbicacionPageState extends State<AgregadoUbicacionPage> {
     if (!_canUseLocation) return;
 
     final c = _center!;
-    final nombre =
-        _nameCtrl.text.trim().isEmpty ? 'Ubicación' : _nameCtrl.text.trim();
+    final nombre = _nameCtrl.text.trim().isEmpty
+        ? 'Ubicación'
+        : _nameCtrl.text.trim();
 
     setState(() => _saving = true);
 
@@ -629,9 +632,9 @@ class _AgregadoUbicacionPageState extends State<AgregadoUbicacionPage> {
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Ubicación guardada ✅')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Ubicación guardada ✅')));
 
       Navigator.pop(
         context,
@@ -1160,14 +1163,14 @@ class UbicDraft {
   double get longitud => lng;
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'nombre': nombre,
-        'direccion': direccion,
-        'departamento': departamento,
-        'lat': lat,
-        'lng': lng,
-        'uid': uid,
-      };
+    'id': id,
+    'nombre': nombre,
+    'direccion': direccion,
+    'departamento': departamento,
+    'lat': lat,
+    'lng': lng,
+    'uid': uid,
+  };
 }
 
 // ------------------ Utils ------------------

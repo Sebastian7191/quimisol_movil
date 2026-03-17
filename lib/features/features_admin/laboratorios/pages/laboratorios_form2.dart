@@ -2,17 +2,22 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:quimisol_movil/core/theme/palette.dart';
 import 'package:quimisol_movil/features/features_admin/laboratorios/models/cliente_mayorista_option.dart';
-import 'package:quimisol_movil/features/features_admin/laboratorios/widgets/laboratorios_form/form_parte1.dart';
-import 'package:quimisol_movil/features/features_admin/laboratorios/widgets/laboratorios_form/form_parte2.dart';
-import 'package:quimisol_movil/features/features_admin/laboratorios/widgets/laboratorios_form/form_parte3.dart';
-import 'package:quimisol_movil/features/features_admin/laboratorios/widgets/laboratorios_form/form_parte4.dart';
-import 'package:quimisol_movil/features/features_admin/laboratorios/widgets/laboratorios_form/form_parte5.dart';
-import 'package:quimisol_movil/features/features_admin/laboratorios/widgets/laboratorios_form/laboratorio_form_models.dart';
+import 'package:quimisol_movil/features/features_admin/laboratorios/widgets/laboratorios_form2/form_parte1.dart';
+import 'package:quimisol_movil/features/features_admin/laboratorios/widgets/laboratorios_form2/form_parte2.dart';
+import 'package:quimisol_movil/features/features_admin/laboratorios/widgets/laboratorios_form2/form_parte3.dart';
+import 'package:quimisol_movil/features/features_admin/laboratorios/widgets/laboratorios_form2/form_parte4.dart';
+import 'package:quimisol_movil/features/features_admin/laboratorios/widgets/laboratorios_form2/form_parte5.dart';
+import 'package:quimisol_movil/features/features_admin/laboratorios/widgets/laboratorios_form2/laboratorio_form_models.dart';
 
 class LaboratorioFormPage extends StatefulWidget {
+  final String? idPadre;
   final Map<String, dynamic>? initialData;
 
-  const LaboratorioFormPage({super.key, this.initialData});
+  const LaboratorioFormPage({
+    super.key,
+    this.idPadre,
+    this.initialData,
+  });
 
   @override
   State<LaboratorioFormPage> createState() => _LaboratorioFormPageState();
@@ -62,7 +67,16 @@ class _LaboratorioFormPageState extends State<LaboratorioFormPage> {
   List<ChecklistFormItem> _checklist = [];
 
   bool get isEdit => widget.initialData != null;
-  String? get _firestoreId => widget.initialData?['firestoreId']?.toString();
+
+  String? get _parentDocId {
+    final fromWidget = widget.idPadre?.trim();
+    if (fromWidget != null && fromWidget.isNotEmpty) return fromWidget;
+
+    return widget.initialData?['parentId']?.toString() ??
+        widget.initialData?['id']?.toString();
+  }
+
+  String get _subDocId => 'data';
 
   final List<String> _tiposMuestra = const [
     'AP',
@@ -112,7 +126,8 @@ class _LaboratorioFormPageState extends State<LaboratorioFormPage> {
     );
 
     _idCtrl = TextEditingController(
-      text: (data['id'] ?? _generarId()).toString(),
+      text: (widget.idPadre ?? data['parentId'] ?? data['id'] ?? _generarId())
+          .toString(),
     );
     _codigoCtrl = TextEditingController(
       text: (encabezado['codigo'] ?? 'FTSGI-01-02').toString(),
@@ -485,8 +500,24 @@ class _LaboratorioFormPageState extends State<LaboratorioFormPage> {
     final nextVersion = isEdit ? currentVersion + 1 : currentVersion;
     final now = FieldValue.serverTimestamp();
 
+    final parentId = (_parentDocId ?? _idCtrl.text.trim()).trim();
+    if (parentId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No se pudo generar el id del formulario.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    final subDocId = _subDocId;
+
     final data = <String, dynamic>{
-      'id': _idCtrl.text.trim(),
+      'id': parentId,
+      'parentId': parentId,
+      'subDocId': subDocId,
+      'formulario': 'formulario_2',
       'estado': 'Activo',
       'updatedAt': now,
       'encabezado': {
@@ -549,24 +580,23 @@ class _LaboratorioFormPageState extends State<LaboratorioFormPage> {
         },
         'observacionesAdicionales': _observacionesAdicionalesCtrl.text.trim(),
       },
+      if (!isEdit) 'createdAt': now,
     };
-
-    if (!isEdit) {
-      data['createdAt'] = now;
-    }
 
     setState(() => _guardando = true);
 
     try {
-      if (isEdit) {
-        final docId = _firestoreId;
-        if (docId == null || docId.isEmpty) {
-          throw Exception('No se encontró el documento a editar.');
-        }
-        await _laboratoriosRef.doc(docId).update(data);
-      } else {
-        await _laboratoriosRef.add(data);
-      }
+      final parentRef = _laboratoriosRef.doc(parentId);
+      final subRef = parentRef.collection('formulario_2').doc(subDocId);
+
+      await parentRef.set({
+        'id': parentRef.id,
+        'tipo': 'laboratorio',
+        'updatedAt': now,
+        if (!isEdit) 'createdAt': now,
+      }, SetOptions(merge: true));
+
+      await subRef.set(data, SetOptions(merge: true));
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -614,7 +644,9 @@ class _LaboratorioFormPageState extends State<LaboratorioFormPage> {
             elevation: 0,
             surfaceTintColor: Colors.white,
             title: Text(
-              isEdit ? 'Editar formulario' : 'Nuevo formulario',
+              isEdit
+                  ? 'Editar formulario Recepción'
+                  : 'Nuevo formulario Recepción',
               style: const TextStyle(
                 color: Colors.black87,
                 fontWeight: FontWeight.w800,
@@ -750,8 +782,8 @@ class _LaboratorioFormPageState extends State<LaboratorioFormPage> {
                                   _guardando
                                       ? 'Guardando...'
                                       : (isEdit
-                                            ? 'Guardar cambios'
-                                            : 'Registrar'),
+                                          ? 'Guardar cambios'
+                                          : 'Registrar'),
                                 ),
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: Palette.button,
