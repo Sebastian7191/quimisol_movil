@@ -62,6 +62,8 @@ class _RoleComboFancyState extends State<RoleComboFancy> {
 
   Color _colorFor(String r) {
     switch (r) {
+      case 'superadmin':
+        return Colors.amber.shade700;
       case 'admin':
         return Palette.primary;
       case 'repartidor':
@@ -139,6 +141,10 @@ class _RoleComboFancyState extends State<RoleComboFancy> {
               onChanged:
                   _saving ? null : (v) => _setRole(v ?? widget.currentRole),
               items: const [
+                DropdownMenuItem(
+                  value: 'superadmin',
+                  child: Text('Superadmin'),
+                ),
                 DropdownMenuItem(value: 'admin', child: Text('Admin')),
                 DropdownMenuItem(value: 'cliente', child: Text('Cliente')),
                 DropdownMenuItem(

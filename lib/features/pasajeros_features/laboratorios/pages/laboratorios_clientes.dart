@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:quimisol_movil/core/theme/palette.dart';
 import 'package:quimisol_movil/features/pasajeros_features/laboratorios/pages/laboratorio_detalle.dart';
@@ -8,10 +9,20 @@ class LaboratoriosClientesPage extends StatelessWidget {
 
   const LaboratoriosClientesPage({super.key, required this.clienteNombre});
 
+  void _printFirestoreError(Object error, StackTrace? stackTrace) {
+    debugPrint('================ FIRESTORE ERROR ================');
+    debugPrint(error.toString());
+    if (stackTrace != null) {
+      debugPrint('---------------- STACKTRACE ----------------');
+      debugPrint(stackTrace.toString());
+    }
+    debugPrint('================================================');
+  }
+
   @override
   Widget build(BuildContext context) {
-    final laboratoriosRef = FirebaseFirestore.instance.collection(
-      'laboratorios',
+    final laboratoriosEnsayoRef = FirebaseFirestore.instance.collectionGroup(
+      'formulario_3',
     );
 
     return Scaffold(
@@ -36,11 +47,13 @@ class LaboratoriosClientesPage extends StatelessWidget {
           _HeaderCliente(clienteNombre: clienteNombre),
           Expanded(
             child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-              stream: laboratoriosRef
+              stream: laboratoriosEnsayoRef
                   .orderBy('updatedAt', descending: true)
                   .snapshots(),
               builder: (context, snap) {
                 if (snap.hasError) {
+                  _printFirestoreError(snap.error!, snap.stackTrace);
+
                   return _ErrorState(
                     message: 'Error cargando laboratorios',
                     detail: '${snap.error}',
@@ -52,21 +65,21 @@ class LaboratoriosClientesPage extends StatelessWidget {
                 }
 
                 final docs = snap.data?.docs ?? [];
+                final nombreBuscado = clienteNombre.trim().toLowerCase();
 
                 final filtrados = docs.where((doc) {
                   final data = doc.data();
-                  final infoCliente = Map<String, dynamic>.from(
-                    data['informacionGeneralCliente'] ?? {},
+
+                  final parte1 = Map<String, dynamic>.from(
+                    data['parte1InformacionCliente'] ?? {},
                   );
 
-                  final empresa = (infoCliente['empresaCliente'] ?? '')
+                  final cliente = (parte1['cliente'] ?? '')
                       .toString()
                       .trim()
                       .toLowerCase();
 
-                  final nombreBuscado = clienteNombre.trim().toLowerCase();
-
-                  return empresa == nombreBuscado;
+                  return cliente == nombreBuscado;
                 }).toList();
 
                 if (filtrados.isEmpty) {
@@ -78,62 +91,64 @@ class LaboratoriosClientesPage extends StatelessWidget {
                   itemCount: filtrados.length + 1,
                   itemBuilder: (context, index) {
                     if (index == 0) {
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 14),
+                      return const Padding(
+                        padding: EdgeInsets.only(bottom: 14),
                       );
                     }
 
                     final doc = filtrados[index - 1];
                     final data = doc.data();
 
-                    final encabezado = Map<String, dynamic>.from(
-                      data['encabezado'] ?? {},
-                    );
-                    final infoCliente = Map<String, dynamic>.from(
-                      data['informacionGeneralCliente'] ?? {},
-                    );
-                    final datosGenerales = Map<String, dynamic>.from(
-                      data['datosGenerales'] ?? {},
-                    );
-                    final infoMuestras = Map<String, dynamic>.from(
-                      data['informacionMuestras'] ?? {},
-                    );
+                    final parentDoc = doc.reference.parent.parent;
+                    final laboratorioId =
+                        (data['parentId'] ?? parentDoc?.id ?? '')
+                            .toString()
+                            .trim();
 
-                    final codigo = (encabezado['codigo'] ?? 'Sin código')
-                        .toString()
-                        .trim();
-                    final version = (encabezado['version'] ?? '-')
-                        .toString()
-                        .trim();
-                    final solicitante = (infoCliente['solicitante'] ?? '-')
-                        .toString()
-                        .trim();
-                    final proyecto = (infoCliente['proyectoInstalacion'] ?? '-')
-                        .toString()
-                        .trim();
-                    final fechaRecepcion =
-                        (datosGenerales['fechaRecepcionMuestra'] ?? '-')
+                    final parte1 = Map<String, dynamic>.from(
+                      data['parte1InformacionCliente'] ?? {},
+                    );
+                    final parte2 = Map<String, dynamic>.from(
+                      data['parte2InformacionMuestra'] ?? {},
+                    );
+                    final resultados =
+                        (data['parte4ResultadosEnsayo'] as List?) ?? [];
+
+                    final identificacionLaboratorio =
+                        (parte2['identificacionLaboratorio'] ??
+                                'Sin identificación')
                             .toString()
                             .trim();
-                    final totalMuestras =
-                        (infoMuestras['totalMuestrasEntregadas'] ?? '-')
-                            .toString()
-                            .trim();
+
+                    final cliente = (parte1['cliente'] ?? '-')
+                        .toString()
+                        .trim();
+
+                    final proyecto = (parte1['proyecto'] ?? '-')
+                        .toString()
+                        .trim();
+
+                    final fechaRecepcion = (parte2['fechaRecepcion'] ?? '-')
+                        .toString()
+                        .trim();
+
+                    final totalResultados = resultados.length.toString();
 
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 14),
                       child: _LaboratorioCard(
-                        codigo: codigo,
-                        version: version,
-                        solicitante: solicitante,
+                        codigo: identificacionLaboratorio,
+                        version: 'Ensayo',
+                        solicitante: cliente,
                         proyecto: proyecto,
                         fechaRecepcion: fechaRecepcion,
-                        totalMuestras: totalMuestras,
+                        totalMuestras: totalResultados,
                         onTap: () {
                           Navigator.of(context).push(
                             MaterialPageRoute(
-                              builder: (_) => LaboratorioClienteDetalleParte3Page(
-                                laboratorioId: doc.id,
+                              builder: (_) =>
+                                  LaboratorioClienteDetalleParte3Page(
+                                laboratorioId: laboratorioId,
                                 laboratorioData: data,
                                 clienteNombre: clienteNombre,
                               ),
@@ -251,7 +266,7 @@ class _HeaderCliente extends StatelessWidget {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'Aquí podrás ver los formularios de laboratorio asociados a tu empresa y acceder a su detalle.',
+                    'Aquí podrás ver únicamente tus laboratorios de ensayo asociados a tu empresa y acceder a su detalle.',
                     style: TextStyle(
                       color: Colors.white.withValues(alpha: 0.92),
                       fontWeight: FontWeight.w600,
@@ -267,8 +282,6 @@ class _HeaderCliente extends StatelessWidget {
     );
   }
 }
-
-
 
 class _LaboratorioCard extends StatelessWidget {
   final String codigo;
@@ -334,7 +347,7 @@ class _LaboratorioCard extends StatelessWidget {
                         borderRadius: BorderRadius.circular(18),
                       ),
                       child: const Icon(
-                        Icons.description_rounded,
+                        Icons.biotech_rounded,
                         color: Colors.white,
                         size: 28,
                       ),
@@ -345,7 +358,7 @@ class _LaboratorioCard extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            codigo.isEmpty ? 'Sin código' : codigo,
+                            codigo.isEmpty ? 'Sin identificación' : codigo,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
@@ -367,7 +380,7 @@ class _LaboratorioCard extends StatelessWidget {
                                   borderRadius: BorderRadius.circular(999),
                                 ),
                                 child: const Text(
-                                  'Formulario',
+                                  'Ensayo',
                                   style: TextStyle(
                                     color: Palette.primary,
                                     fontWeight: FontWeight.w800,
@@ -378,7 +391,7 @@ class _LaboratorioCard extends StatelessWidget {
                               const SizedBox(width: 8),
                               Flexible(
                                 child: Text(
-                                  'Versión $version',
+                                  version,
                                   overflow: TextOverflow.ellipsis,
                                   style: TextStyle(
                                     fontWeight: FontWeight.w700,
@@ -420,15 +433,15 @@ class _LaboratorioCard extends StatelessWidget {
                           width: itemWidth,
                           child: _InfoBox(
                             icon: Icons.person_rounded,
-                            label: 'Solicitante',
+                            label: 'Cliente',
                             value: solicitante.isEmpty ? '-' : solicitante,
                           ),
                         ),
                         SizedBox(
                           width: itemWidth,
                           child: _InfoBox(
-                            icon: Icons.inventory_2_rounded,
-                            label: 'Muestras',
+                            icon: Icons.science_outlined,
+                            label: 'Resultados',
                             value: totalMuestras.isEmpty ? '-' : totalMuestras,
                           ),
                         ),
@@ -485,7 +498,7 @@ class _LaboratorioCard extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Proyecto / instalación',
+                              'Proyecto',
                               style: TextStyle(
                                 color: Colors.black.withValues(alpha: 0.52),
                                 fontWeight: FontWeight.w700,
@@ -495,7 +508,7 @@ class _LaboratorioCard extends StatelessWidget {
                             const SizedBox(height: 4),
                             Text(
                               proyecto.isEmpty
-                                  ? 'Sin proyecto o instalación registrada'
+                                  ? 'Sin proyecto registrado'
                                   : proyecto,
                               style: const TextStyle(
                                 color: Colors.black87,
@@ -530,7 +543,7 @@ class _LaboratorioCard extends StatelessWidget {
                       SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          'Toca para ver el detalle completo',
+                          'Toca para ver el detalle completo del ensayo',
                           style: TextStyle(
                             color: Palette.primary,
                             fontWeight: FontWeight.w800,
@@ -725,7 +738,7 @@ class _EmptyLaboratorios extends StatelessWidget {
             ),
             const SizedBox(height: 18),
             const Text(
-              'No hay laboratorios asociados',
+              'No hay laboratorios de ensayo asociados',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontWeight: FontWeight.w900,
@@ -735,7 +748,7 @@ class _EmptyLaboratorios extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              'No se encontraron formularios de laboratorio para "$clienteNombre".',
+              'No se encontraron formularios de ensayo para "$clienteNombre".',
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: Colors.black.withValues(alpha: 0.62),

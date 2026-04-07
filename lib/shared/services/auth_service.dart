@@ -16,10 +16,8 @@ abstract class AuthService {
   Future<String?> getUserId();
   Future<void> logout();
 
-  // ✅ Manual: SOLO email + password (sin nombre)
   Future<void> signInWithEmail(String email, String password);
   Future<void> registerWithEmail(String email, String password);
 
-  // ✅ Google devuelve si es nuevo + datos iniciales
-  Future<GoogleLoginResult> signInWithGoogle();
+  Future<GoogleLoginResult?> signInWithGoogle();
 }

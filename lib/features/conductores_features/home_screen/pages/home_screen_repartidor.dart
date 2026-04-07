@@ -8,7 +8,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'package:quimisol_movil/core/theme/palette.dart';
 import 'package:quimisol_movil/features/conductores_features/home_screen/pages/repartidor_viajes_page.dart';
-import 'package:quimisol_movil/features/conductores_features/home_screen/pages/pedidos_mapa_page.dart';
 import 'package:quimisol_movil/shared/services/auth_service.dart';
 
 class HomeScreenConductor extends StatefulWidget {
@@ -19,7 +18,6 @@ class HomeScreenConductor extends StatefulWidget {
 }
 
 class _HomeScreenConductorState extends State<HomeScreenConductor> {
-  // ✅ Firestore: cambia esto si tu colección tiene otro nombre
   static const String kUsersCollection = 'usuarios';
 
   bool _isOnline = false;
@@ -32,7 +30,6 @@ class _HomeScreenConductorState extends State<HomeScreenConductor> {
   void initState() {
     super.initState();
     _authService = Modular.get<AuthService>();
-
     _bindEstadoFromFirestore();
   }
 
@@ -42,9 +39,6 @@ class _HomeScreenConductorState extends State<HomeScreenConductor> {
     super.dispose();
   }
 
-  /// ================================
-  /// 🔥 Firestore binding (escucha estado)
-  /// ================================
   void _bindEstadoFromFirestore() {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return;
@@ -64,7 +58,6 @@ class _HomeScreenConductorState extends State<HomeScreenConductor> {
     }, onError: (_) {});
   }
 
-  /// Set en Firestore: estado = true/false
   Future<void> _setEstadoInFirestore(bool v) async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return;
@@ -82,7 +75,6 @@ class _HomeScreenConductorState extends State<HomeScreenConductor> {
     );
   }
 
-  /// Cambia el estado: optimista + guarda en Firestore
   Future<void> _toggleOnline(bool v) async {
     setState(() => _isOnline = v);
 
@@ -103,7 +95,6 @@ class _HomeScreenConductorState extends State<HomeScreenConductor> {
 
   Future<void> _logout() async {
     try {
-      // ✅ Dejarlo ocupado al salir
       await _setEstadoInFirestore(false);
     } catch (_) {
       // Ignorar para no bloquear logout
@@ -112,12 +103,6 @@ class _HomeScreenConductorState extends State<HomeScreenConductor> {
     await _authService.logout();
     if (!mounted) return;
     Modular.to.pushNamedAndRemoveUntil('/login', (_) => false);
-  }
-
-  void _openPedidosMapa() {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const PedidosMapaPage()),
-    );
   }
 
   @override
@@ -146,17 +131,7 @@ class _HomeScreenConductorState extends State<HomeScreenConductor> {
           isOnline: _isOnline,
           onChanged: (v) => _toggleOnline(v),
         ),
-        actions: [
-          IconButton(
-            tooltip: 'Mapa de pedidos',
-            icon: Icon(Icons.map_rounded, color: Palette.ink),
-            onPressed: _openPedidosMapa,
-          ),
-          const SizedBox(width: 6),
-        ],
       ),
-
-      // ✅ OCUPADO: no muestra pedidos / ACTIVO: muestra cards
       body: _isOnline ? const RepartidorViajesPage() : const _OcupadoEmptyState(),
     );
   }
@@ -206,9 +181,6 @@ class _OcupadoEmptyState extends StatelessWidget {
   }
 }
 
-/// =======================================================
-/// 🔥 SWITCH BONITO (MINIMAL + PRO)
-/// =======================================================
 class _StatusSwitch extends StatelessWidget {
   final bool isOnline;
   final ValueChanged<bool> onChanged;

@@ -32,7 +32,7 @@ class PedidoRutaMapPage extends StatefulWidget {
 
 class _PedidoRutaMapPageState extends State<PedidoRutaMapPage> {
   static const String _mapboxToken =
-      'MAPBOX_TOKEN';
+      'TOKEN_MAPBOX';
   static const String _styleUri = "mapbox://styles/mapbox/streets-v12";
   static const String _prefSkipStartConfirm = 'skip_start_pedido_confirm';
 

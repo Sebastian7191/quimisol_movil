@@ -46,8 +46,6 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  // ----------------- LÓGICA ORIGINAL + ADMIN -----------------
-
   Future<void> _handleEmailSubmit() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -58,18 +56,15 @@ class _LoginScreenState extends State<LoginScreen> {
       final password = _passwordCtrl.text.trim();
 
       if (_isRegisterMode) {
-        // ✅ Manual: registro SIN nombre
         await _authService.registerWithEmail(email, password);
       } else {
         await _authService.signInWithEmail(email, password);
       }
 
-      // ✅ Asegurar token FCM si no existe (solo una vez / idempotente)
       await FcmTokenService.ensureTokenIfMissingForCurrentUser();
-
       await _redirectByRole();
     } catch (e) {
-      _showErrorSnack(e.toString());
+      _showErrorSnack(_getFriendlyAuthMessage(e.toString()));
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -81,12 +76,15 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       final res = await _authService.signInWithGoogle();
 
-      // ✅ Asegurar token FCM si no existe (también para Google)
+      // ✅ Usuario canceló Google
+      if (res == null) {
+        return;
+      }
+
       await FcmTokenService.ensureTokenIfMissingForCurrentUser();
 
       if (!mounted) return;
 
-      // 🔥 SI NO COMPLETÓ PERFIL → COMPLETAR
       if (res.isNewUser) {
         Modular.to.navigate(
           '/perfil-completar',
@@ -95,22 +93,19 @@ class _LoginScreenState extends State<LoginScreen> {
         return;
       }
 
-      // 👉 Caso normal
       await _redirectByRole();
     } catch (e) {
-      _showErrorSnack(e.toString());
+      _showErrorSnack(_getFriendlyAuthMessage(e.toString()));
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  // ✅ AHORA SOPORTA ROL ADMIN
   Future<void> _redirectByRole() async {
     final role = await _authService.getUserRole();
     if (!mounted) return;
 
-    if (role == 'admin') {
-      // ✅ Admin -> SidebarShellPage (ruta definida en AppModule)
+    if (role == 'admin' || role == 'superadmin') {
       Modular.to.navigate('/admin');
       return;
     }
@@ -125,21 +120,62 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
-    // fallback
     Modular.to.navigate('/home-pasajero');
   }
 
+  String _getFriendlyAuthMessage(String error) {
+    final message = error.toLowerCase();
+
+    if (message.contains('wrong-password') ||
+        message.contains('invalid-credential') ||
+        message.contains('credential is incorrect') ||
+        message.contains('malformed or has expired')) {
+      return 'Correo o contraseña incorrectos. Verifica tus datos e inténtalo nuevamente.';
+    }
+
+    if (message.contains('user-not-found')) {
+      return 'No encontramos una cuenta con ese correo.';
+    }
+
+    if (message.contains('invalid-email')) {
+      return 'El correo ingresado no es válido.';
+    }
+
+    if (message.contains('too-many-requests')) {
+      return 'Se realizaron demasiados intentos. Espera un momento e inténtalo otra vez.';
+    }
+
+    if (message.contains('network-request-failed')) {
+      return 'No se pudo conectar a internet. Revisa tu conexión.';
+    }
+
+    if (message.contains('email-already-in-use')) {
+      return 'Ese correo ya está registrado. Intenta iniciar sesión.';
+    }
+
+    if (message.contains('weak-password')) {
+      return 'La contraseña es muy débil. Usa al menos 6 caracteres.';
+    }
+
+    if (message.contains('popup_closed') ||
+        message.contains('popup-closed') ||
+        message.contains('cancel') ||
+        message.contains('cancelled')) {
+      return 'Se canceló el inicio de sesión con Google.';
+    }
+
+    return 'No se pudo completar la operación. Inténtalo nuevamente.';
+  }
+
   void _showErrorSnack(String message) {
-    final clean = message.replaceAll('Exception: ', '');
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(clean),
+        content: Text(message),
         backgroundColor: Colors.redAccent,
+        behavior: SnackBarBehavior.floating,
       ),
     );
   }
-
-  // ----------------- SOLO UI -----------------
 
   InputDecoration _pillDecoration({
     required String hint,
@@ -173,10 +209,7 @@ class _LoginScreenState extends State<LoginScreen> {
       width: double.infinity,
       height: 54,
       child: OutlinedButton(
-        onPressed: () async {
-          if (_isLoading) return;
-          await _handleGoogleLogin();
-        },
+        onPressed: _isLoading ? null : _handleGoogleLogin,
         style: OutlinedButton.styleFrom(
           backgroundColor: Colors.white,
           foregroundColor: Colors.black87,
@@ -188,18 +221,11 @@ class _LoginScreenState extends State<LoginScreen> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: const [
-            Icon(
-              FontAwesomeIcons.google,
-              size: 18,
-              color: Palette.primary,
-            ),
+            Icon(FontAwesomeIcons.google, size: 18, color: Palette.primary),
             SizedBox(width: 12),
             Text(
               'Continuar con Google',
-              style: TextStyle(
-                fontWeight: FontWeight.w800,
-                fontSize: 15,
-              ),
+              style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15),
             ),
           ],
         ),
@@ -219,7 +245,8 @@ class _LoginScreenState extends State<LoginScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
             child: ConstrainedBox(
               constraints: BoxConstraints(
-                minHeight: media.size.height -
+                minHeight:
+                    media.size.height -
                     media.padding.top -
                     media.padding.bottom,
               ),
@@ -233,7 +260,6 @@ class _LoginScreenState extends State<LoginScreen> {
                         const LoginHeader(),
                         const SizedBox(height: 16),
 
-                        // Correo
                         TextFormField(
                           controller: _emailCtrl,
                           keyboardType: TextInputType.emailAddress,
@@ -253,7 +279,6 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         const SizedBox(height: 16),
 
-                        // Contraseña
                         TextFormField(
                           controller: _passwordCtrl,
                           obscureText: _obscurePassword,
@@ -302,8 +327,9 @@ class _LoginScreenState extends State<LoginScreen> {
                         const SizedBox(height: 12),
 
                         AppButton(
-                          label:
-                              _isRegisterMode ? 'REGISTRARSE' : 'INICIAR SESIÓN',
+                          label: _isRegisterMode
+                              ? 'REGISTRARSE'
+                              : 'INICIAR SESIÓN',
                           isLoading: _isLoading,
                           onPressed: () async {
                             if (_isLoading) return;
@@ -313,7 +339,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
                         const SizedBox(height: 18),
 
-                        // ✅ Botón grande Google
                         _googleFullButton(),
 
                         const SizedBox(height: 10),

@@ -7,14 +7,15 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:quimisol_movil/core/theme/palette.dart';
 
-class PerfilFormPage extends StatefulWidget {
-  const PerfilFormPage({super.key});
+class ConductorPerfilFormPage extends StatefulWidget {
+  const ConductorPerfilFormPage({super.key});
 
   @override
-  State<PerfilFormPage> createState() => _PerfilFormPageState();
+  State<ConductorPerfilFormPage> createState() =>
+      _ConductorPerfilFormPageState();
 }
 
-class _PerfilFormPageState extends State<PerfilFormPage> {
+class _ConductorPerfilFormPageState extends State<ConductorPerfilFormPage> {
   final _auth = FirebaseAuth.instance;
   final _fire = FirebaseFirestore.instance;
   final _storage = FirebaseStorage.instance;
@@ -30,13 +31,11 @@ class _PerfilFormPageState extends State<PerfilFormPage> {
   bool _uploadingPhoto = false;
 
   String _photoUrl = '';
-  String _role = 'cliente';
-  String _nit = '';
+  String _role = 'repartidor';
 
   File? _selectedImageFile;
 
   String get _uid => _auth.currentUser?.uid ?? '';
-  bool get _isMayorista => _role.toLowerCase().trim() == 'cliente_mayorista';
 
   @override
   void initState() {
@@ -64,12 +63,13 @@ class _PerfilFormPageState extends State<PerfilFormPage> {
       final doc = await _fire.collection('usuarios').doc(_uid).get();
       final data = doc.data() ?? <String, dynamic>{};
 
-      _nameCtrl.text = _s(data['name'] ?? data['nombre'] ?? 'Usuario');
+      _nameCtrl.text = _s(data['name'] ?? data['nombre'] ?? 'Repartidor');
       _phoneCtrl.text = _s(data['telefono'] ?? data['phone']);
       _emailCtrl.text = _s(data['email'] ?? _auth.currentUser?.email ?? '');
       _photoUrl = _s(data['photo']);
-      _role = _s(data['role'].toString().isEmpty ? 'cliente' : data['role']);
-      _nit = _s(data['nit'] ?? data['NIT']);
+      _role = _s(
+        data['role'].toString().isEmpty ? 'repartidor' : data['role'],
+      );
 
       if (!mounted) return;
       setState(() => _loading = false);
@@ -194,7 +194,7 @@ class _PerfilFormPageState extends State<PerfilFormPage> {
                         const SizedBox(width: 12),
                         Expanded(
                           child: Text(
-                            'Información personal',
+                            'Perfil del conductor',
                             style: TextStyle(
                               color: ink,
                               fontWeight: FontWeight.w900,
@@ -317,7 +317,7 @@ class _PerfilFormPageState extends State<PerfilFormPage> {
                                   const SizedBox(height: 14),
                                   Text(
                                     _nameCtrl.text.trim().isEmpty
-                                        ? 'Usuario'
+                                        ? 'Conductor'
                                         : _nameCtrl.text.trim(),
                                     textAlign: TextAlign.center,
                                     style: TextStyle(
@@ -469,15 +469,6 @@ class _PerfilFormPageState extends State<PerfilFormPage> {
                                       return null;
                                     },
                                   ),
-                                  if (_isMayorista) ...[
-                                    const SizedBox(height: 16),
-                                    const _LabelText(label: 'NIT'),
-                                    const SizedBox(height: 8),
-                                    _ReadOnlyField(
-                                      value:
-                                          _nit.isEmpty ? 'No registrado' : _nit,
-                                    ),
-                                  ],
                                 ],
                               ),
                             ),
@@ -532,9 +523,9 @@ class _PerfilFormPageState extends State<PerfilFormPage> {
   String _prettyRole(String r) {
     final v = r.toLowerCase().trim();
     if (v == 'admin') return 'Admin';
+    if (v == 'conductor') return 'Conductor';
     if (v == 'repartidor') return 'Repartidor';
-    if (v == 'cliente_mayorista') return 'Cliente mayorista';
-    return 'Cliente';
+    return 'Usuario';
   }
 }
 
@@ -664,7 +655,9 @@ class _InputField extends StatelessWidget {
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: Colors.redAccent),
+          borderSide: const BorderSide(
+            color: Colors.redAccent,
+          ),
         ),
         focusedErrorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
@@ -672,34 +665,6 @@ class _InputField extends StatelessWidget {
             color: Colors.redAccent,
             width: 1.2,
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _ReadOnlyField extends StatelessWidget {
-  const _ReadOnlyField({required this.value});
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 15),
-      decoration: BoxDecoration(
-        color: Palette.fieldBg,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: Palette.ink.withOpacity(0.06),
-        ),
-      ),
-      child: Text(
-        value,
-        style: const TextStyle(
-          color: Palette.ink,
-          fontWeight: FontWeight.w800,
-          fontSize: 14.5,
         ),
       ),
     );

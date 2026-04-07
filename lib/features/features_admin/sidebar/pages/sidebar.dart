@@ -38,64 +38,109 @@ class _SidebarShellPageState extends State<SidebarShellPage> {
   bool _sidebarOpen = false;
   bool _hoveringSidebar = false;
   bool _hoveringTrigger = false;
+  bool _isSuperAdmin = false;
+  bool _loadingRole = true;
 
   Timer? _closeTimer;
 
   Color get _main => Palette.button;
   Color get _accent => Palette.primary;
 
-  final List<_SideItem> _items = const [
-    _SideItem(
-      icon: Icons.dashboard_rounded,
-      label: 'Dashboard',
-      route: '/dashboard',
-    ),
-    _SideItem(
-      icon: Icons.people_alt_rounded,
-      label: 'Usuarios',
-      route: '/usuarios',
-    ),
-    _SideItem(
-      icon: Icons.warehouse_rounded,
-      label: 'Almacenes',
-      route: '/almacenes',
-    ),
-    _SideItem(
-      icon: Icons.inventory_2_rounded,
-      label: 'Productos',
-      route: '/productos',
-    ),
-    _SideItem(
-      icon: Icons.straighten_rounded,
-      label: 'Unidades',
-      route: '/unidades',
-    ),
-    _SideItem(
-      icon: Icons.category_rounded,
-      label: 'Categorías',
-      route: '/categorias',
-    ),
-    _SideItem(
-      icon: Icons.campaign_rounded,
-      label: 'Banners',
-      route: '/banners',
-    ),
-    _SideItem(
-      icon: Icons.science_rounded,
-      label: 'Laboratorios',
-      route: '/laboratorios',
-    ),
-    _SideItem(
-      icon: Icons.receipt_long_rounded,
-      label: 'Pedidos',
-      route: '/pedidos',
-    ),
-    _SideItem(
-      icon: Icons.payments_rounded,
-      label: 'Pagos',
-      route: '/pagos',
-    ),
-  ];
+  List<_SideItem> get _items {
+    final baseItems = <_SideItem>[
+      const _SideItem(
+        icon: Icons.dashboard_rounded,
+        label: 'Dashboard',
+        route: '/dashboard',
+      ),
+      const _SideItem(
+        icon: Icons.people_alt_rounded,
+        label: 'Usuarios',
+        route: '/usuarios',
+      ),
+    ];
+
+    if (_isSuperAdmin) {
+      baseItems.add(
+        const _SideItem(
+          icon: Icons.warehouse_rounded,
+          label: 'Almacenes',
+          route: '/almacenes',
+        ),
+      );
+    }
+
+    baseItems.addAll([
+      const _SideItem(
+        icon: Icons.inventory_2_rounded,
+        label: 'Productos',
+        route: '/productos',
+      ),
+      const _SideItem(
+        icon: Icons.straighten_rounded,
+        label: 'Unidades',
+        route: '/unidades',
+      ),
+      const _SideItem(
+        icon: Icons.category_rounded,
+        label: 'Categorías',
+        route: '/categorias',
+      ),
+      const _SideItem(
+        icon: Icons.campaign_rounded,
+        label: 'Banners',
+        route: '/banners',
+      ),
+      const _SideItem(
+        icon: Icons.science_rounded,
+        label: 'Laboratorios',
+        route: '/laboratorios',
+      ),
+      const _SideItem(
+        icon: Icons.receipt_long_rounded,
+        label: 'Pedidos',
+        route: '/pedidos',
+      ),
+    ]);
+
+    if (_isSuperAdmin) {
+      baseItems.add(
+        const _SideItem(
+          icon: Icons.payments_rounded,
+          label: 'Pagos',
+          route: '/pagos',
+        ),
+      );
+    }
+
+    return baseItems;
+  }
+
+  List<Widget> get _pages {
+    final basePages = <Widget>[
+      const DashboardPage(),
+      const UsuariosPage(),
+    ];
+
+    if (_isSuperAdmin) {
+      basePages.add(const AlmacenesPage());
+    }
+
+    basePages.addAll([
+      const ProductosPage(),
+      const UnidadesPage(),
+      const CategoriasPage(),
+      const BannersPage(),
+      const LaboratoriosPage(),
+      const PedidosPage(),
+    ]);
+
+    if (_isSuperAdmin) {
+      basePages.add(const PagosPage());
+    }
+
+    return basePages;
+  }
 
   void _cancelCloseTimer() {
     _closeTimer?.cancel();
@@ -131,15 +176,10 @@ class _SidebarShellPageState extends State<SidebarShellPage> {
   }
 
   int _indexFromPath(String path) {
-    if (path.startsWith('/usuarios')) return 1;
-    if (path.startsWith('/almacenes')) return 2;
-    if (path.startsWith('/productos')) return 3;
-    if (path.startsWith('/unidades')) return 4;
-    if (path.startsWith('/categorias')) return 5;
-    if (path.startsWith('/banners')) return 6;
-    if (path.startsWith('/laboratorios')) return 7;
-    if (path.startsWith('/pedidos')) return 8;
-    if (path.startsWith('/pagos')) return 9;
+    final items = _items;
+    for (int i = 0; i < items.length; i++) {
+      if (path.startsWith(items[i].route)) return i;
+    }
     return 0;
   }
 
@@ -151,8 +191,42 @@ class _SidebarShellPageState extends State<SidebarShellPage> {
   }
 
   void _goTo(int index) {
+    final items = _items;
+    if (index < 0 || index >= items.length) return;
+
     setState(() => _currentIndex = index);
-    Modular.to.navigate(_items[index].route);
+    Modular.to.navigate(items[index].route);
+  }
+
+  Future<void> _loadRole() async {
+    try {
+      final auth = Modular.get<AuthService>();
+      final role = await auth.getUserRole();
+
+      if (!mounted) return;
+
+      setState(() {
+        _isSuperAdmin = role == 'superadmin';
+        _loadingRole = false;
+      });
+
+      final currentPath = Modular.to.path;
+      _syncIndexWithPath(currentPath);
+
+      final allowedRoutes = _items.map((e) => e.route).toList();
+      final isAllowed = allowedRoutes.any((route) => currentPath.startsWith(route));
+
+      if (!isAllowed) {
+        Modular.to.navigate('/dashboard');
+        _syncIndexWithPath('/dashboard');
+      }
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _isSuperAdmin = false;
+        _loadingRole = false;
+      });
+    }
   }
 
   Future<void> _logout() async {
@@ -214,6 +288,8 @@ class _SidebarShellPageState extends State<SidebarShellPage> {
   void initState() {
     super.initState();
 
+    _loadRole();
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final p = Modular.to.path;
 
@@ -226,7 +302,7 @@ class _SidebarShellPageState extends State<SidebarShellPage> {
     });
 
     Modular.to.addListener(() {
-      if (!mounted) return;
+      if (!mounted || _loadingRole) return;
       _syncIndexWithPath(Modular.to.path);
     });
   }
@@ -239,18 +315,19 @@ class _SidebarShellPageState extends State<SidebarShellPage> {
 
   @override
   Widget build(BuildContext context) {
-    final pages = <Widget>[
-      const DashboardPage(),
-      const UsuariosPage(),
-      const AlmacenesPage(),
-      const ProductosPage(),
-      const UnidadesPage(),
-      const CategoriasPage(),
-      const BannersPage(),
-      const LaboratoriosPage(),
-      const PedidosPage(),
-      const PagosPage(),
-    ];
+    if (_loadingRole) {
+      return const Scaffold(
+        backgroundColor: Palette.fieldBg,
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
+    final pages = _pages;
+    if (_currentIndex >= pages.length) {
+      _currentIndex = 0;
+    }
 
     return LayoutBuilder(
       builder: (context, c) {
@@ -718,7 +795,7 @@ class _SidebarFooter extends StatelessWidget {
           if (open) ...[
             const SizedBox(width: 8),
             Text(
-              'Admin • Web',
+              'Admin',
               style: TextStyle(
                 fontSize: 12,
                 color: Palette.ink.withValues(alpha: 0.7),

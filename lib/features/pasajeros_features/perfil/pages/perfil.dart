@@ -119,10 +119,6 @@ class _PerfilPageState extends State<PerfilPage> {
                           ),
                         ),
                       ),
-                      _SoftIconButton(
-                        icon: Icons.settings_rounded,
-                        onTap: () {},
-                      ),
                     ],
                   ),
                   const SizedBox(height: 16),

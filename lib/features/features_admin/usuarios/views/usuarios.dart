@@ -140,8 +140,7 @@ class _UsuariosPageState extends State<UsuariosPage>
                               role: controller.roleFilter,
                             )
                           : ListView.builder(
-                              padding:
-                                  const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                              padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
                               itemCount: users.length,
                               itemBuilder: (_, i) {
                                 final u = users[i];
@@ -392,6 +391,7 @@ class _RoleFilterMini extends StatelessWidget {
           onChanged: (v) => onChanged(v ?? 'Todos'),
           selectedItemBuilder: (_) => const [
             Center(child: Text('Todos')),
+            Center(child: Text('Superadmin')),
             Center(child: Text('Admin')),
             Center(child: Text('Cliente')),
             Center(child: Text('Cliente Mayorista')),
@@ -402,6 +402,13 @@ class _RoleFilterMini extends StatelessWidget {
               value: 'Todos',
               child: Text(
                 'Todos',
+                style: TextStyle(color: ink, fontWeight: FontWeight.w900),
+              ),
+            ),
+            DropdownMenuItem(
+              value: 'superadmin',
+              child: Text(
+                'Superadmin',
                 style: TextStyle(color: ink, fontWeight: FontWeight.w900),
               ),
             ),
@@ -463,6 +470,8 @@ class _UserCardResponsive extends StatelessWidget {
 
   Color _roleColor(String r) {
     switch (r) {
+      case 'superadmin':
+        return Colors.amber.shade700;
       case 'admin':
         return Palette.primary;
       case 'repartidor':
@@ -477,6 +486,8 @@ class _UserCardResponsive extends StatelessWidget {
 
   IconData _roleIcon(String r) {
     switch (r) {
+      case 'superadmin':
+        return Icons.workspace_premium_rounded;
       case 'admin':
         return Icons.verified_rounded;
       case 'repartidor':
@@ -878,8 +889,12 @@ class _AlmacenComboFancyState extends State<_AlmacenComboFancy> {
                           children: [
                             Container(
                               width: double.infinity,
-                              padding:
-                                  const EdgeInsets.fromLTRB(12, 10, 12, 10),
+                              padding: const EdgeInsets.fromLTRB(
+                                12,
+                                10,
+                                12,
+                                10,
+                              ),
                               decoration: BoxDecoration(
                                 color: Palette.card,
                                 borderRadius: BorderRadius.circular(16),
@@ -910,7 +925,11 @@ class _AlmacenComboFancyState extends State<_AlmacenComboFancy> {
                                     onTap: () => Navigator.pop(context, a.id),
                                     child: Padding(
                                       padding: const EdgeInsets.fromLTRB(
-                                          12, 12, 12, 12),
+                                        12,
+                                        12,
+                                        12,
+                                        12,
+                                      ),
                                       child: Row(
                                         children: [
                                           Icon(
@@ -997,8 +1016,11 @@ class _AlmacenComboFancyState extends State<_AlmacenComboFancy> {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.warehouse_rounded,
-                    size: 18, color: ink.withValues(alpha: .55)),
+                Icon(
+                  Icons.warehouse_rounded,
+                  size: 18,
+                  color: ink.withValues(alpha: .55),
+                ),
                 const SizedBox(width: 8),
                 Text(
                   'Sin almacenes',
@@ -1013,10 +1035,12 @@ class _AlmacenComboFancyState extends State<_AlmacenComboFancy> {
           );
         }
 
-        final selected =
-            almacenes.where((a) => a.id == widget.currentAlmacenId).toList();
-        final selectedName =
-            selected.isNotEmpty ? selected.first.nombre : 'Elegir almacén';
+        final selected = almacenes
+            .where((a) => a.id == widget.currentAlmacenId)
+            .toList();
+        final selectedName = selected.isNotEmpty
+            ? selected.first.nombre
+            : 'Elegir almacén';
         final selectedId = selected.isNotEmpty ? selected.first.id : null;
 
         return AnimatedContainer(
@@ -1033,7 +1057,7 @@ class _AlmacenComboFancyState extends State<_AlmacenComboFancy> {
             onTap: _saving
                 ? null
                 : () =>
-                    _openPicker(almacenes: almacenes, selectedId: selectedId),
+                      _openPicker(almacenes: almacenes, selectedId: selectedId),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -1054,18 +1078,18 @@ class _AlmacenComboFancyState extends State<_AlmacenComboFancy> {
                           ),
                         )
                       : _saved
-                          ? const Icon(
-                              Icons.check_circle_rounded,
-                              key: ValueKey('saved'),
-                              color: Palette.primary,
-                              size: 18,
-                            )
-                          : const Icon(
-                              Icons.warehouse_rounded,
-                              key: ValueKey('idle'),
-                              color: Palette.primary,
-                              size: 18,
-                            ),
+                      ? const Icon(
+                          Icons.check_circle_rounded,
+                          key: ValueKey('saved'),
+                          color: Palette.primary,
+                          size: 18,
+                        )
+                      : const Icon(
+                          Icons.warehouse_rounded,
+                          key: ValueKey('idle'),
+                          color: Palette.primary,
+                          size: 18,
+                        ),
                 ),
                 const SizedBox(width: 8),
                 ConstrainedBox(
@@ -1082,8 +1106,10 @@ class _AlmacenComboFancyState extends State<_AlmacenComboFancy> {
                   ),
                 ),
                 const SizedBox(width: 6),
-                Icon(Icons.keyboard_arrow_down_rounded,
-                    color: ink.withValues(alpha: .60)),
+                Icon(
+                  Icons.keyboard_arrow_down_rounded,
+                  color: ink.withValues(alpha: .60),
+                ),
               ],
             ),
           ),
@@ -1159,8 +1185,9 @@ class _AvatarResolvedState extends State<_AvatarResolved> {
       }
 
       if (raw.startsWith('gs://')) {
-        final url =
-            await FirebaseStorage.instance.refFromURL(raw).getDownloadURL();
+        final url = await FirebaseStorage.instance
+            .refFromURL(raw)
+            .getDownloadURL();
         _cache[widget.uid] = url;
         setState(() {
           _resolved = url;
@@ -1222,14 +1249,14 @@ class _AvatarResolvedState extends State<_AvatarResolved> {
                     ),
                   )
                 : (_resolved != null)
-                    ? Image.network(
-                        _resolved!,
-                        fit: BoxFit.cover,
-                        gaplessPlayback: true,
-                        errorBuilder: (_, __, ___) =>
-                            _RetryAvatar(onRetry: _resolve),
-                      )
-                    : _RetryAvatar(onRetry: _resolve),
+                ? Image.network(
+                    _resolved!,
+                    fit: BoxFit.cover,
+                    gaplessPlayback: true,
+                    errorBuilder: (_, __, ___) =>
+                        _RetryAvatar(onRetry: _resolve),
+                  )
+                : _RetryAvatar(onRetry: _resolve),
           ),
         ),
       ],

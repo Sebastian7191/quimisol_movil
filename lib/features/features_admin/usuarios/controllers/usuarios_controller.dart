@@ -30,6 +30,9 @@ class UsuariosController {
     final email = (data['email'] ?? '').toString().toLowerCase();
     final role = (data['role'] ?? '').toString().toLowerCase();
 
+    // ocultar siempre superadmin
+    if (role == 'superadmin') return false;
+
     if (roleFilter != 'Todos' && role != roleFilter) return false;
     if (query.isEmpty) return true;
 
@@ -57,10 +60,10 @@ class UsuariosController {
   Future<void> setRole({required String uid, required String role}) async {
     final userRef = _db.collection('usuarios').doc(uid);
 
+    final superAdminRef = _db.collection('superadmins').doc(uid);
     final adminRef = _db.collection('admins').doc(uid);
     final clienteRef = _db.collection('clientes').doc(uid);
-    final clienteMayoristaRef =
-        _db.collection('clientes_mayoristas').doc(uid);
+    final clienteMayoristaRef = _db.collection('clientes_mayoristas').doc(uid);
     final repartidorRef = _db.collection('repartidores').doc(uid);
 
     final snap = await userRef.get();
@@ -100,13 +103,16 @@ class UsuariosController {
     batch.set(userRef, update, SetOptions(merge: true));
 
     // limpiar roles anteriores
+    batch.delete(superAdminRef);
     batch.delete(adminRef);
     batch.delete(clienteRef);
     batch.delete(clienteMayoristaRef);
     batch.delete(repartidorRef);
 
     // asignar nuevo rol
-    if (role == 'admin') {
+    if (role == 'superadmin') {
+      batch.set(superAdminRef, payload, SetOptions(merge: true));
+    } else if (role == 'admin') {
       batch.set(adminRef, payload, SetOptions(merge: true));
     } else if (role == 'cliente') {
       batch.set(clienteRef, payload, SetOptions(merge: true));
@@ -121,10 +127,7 @@ class UsuariosController {
     await batch.commit();
   }
 
-  Future<void> setNit({
-    required String uid,
-    required String nit,
-  }) async {
+  Future<void> setNit({required String uid, required String nit}) async {
     final userRef = _db.collection('usuarios').doc(uid);
     final mayoristaRef = _db.collection('clientes_mayoristas').doc(uid);
 

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -40,6 +41,8 @@ class _SoporteChatPageState extends State<SoporteChatPage>
   String? _clientName;
   String? _clientEmail;
   String? _chatStatus;
+
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _messagesSub;
 
   final FirebaseFirestore _db = FirebaseFirestore.instance;
   final fb.FirebaseAuth _auth = fb.FirebaseAuth.instance;
@@ -111,7 +114,7 @@ class _SoporteChatPageState extends State<SoporteChatPage>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    // no await en dispose
+    _messagesSub?.cancel();
     _setClientChatPresence(false);
 
     _messageCtrl.dispose();
@@ -122,7 +125,6 @@ class _SoporteChatPageState extends State<SoporteChatPage>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    // Si la app se minimiza o pierde foco, ya no está "viendo" esta página
     if (state == AppLifecycleState.inactive ||
         state == AppLifecycleState.paused ||
         state == AppLifecycleState.detached) {
@@ -130,7 +132,6 @@ class _SoporteChatPageState extends State<SoporteChatPage>
       return;
     }
 
-    // Si vuelve a primer plano, marcar presencia
     if (state == AppLifecycleState.resumed) {
       _setClientChatPresence(true);
     }
@@ -144,9 +145,7 @@ class _SoporteChatPageState extends State<SoporteChatPage>
         'clientInSupportChatPage': isOpen,
         'clientInSupportChatPageAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
-    } catch (_) {
-      // silencioso para no romper UI
-    }
+    } catch (_) {}
   }
 
   Future<void> _bootstrapChat() async {
@@ -181,33 +180,28 @@ class _SoporteChatPageState extends State<SoporteChatPage>
         _awaitingOpenTicketAnswer = false;
         _chatRejected = false;
 
-        await _loadMessagesFromFirestore();
+        _listenToMessages();
         await _setClientChatPresence(true);
 
         setState(() {
           _loadingChat = false;
         });
 
-        _scrollToBottom();
         return;
       }
 
-      // No existe ticket: crear pre-chat persistido en Firestore
       await _createPendingChatWithPreMessages();
 
-      await _loadMessagesFromFirestore();
+      _listenToMessages();
       await _setClientChatPresence(true);
 
       setState(() {
-        _chatCreated =
-            true; // ya existe doc de ticket (pendiente de confirmación)
+        _chatCreated = true;
         _awaitingOpenTicketAnswer = true;
         _chatRejected = false;
         _chatStatus = 'draft';
         _loadingChat = false;
       });
-
-      _scrollToBottom();
     } catch (e) {
       setState(() {
         _loadingChat = false;
@@ -232,84 +226,92 @@ class _SoporteChatPageState extends State<SoporteChatPage>
     }
   }
 
-  Future<void> _loadMessagesFromFirestore() async {
+  void _listenToMessages() {
     if (_chatId == null) return;
 
-    final query = await _db
+    _messagesSub?.cancel();
+
+    _messagesSub = _db
         .collection('support_chats')
         .doc(_chatId)
         .collection('messages')
-        .orderBy('createdAt', descending: false)
-        .limit(200)
-        .get();
+        .orderBy('createdAt', descending: true)
+        .limit(50)
+        .snapshots()
+        .listen((snapshot) async {
+          final docs = snapshot.docs.reversed.toList();
 
-    final loaded = <_ChatMessage>[];
-    bool hasOpenQuestion = false;
+          final loaded = <_ChatMessage>[];
+          bool hasOpenQuestion = false;
 
-    for (final doc in query.docs) {
-      final d = doc.data();
-      final type = (d['type'] ?? 'text').toString();
-      final senderRole = (d['senderRole'] ?? '').toString();
-      final isMine = senderRole == 'client';
+          for (final doc in docs) {
+            final d = doc.data();
+            final type = (d['type'] ?? 'text').toString();
+            final senderRole = (d['senderRole'] ?? '').toString();
+            final isMine = senderRole == 'client';
 
-      final ts = d['createdAt'];
-      String time = _formatNow();
-      if (ts is Timestamp) {
-        final dt = ts.toDate();
-        final hh = dt.hour.toString().padLeft(2, '0');
-        final mm = dt.minute.toString().padLeft(2, '0');
-        time = '$hh:$mm';
-      }
+            final ts = d['createdAt'];
+            String time = _formatNow();
+            if (ts is Timestamp) {
+              final dt = ts.toDate();
+              final hh = dt.hour.toString().padLeft(2, '0');
+              final mm = dt.minute.toString().padLeft(2, '0');
+              time = '$hh:$mm';
+            }
 
-      if (type == 'image') {
-        final imageUrl = (d['imageUrl'] ?? '').toString();
-        if (imageUrl.isNotEmpty) {
-          loaded.add(
-            _ChatMessage.image(
-              imagePath: imageUrl,
-              isMine: isMine,
-              time: time,
-              isRemoteImage: true,
-            ),
-          );
-        }
-      } else {
-        final text = (d['text'] ?? '').toString();
-        if (text.isNotEmpty) {
-          final metaType = (d['metaType'] ?? '').toString();
+            if (type == 'image') {
+              final imageUrl = (d['imageUrl'] ?? '').toString();
+              if (imageUrl.isNotEmpty) {
+                loaded.add(
+                  _ChatMessage.image(
+                    imagePath: imageUrl,
+                    isMine: isMine,
+                    time: time,
+                    isRemoteImage: true,
+                  ),
+                );
+              }
+            } else {
+              final text = (d['text'] ?? '').toString();
+              if (text.isNotEmpty) {
+                final metaType = (d['metaType'] ?? '').toString();
 
-          if (metaType == 'open_ticket_question') {
-            hasOpenQuestion = true;
+                if (metaType == 'open_ticket_question') {
+                  hasOpenQuestion = true;
+                }
+
+                loaded.add(
+                  _ChatMessage.text(
+                    text: text,
+                    isMine: isMine,
+                    time: time,
+                    isBotQuestion: metaType == 'open_ticket_question',
+                    isBotAnswer: metaType == 'open_ticket_answer',
+                  ),
+                );
+              }
+            }
           }
 
-          loaded.add(
-            _ChatMessage.text(
-              text: text,
-              isMine: isMine,
-              time: time,
-              isBotQuestion: metaType == 'open_ticket_question',
-              isBotAnswer: metaType == 'open_ticket_answer',
-            ),
-          );
-        }
-      }
-    }
+          final chatDoc = await _db.collection('support_chats').doc(_chatId).get();
+          final data = chatDoc.data() ?? {};
+          final status = (data['status'] ?? '').toString();
 
-    setState(() {
-      _messages
-        ..clear()
-        ..addAll(loaded);
-    });
+          if (!mounted) return;
 
-    // Reconstruir estado del flujo según metadata del chat
-    final chatDoc = await _db.collection('support_chats').doc(_chatId).get();
-    final data = chatDoc.data() ?? {};
-    final status = (data['status'] ?? '').toString();
-    _chatStatus = status;
+          setState(() {
+            _messages
+              ..clear()
+              ..addAll(loaded);
 
-    _awaitingOpenTicketAnswer = status == 'draft' && hasOpenQuestion;
-    _chatRejected = status == 'cancelled_by_client';
-    _chatCreated = true;
+            _chatStatus = status;
+            _awaitingOpenTicketAnswer = status == 'draft' && hasOpenQuestion;
+            _chatRejected = status == 'cancelled_by_client';
+            _chatCreated = true;
+          });
+
+          _scrollToBottom();
+        });
   }
 
   String _formatNow() {
@@ -427,7 +429,6 @@ class _SoporteChatPageState extends State<SoporteChatPage>
       'isActive': true,
       'lastReadAtClient': FieldValue.serverTimestamp(),
       'lastReadAtSupport': null,
-      // Presence flags
       'clientInSupportChatPage': false,
       'clientInSupportChatPageAt': null,
       'supportInChatPage': false,
@@ -567,8 +568,6 @@ class _SoporteChatPageState extends State<SoporteChatPage>
           countAsLastMessage: false,
         );
 
-        await _loadMessagesFromFirestore();
-
         setState(() {
           _chatRejected = true;
           _creatingChat = false;
@@ -578,7 +577,6 @@ class _SoporteChatPageState extends State<SoporteChatPage>
         return;
       }
 
-      // ✅ Asegurar token FCM solo si aún no existe
       await FcmTokenService.ensureTokenIfMissingForCurrentUser();
 
       await chatRef.set({
@@ -597,7 +595,6 @@ class _SoporteChatPageState extends State<SoporteChatPage>
         countAsLastMessage: false,
       );
 
-      await _loadMessagesFromFirestore();
       await _setClientChatPresence(true);
 
       if (!mounted) return;
@@ -618,7 +615,6 @@ class _SoporteChatPageState extends State<SoporteChatPage>
           metaType: 'ticket_create_error',
           countAsLastMessage: false,
         );
-        await _loadMessagesFromFirestore();
       } catch (_) {}
 
       setState(() {
@@ -876,7 +872,7 @@ class _SoporteChatPageState extends State<SoporteChatPage>
           elevation: 0,
           backgroundColor: Palette.white,
           surfaceTintColor: Colors.transparent,
-          automaticallyImplyLeading: false, // 👈 quita la flecha
+          automaticallyImplyLeading: false,
           titleSpacing: 16,
           title: Row(
             children: [
@@ -911,22 +907,22 @@ class _SoporteChatPageState extends State<SoporteChatPage>
                           : (_chatStatus == 'in_progress'
                                 ? 'En atención'
                                 : _chatStatus == 'completed'
-                                ? 'Completado'
-                                : _chatStatus == 'pending'
-                                ? 'Ticket pendiente'
-                                : _chatStatus == 'draft'
-                                ? 'Pre-chat'
-                                : _creatingChat
-                                ? 'Creando ticket...'
-                                : 'Pre-chat'),
+                                    ? 'Completado'
+                                    : _chatStatus == 'pending'
+                                        ? 'Ticket pendiente'
+                                        : _chatStatus == 'draft'
+                                            ? 'Pre-chat'
+                                            : _creatingChat
+                                                ? 'Creando ticket...'
+                                                : 'Pre-chat'),
                       style: TextStyle(
                         color: _chatStatus == 'completed'
                             ? Colors.green
                             : _chatStatus == 'in_progress'
-                            ? Colors.blue
-                            : _chatStatus == 'pending'
-                            ? Colors.orange
-                            : Palette.primary,
+                                ? Colors.blue
+                                : _chatStatus == 'pending'
+                                    ? Colors.orange
+                                    : Palette.primary,
                         fontSize: 11.5,
                         fontWeight: FontWeight.w600,
                       ),
@@ -974,12 +970,12 @@ class _SoporteChatPageState extends State<SoporteChatPage>
                             _chatStatus == 'draft'
                                 ? 'Primero responde Sí o No para continuar.'
                                 : _chatStatus == 'cancelled_by_client'
-                                ? 'No se abrió ticket. Si deseas soporte, vuelve a responder Sí.'
-                                : _chatStatus == 'completed'
-                                ? 'Este ticket está completado. Si envías un mensaje, se reabrirá.'
-                                : _chatStatus == 'in_progress'
-                                ? 'Tu ticket está siendo atendido por soporte.'
-                                : 'Tu ticket está pendiente de atención.',
+                                    ? 'No se abrió ticket. Si deseas soporte, vuelve a responder Sí.'
+                                    : _chatStatus == 'completed'
+                                        ? 'Este ticket está completado. Si envías un mensaje, se reabrirá.'
+                                        : _chatStatus == 'in_progress'
+                                            ? 'Tu ticket está siendo atendido por soporte.'
+                                            : 'Tu ticket está pendiente de atención.',
                             style: const TextStyle(
                               fontSize: 12.3,
                               color: Palette.ink,
@@ -1108,8 +1104,7 @@ class _SoporteChatPageState extends State<SoporteChatPage>
                                         icon: Icon(
                                           _showEmojiPicker
                                               ? Icons.keyboard_rounded
-                                              : Icons
-                                                    .sentiment_satisfied_alt_rounded,
+                                              : Icons.sentiment_satisfied_alt_rounded,
                                           color: _inputEnabled
                                               ? Palette.primary.withOpacity(0.8)
                                               : Colors.grey,
@@ -1454,16 +1449,16 @@ class _ChatImageView extends StatelessWidget {
             errorBuilder: (_, __, ___) => _imageErrorBox(),
           )
         : (kIsWeb
-              ? Image.network(
-                  path,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => _imageErrorBox(),
-                )
-              : Image.file(
-                  File(path),
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => _imageErrorBox(),
-                ));
+            ? Image.network(
+                path,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => _imageErrorBox(),
+              )
+            : Image.file(
+                File(path),
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => _imageErrorBox(),
+              ));
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(12),

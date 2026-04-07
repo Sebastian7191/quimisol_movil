@@ -5,14 +5,11 @@
 // ✅ Muestra SOLO: nombre + dirección
 // ✅ Separado por secciones de departamento
 // ✅ Botón “Agregar nueva ubicación”
-//    -> Abre mapa (AgregadoUbicacionPage)
-//    -> ✅ YA NO GUARDA AQUÍ (para evitar duplicados)
+// ✅ Tap en una ubicación => abre en modo edición
 // ✅ Eliminar ubicación
 //
 // Nota:
 // - Si un doc no trae "direccion", se muestra fallback con coords.
-
-import 'dart:math' as math;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -44,16 +41,31 @@ class _UbicacionesPageState extends State<UbicacionesPage> {
   Future<void> _addUbicacion() async {
     if (_uid.isEmpty) return;
 
-    // ✅ Abrir mapa: allí se guarda en Firestore
-    // ✅ Aquí NO guardamos nada para evitar duplicados
-    final res = await Navigator.push<dynamic>(
+    await Navigator.push<dynamic>(
       context,
       MaterialPageRoute(builder: (_) => const AgregadoUbicacionPage()),
     );
+  }
 
-    // Si vuelve algo o no, igual no hacemos nada.
-    // El StreamBuilder se actualizará solo cuando Firestore reciba el doc.
-    if (res == null) return;
+  Future<void> _editUbicacion(_UbicItem item) async {
+    if (_uid.isEmpty) return;
+
+    await Navigator.push<dynamic>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => AgregadoUbicacionPage(
+          initialUbicacion: UbicDraft(
+            id: item.docId,
+            nombre: item.nombre,
+            direccion: item.direccion,
+            departamento: item.departamento,
+            lat: item.lat,
+            lng: item.lng,
+            uid: item.uid,
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> _delete(String docId) async {
@@ -84,14 +96,12 @@ class _UbicacionesPageState extends State<UbicacionesPage> {
   @override
   Widget build(BuildContext context) {
     final ink = Palette.ink;
-    final pink = Palette.button;
 
     return Scaffold(
       backgroundColor: Palette.fieldBg,
       body: SafeArea(
         child: Column(
           children: [
-            // Header
             Padding(
               padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
               child: Row(
@@ -112,17 +122,9 @@ class _UbicacionesPageState extends State<UbicacionesPage> {
                       ),
                     ),
                   ),
-                  _SoftCircleBtn(
-                    icon: Icons.add_rounded,
-                    onTap: _addUbicacion,
-                    fill: pink,
-                    iconColor: Colors.white,
-                  ),
                 ],
               ),
             ),
-
-            // Botón grande
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
               child: _PrimaryBigButton(
@@ -130,7 +132,6 @@ class _UbicacionesPageState extends State<UbicacionesPage> {
                 onTap: _addUbicacion,
               ),
             ),
-
             Expanded(
               child: _uid.isEmpty
                   ? Center(
@@ -196,8 +197,8 @@ class _UbicacionesPageState extends State<UbicacionesPage> {
                           );
                         }
 
-                        // ✅ Agrupar por departamento
-                        final Map<String, List<QueryDocumentSnapshot<Map<String, dynamic>>>>
+                        final Map<String,
+                                List<QueryDocumentSnapshot<Map<String, dynamic>>>>
                             grouped = {};
                         for (final d in docs) {
                           final data = d.data();
@@ -208,7 +209,6 @@ class _UbicacionesPageState extends State<UbicacionesPage> {
                           grouped.putIfAbsent(key, () => []).add(d);
                         }
 
-                        // Orden secciones: alfabético, "Sin departamento" al final
                         final sections = grouped.keys.toList()
                           ..sort((a, b) {
                             if (a == 'Sin departamento') return 1;
@@ -234,6 +234,7 @@ class _UbicacionesPageState extends State<UbicacionesPage> {
                               child: _UbicCard(
                                 nombre: it.nombre,
                                 direccion: it.direccion,
+                                onTap: () => _editUbicacion(it),
                                 onDelete: () => _delete(it.docId),
                               ),
                             );
@@ -258,7 +259,6 @@ class _UbicacionesPageState extends State<UbicacionesPage> {
       out.add(_DeptHeader(s));
 
       final list = grouped[s]!;
-      // ordenar ubicaciones por nombre
       list.sort((a, b) {
         final an = (a.data()['nombre'] ?? '').toString().toLowerCase();
         final bn = (b.data()['nombre'] ?? '').toString().toLowerCase();
@@ -268,25 +268,26 @@ class _UbicacionesPageState extends State<UbicacionesPage> {
       for (final d in list) {
         final data = d.data();
         final nombre = (data['nombre'] ?? 'Ubicación').toString();
+        final departamento = (data['departamento'] ?? '').toString().trim();
+        final uid = (data['uid'] ?? _uid).toString();
 
-        // Dirección: campo real "direccion" (preferido)
         var direccion =
             (data['direccion'] ?? data['address'] ?? '').toString().trim();
 
-        // fallback por si solo guardaron coords
-        if (direccion.isEmpty) {
-          final latRaw = data['lat'] ?? data['latitud'];
-          final lngRaw = data['lng'] ?? data['longitud'];
-          final lat = (latRaw is num)
-              ? latRaw.toDouble()
-              : double.tryParse(latRaw?.toString() ?? '');
-          final lng = (lngRaw is num)
-              ? lngRaw.toDouble()
-              : double.tryParse(lngRaw?.toString() ?? '');
-          if (lat != null && lng != null) {
-            direccion =
-                'Lat: ${lat.toStringAsFixed(6)}, Lng: ${lng.toStringAsFixed(6)}';
-          }
+        final latRaw = data['lat'] ?? data['latitud'];
+        final lngRaw = data['lng'] ?? data['longitud'];
+
+        final lat = (latRaw is num)
+            ? latRaw.toDouble()
+            : double.tryParse(latRaw?.toString() ?? '');
+
+        final lng = (lngRaw is num)
+            ? lngRaw.toDouble()
+            : double.tryParse(lngRaw?.toString() ?? '');
+
+        if (direccion.isEmpty && lat != null && lng != null) {
+          direccion =
+              'Lat: ${lat.toStringAsFixed(6)}, Lng: ${lng.toStringAsFixed(6)}';
         }
 
         out.add(
@@ -294,6 +295,10 @@ class _UbicacionesPageState extends State<UbicacionesPage> {
             docId: d.id,
             nombre: nombre,
             direccion: direccion.isEmpty ? 'Dirección no disponible' : direccion,
+            departamento: departamento,
+            lat: lat ?? 0,
+            lng: lng ?? 0,
+            uid: uid,
           ),
         );
       }
@@ -343,11 +348,13 @@ class _UbicCard extends StatefulWidget {
   const _UbicCard({
     required this.nombre,
     required this.direccion,
+    required this.onTap,
     required this.onDelete,
   });
 
   final String nombre;
   final String direccion;
+  final VoidCallback onTap;
   final VoidCallback onDelete;
 
   @override
@@ -363,6 +370,7 @@ class _UbicCardState extends State<_UbicCard> {
     final pink = Palette.button;
 
     return GestureDetector(
+      onTap: widget.onTap,
       onTapDown: (_) => setState(() => _down = true),
       onTapCancel: () => setState(() => _down = false),
       onTapUp: (_) => setState(() => _down = false),
@@ -425,6 +433,15 @@ class _UbicCardState extends State<_UbicCard> {
                         fontWeight: FontWeight.w800,
                         fontSize: 13,
                         height: 1.25,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      'Toca para editar',
+                      style: TextStyle(
+                        color: Palette.primary,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 12.3,
                       ),
                     ),
                   ],
@@ -528,8 +545,11 @@ class _PrimaryBigButtonState extends State<_PrimaryBigButton> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.add_location_alt_outlined,
-                  color: Colors.white, size: 20),
+              const Icon(
+                Icons.add_location_alt_outlined,
+                color: Colors.white,
+                size: 20,
+              ),
               const SizedBox(width: 10),
               Text(
                 widget.text,
@@ -558,10 +578,18 @@ class _UbicItem {
   final String docId;
   final String nombre;
   final String direccion;
+  final String departamento;
+  final double lat;
+  final double lng;
+  final String? uid;
 
   _UbicItem({
     required this.docId,
     required this.nombre,
     required this.direccion,
+    required this.departamento,
+    required this.lat,
+    required this.lng,
+    required this.uid,
   });
 }

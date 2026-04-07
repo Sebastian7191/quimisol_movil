@@ -5,10 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 
 import 'package:quimisol_movil/core/theme/palette.dart';
-
-// ✅ IMPORTA TUS PAGES REALES
 import 'package:quimisol_movil/features/conductores_features/historial/pages/historial_entregas_page.dart';
-import 'package:quimisol_movil/features/conductores_features/notificaciones/pages/notificaciones_page.dart';
+import 'package:quimisol_movil/features/conductores_features/perfil/pages/conductor_perfil_form.dart';
 
 class ConductorProfilePage extends StatefulWidget {
   final Future<void> Function() onLogout;
@@ -35,7 +33,6 @@ class _ConductorProfilePageState extends State<ConductorProfilePage> {
     return parts.first;
   }
 
-  // ✅ YA NAVEGA A TUS PAGES REALES
   void _openHistorial() {
     Navigator.push(
       context,
@@ -43,18 +40,13 @@ class _ConductorProfilePageState extends State<ConductorProfilePage> {
     );
   }
 
-  void _openNotificaciones() {
+  void _openPerfilForm() {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => const NotificacionesPage()),
+      MaterialPageRoute(builder: (_) => const ConductorPerfilFormPage()),
     );
   }
 
-  void _openVehiculo() => _toast('Abrir Mi vehículo (pendiente)');
-  void _openDocumentos() => _toast('Abrir Documentos (pendiente)');
-  void _openZona() => _toast('Abrir Zona de reparto (pendiente)');
-  void _openGanancias() => _toast('Abrir Ganancias (pendiente)');
-  void _openSoporte() => _toast('Abrir Soporte (pendiente)');
   void _openAjustes() => _toast('Abrir Ajustes (pendiente)');
 
   void _toast(String msg) {
@@ -87,7 +79,6 @@ class _ConductorProfilePageState extends State<ConductorProfilePage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Header (Hola + settings)
                   Row(
                     children: [
                       Expanded(
@@ -109,22 +100,16 @@ class _ConductorProfilePageState extends State<ConductorProfilePage> {
                   ),
                   const SizedBox(height: 16),
 
-                  // Card usuario
                   _ProfileCard(
                     name: name,
                     email: email,
                     role: role,
                     photoUrl: photo,
-                    onEdit: () {
-                      _toast('Editar perfil (pendiente)');
-                      // Si tienes pantalla de editar perfil:
-                      // Modular.to.pushNamed('/perfil/editar');
-                    },
+                    onEdit: _openPerfilForm,
                   ),
 
                   const SizedBox(height: 18),
 
-                  // Accesos rápidos (repartidor)
                   Text(
                     'Accesos rápidos',
                     style: TextStyle(
@@ -158,61 +143,13 @@ class _ConductorProfilePageState extends State<ConductorProfilePage> {
                             color: pink,
                             onTap: _openHistorial,
                           ),
-                          _QuickTile(
-                            icon: Icons.notifications_active_rounded,
-                            label: 'Notificaciones',
-                            color: pink,
-                            onTap: _openNotificaciones,
-                          ),
-                          _QuickTile(
-                            icon: Icons.attach_money_rounded,
-                            label: 'Ganancias',
-                            color: pink,
-                            onTap: _openGanancias,
-                          ),
-                          _QuickTile(
-                            icon: Icons.support_agent_rounded,
-                            label: 'Soporte',
-                            color: pink,
-                            onTap: _openSoporte,
-                          ),
                         ],
                       );
                     },
                   ),
 
-                  const SizedBox(height: 22),
-
-                  // ✅ Repartidor
-                  const _SectionTitleX(title: 'Repartidor'),
-                  const SizedBox(height: 14),
-
-                  _MenuRowSimple(
-                    icon: Icons.local_shipping_outlined,
-                    label: 'Mi vehículo',
-                    accent: pink,
-                    onTap: _openVehiculo,
-                  ),
-                  const SizedBox(height: 18),
-
-                  _MenuRowSimple(
-                    icon: Icons.badge_outlined,
-                    label: 'Documentos (CI / Licencia)',
-                    accent: pink,
-                    onTap: _openDocumentos,
-                  ),
-                  const SizedBox(height: 18),
-
-                  _MenuRowSimple(
-                    icon: Icons.map_outlined,
-                    label: 'Zona de reparto',
-                    accent: pink,
-                    onTap: _openZona,
-                  ),
-
                   const SizedBox(height: 26),
 
-                  // ✅ Actividad
                   const _SectionTitleX(title: 'Actividad'),
                   const SizedBox(height: 14),
 
@@ -222,26 +159,9 @@ class _ConductorProfilePageState extends State<ConductorProfilePage> {
                     accent: Palette.primary,
                     onTap: _openHistorial,
                   ),
-                  const SizedBox(height: 18),
-
-                  _MenuRowSimple(
-                    icon: Icons.notifications_none_rounded,
-                    label: 'Notificaciones',
-                    accent: Palette.primary,
-                    onTap: _openNotificaciones,
-                  ),
-                  const SizedBox(height: 18),
-
-                  _MenuRowSimple(
-                    icon: Icons.payments_outlined,
-                    label: 'Ganancias',
-                    accent: Palette.primary,
-                    onTap: _openGanancias,
-                  ),
 
                   const SizedBox(height: 26),
 
-                  // ✅ Cuenta
                   const _SectionTitleX(title: 'Cuenta'),
                   const SizedBox(height: 14),
 

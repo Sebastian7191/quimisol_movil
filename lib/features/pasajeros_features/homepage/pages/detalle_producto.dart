@@ -26,7 +26,10 @@ class _DetalleProductoPageState extends State<DetalleProductoPage> {
   bool _adding = false;
 
   Stream<DocumentSnapshot<Map<String, dynamic>>> _productoStream(String id) {
-    return FirebaseFirestore.instance.collection('productos').doc(id).snapshots();
+    return FirebaseFirestore.instance
+        .collection('productos')
+        .doc(id)
+        .snapshots();
   }
 
   Stream<DocumentSnapshot<Map<String, dynamic>>> _descuentoStream(String id) {
@@ -48,7 +51,10 @@ class _DetalleProductoPageState extends State<DetalleProductoPage> {
   }
 
   Stream<DocumentSnapshot<Map<String, dynamic>>> _userStream(String uid) {
-    return FirebaseFirestore.instance.collection('usuarios').doc(uid).snapshots();
+    return FirebaseFirestore.instance
+        .collection('usuarios')
+        .doc(uid)
+        .snapshots();
   }
 
   double _toDouble(dynamic v) {
@@ -144,8 +150,9 @@ class _DetalleProductoPageState extends State<DetalleProductoPage> {
     if (unidadNombre.isEmpty) {
       try {
         final dynamic x = product;
-        unidadNombre =
-            (x.unidadNombre ?? x.unitName ?? x.unidad ?? '').toString().trim();
+        unidadNombre = (x.unidadNombre ?? x.unitName ?? x.unidad ?? '')
+            .toString()
+            .trim();
       } catch (_) {
         unidadNombre = '';
       }
@@ -158,7 +165,8 @@ class _DetalleProductoPageState extends State<DetalleProductoPage> {
         : (contenido.isNotEmpty ? contenido : gramaje);
 
     if (valor.isEmpty && abreviatura.isEmpty) return '';
-    if (valor.isNotEmpty && abreviatura.isNotEmpty) return '$valor $abreviatura';
+    if (valor.isNotEmpty && abreviatura.isNotEmpty)
+      return '$valor $abreviatura';
     if (valor.isNotEmpty) return valor;
     return abreviatura;
   }
@@ -170,7 +178,9 @@ class _DetalleProductoPageState extends State<DetalleProductoPage> {
 
     if (p.stock <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Este producto no tiene stock disponible.')),
+        const SnackBar(
+          content: Text('Este producto no tiene stock disponible.'),
+        ),
       );
       return;
     }
@@ -218,7 +228,9 @@ class _DetalleProductoPageState extends State<DetalleProductoPage> {
     final stock = widget.product.stock;
     if (stock <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Este producto no tiene stock disponible.')),
+        const SnackBar(
+          content: Text('Este producto no tiene stock disponible.'),
+        ),
       );
       return;
     }
@@ -378,17 +390,17 @@ class _DetalleProductoPageState extends State<DetalleProductoPage> {
                               SafeArea(
                                 bottom: false,
                                 child: Padding(
-                                  padding: const EdgeInsets.fromLTRB(18, 10, 18, 8),
+                                  padding: const EdgeInsets.fromLTRB(
+                                    18,
+                                    10,
+                                    18,
+                                    8,
+                                  ),
                                   child: Row(
                                     children: <Widget>[
                                       _TopCircleButton(
                                         icon: Icons.arrow_back_ios_new_rounded,
                                         onTap: () => Navigator.pop(context),
-                                      ),
-                                      const Spacer(),
-                                      _TopCircleButton(
-                                        icon: Icons.more_vert_rounded,
-                                        onTap: () {},
                                       ),
                                     ],
                                   ),
@@ -410,7 +422,8 @@ class _DetalleProductoPageState extends State<DetalleProductoPage> {
                                             Positioned.fill(
                                               child: (p.imageUrl.trim().isEmpty)
                                                   ? Container(
-                                                      color: Colors.white.withOpacity(0.22),
+                                                      color: Colors.white
+                                                          .withOpacity(0.22),
                                                       child: const Center(
                                                         child: Icon(
                                                           Icons.image_outlined,
@@ -424,11 +437,16 @@ class _DetalleProductoPageState extends State<DetalleProductoPage> {
                                                       fit: BoxFit.cover,
                                                       errorBuilder: (_, __, ___) {
                                                         return Container(
-                                                          color: Colors.white.withOpacity(0.22),
+                                                          color: Colors.white
+                                                              .withOpacity(
+                                                                0.22,
+                                                              ),
                                                           child: const Center(
                                                             child: Icon(
-                                                              Icons.image_outlined,
-                                                              color: Colors.white,
+                                                              Icons
+                                                                  .image_outlined,
+                                                              color:
+                                                                  Colors.white,
                                                               size: 42,
                                                             ),
                                                           ),
@@ -441,18 +459,26 @@ class _DetalleProductoPageState extends State<DetalleProductoPage> {
                                                 left: 14,
                                                 top: 14,
                                                 child: Container(
-                                                  padding: const EdgeInsets.symmetric(
-                                                    horizontal: 12,
-                                                    vertical: 7,
-                                                  ),
+                                                  padding:
+                                                      const EdgeInsets.symmetric(
+                                                        horizontal: 12,
+                                                        vertical: 7,
+                                                      ),
                                                   decoration: BoxDecoration(
                                                     color: Colors.red,
-                                                    borderRadius: BorderRadius.circular(14),
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          14,
+                                                        ),
                                                     boxShadow: <BoxShadow>[
                                                       BoxShadow(
-                                                        color: Colors.black.withOpacity(0.16),
+                                                        color: Colors.black
+                                                            .withOpacity(0.16),
                                                         blurRadius: 12,
-                                                        offset: const Offset(0, 8),
+                                                        offset: const Offset(
+                                                          0,
+                                                          8,
+                                                        ),
                                                       ),
                                                     ],
                                                   ),
@@ -460,7 +486,8 @@ class _DetalleProductoPageState extends State<DetalleProductoPage> {
                                                     badge,
                                                     style: const TextStyle(
                                                       color: Colors.white,
-                                                      fontWeight: FontWeight.w900,
+                                                      fontWeight:
+                                                          FontWeight.w900,
                                                       fontSize: 12.5,
                                                     ),
                                                   ),
@@ -495,7 +522,12 @@ class _DetalleProductoPageState extends State<DetalleProductoPage> {
                             ),
                             child: ListView(
                               physics: const BouncingScrollPhysics(),
-                              padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
+                              padding: const EdgeInsets.fromLTRB(
+                                18,
+                                18,
+                                18,
+                                16,
+                              ),
                               children: <Widget>[
                                 Row(
                                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -515,14 +547,17 @@ class _DetalleProductoPageState extends State<DetalleProductoPage> {
                                     ),
                                     const SizedBox(width: 10),
                                     Column(
-                                      crossAxisAlignment: CrossAxisAlignment.end,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.end,
                                       children: <Widget>[
                                         Text(
                                           'Bs. ${(hasDescuento ? finalPrice : base).toStringAsFixed(2)}',
                                           style: TextStyle(
                                             fontSize: 18,
                                             fontWeight: FontWeight.w900,
-                                            color: hasDescuento ? Colors.red : Palette.button,
+                                            color: hasDescuento
+                                                ? Colors.red
+                                                : Palette.button,
                                           ),
                                         ),
                                         if (hasDescuento)
@@ -531,8 +566,11 @@ class _DetalleProductoPageState extends State<DetalleProductoPage> {
                                             style: TextStyle(
                                               fontSize: 12.5,
                                               fontWeight: FontWeight.w800,
-                                              color: Palette.ink.withOpacity(0.40),
-                                              decoration: TextDecoration.lineThrough,
+                                              color: Palette.ink.withOpacity(
+                                                0.40,
+                                              ),
+                                              decoration:
+                                                  TextDecoration.lineThrough,
                                             ),
                                           ),
                                       ],
@@ -546,12 +584,15 @@ class _DetalleProductoPageState extends State<DetalleProductoPage> {
                                       child: Wrap(
                                         spacing: 8,
                                         runSpacing: 8,
-                                        crossAxisAlignment: WrapCrossAlignment.center,
+                                        crossAxisAlignment:
+                                            WrapCrossAlignment.center,
                                         children: <Widget>[
                                           Text(
                                             'Producto',
                                             style: TextStyle(
-                                              color: Palette.ink.withOpacity(0.45),
+                                              color: Palette.ink.withOpacity(
+                                                0.45,
+                                              ),
                                               fontWeight: FontWeight.w700,
                                             ),
                                           ),
@@ -567,7 +608,9 @@ class _DetalleProductoPageState extends State<DetalleProductoPage> {
                                             style: TextStyle(
                                               fontSize: 13,
                                               fontWeight: FontWeight.w800,
-                                              color: Palette.ink.withOpacity(0.65),
+                                              color: Palette.ink.withOpacity(
+                                                0.65,
+                                              ),
                                             ),
                                           ),
                                           Text(
@@ -577,7 +620,9 @@ class _DetalleProductoPageState extends State<DetalleProductoPage> {
                                             style: TextStyle(
                                               fontSize: 12.5,
                                               fontWeight: FontWeight.w700,
-                                              color: Palette.ink.withOpacity(0.45),
+                                              color: Palette.ink.withOpacity(
+                                                0.45,
+                                              ),
                                             ),
                                           ),
                                         ],
@@ -590,16 +635,21 @@ class _DetalleProductoPageState extends State<DetalleProductoPage> {
                                           vertical: 7,
                                         ),
                                         decoration: BoxDecoration(
-                                          color: Palette.statsSuccess.withOpacity(0.15),
-                                          borderRadius: BorderRadius.circular(999),
+                                          color: Palette.statsSuccess
+                                              .withOpacity(0.15),
+                                          borderRadius: BorderRadius.circular(
+                                            999,
+                                          ),
                                           border: Border.all(
-                                            color: Palette.statsSuccess.withOpacity(0.25),
+                                            color: Palette.statsSuccess
+                                                .withOpacity(0.25),
                                           ),
                                         ),
                                         child: Text(
                                           'Stock: ${p.stock}',
                                           style: TextStyle(
-                                            color: Palette.statsSuccess.withOpacity(0.95),
+                                            color: Palette.statsSuccess
+                                                .withOpacity(0.95),
                                             fontWeight: FontWeight.w900,
                                             fontSize: 12.5,
                                           ),
@@ -612,10 +662,14 @@ class _DetalleProductoPageState extends State<DetalleProductoPage> {
                                           vertical: 7,
                                         ),
                                         decoration: BoxDecoration(
-                                          color: Palette.statsDanger.withOpacity(0.12),
-                                          borderRadius: BorderRadius.circular(999),
+                                          color: Palette.statsDanger
+                                              .withOpacity(0.12),
+                                          borderRadius: BorderRadius.circular(
+                                            999,
+                                          ),
                                           border: Border.all(
-                                            color: Palette.statsDanger.withOpacity(0.22),
+                                            color: Palette.statsDanger
+                                                .withOpacity(0.22),
                                           ),
                                         ),
                                         child: Text(
@@ -633,7 +687,12 @@ class _DetalleProductoPageState extends State<DetalleProductoPage> {
                                   const SizedBox(height: 12),
                                   Container(
                                     width: double.infinity,
-                                    padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+                                    padding: const EdgeInsets.fromLTRB(
+                                      12,
+                                      10,
+                                      12,
+                                      10,
+                                    ),
                                     decoration: BoxDecoration(
                                       color: Colors.red.withOpacity(0.06),
                                       borderRadius: BorderRadius.circular(16),
@@ -659,7 +718,8 @@ class _DetalleProductoPageState extends State<DetalleProductoPage> {
                                         const SizedBox(width: 10),
                                         Expanded(
                                           child: Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
                                             children: <Widget>[
                                               Text(
                                                 line,
@@ -675,7 +735,8 @@ class _DetalleProductoPageState extends State<DetalleProductoPage> {
                                               Text(
                                                 'Ahorras Bs. ${ahorro.toStringAsFixed(2)} por unidad',
                                                 style: TextStyle(
-                                                  color: Palette.ink.withOpacity(0.60),
+                                                  color: Palette.ink
+                                                      .withOpacity(0.60),
                                                   fontWeight: FontWeight.w700,
                                                   fontSize: 12.5,
                                                 ),
@@ -690,7 +751,9 @@ class _DetalleProductoPageState extends State<DetalleProductoPage> {
                                           ),
                                           decoration: BoxDecoration(
                                             color: Colors.red,
-                                            borderRadius: BorderRadius.circular(999),
+                                            borderRadius: BorderRadius.circular(
+                                              999,
+                                            ),
                                           ),
                                           child: const Text(
                                             'HOY',
@@ -779,7 +842,9 @@ class _DetalleProductoPageState extends State<DetalleProductoPage> {
                                         ),
                                         decoration: BoxDecoration(
                                           color: Palette.fieldBg,
-                                          borderRadius: BorderRadius.circular(999),
+                                          borderRadius: BorderRadius.circular(
+                                            999,
+                                          ),
                                         ),
                                         child: Row(
                                           mainAxisSize: MainAxisSize.min,
@@ -793,7 +858,9 @@ class _DetalleProductoPageState extends State<DetalleProductoPage> {
                                             Text(
                                               avgRating <= 0
                                                   ? '0.0'
-                                                  : avgRating.toStringAsFixed(1),
+                                                  : avgRating.toStringAsFixed(
+                                                      1,
+                                                    ),
                                               style: TextStyle(
                                                 color: Palette.ink,
                                                 fontWeight: FontWeight.w900,
@@ -806,11 +873,16 @@ class _DetalleProductoPageState extends State<DetalleProductoPage> {
                                     ],
                                   ),
                                   const SizedBox(height: 12),
-                                  if (reviewSnap.connectionState == ConnectionState.waiting)
+                                  if (reviewSnap.connectionState ==
+                                      ConnectionState.waiting)
                                     const Padding(
-                                      padding: EdgeInsets.symmetric(vertical: 20),
+                                      padding: EdgeInsets.symmetric(
+                                        vertical: 20,
+                                      ),
                                       child: Center(
-                                        child: CircularProgressIndicator(strokeWidth: 2),
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                        ),
                                       ),
                                     )
                                   else if (reviewDocs.isEmpty)
@@ -821,7 +893,9 @@ class _DetalleProductoPageState extends State<DetalleProductoPage> {
                                         color: Palette.fieldBg,
                                         borderRadius: BorderRadius.circular(18),
                                         border: Border.all(
-                                          color: Palette.primary.withOpacity(0.08),
+                                          color: Palette.primary.withOpacity(
+                                            0.08,
+                                          ),
                                         ),
                                       ),
                                       child: Column(
@@ -829,14 +903,18 @@ class _DetalleProductoPageState extends State<DetalleProductoPage> {
                                           Icon(
                                             Icons.reviews_outlined,
                                             size: 34,
-                                            color: Palette.primary.withOpacity(0.55),
+                                            color: Palette.primary.withOpacity(
+                                              0.55,
+                                            ),
                                           ),
                                           const SizedBox(height: 10),
                                           Text(
                                             'Aún no hay reseñas para este producto.',
                                             textAlign: TextAlign.center,
                                             style: TextStyle(
-                                              color: Palette.ink.withOpacity(0.70),
+                                              color: Palette.ink.withOpacity(
+                                                0.70,
+                                              ),
                                               fontWeight: FontWeight.w800,
                                             ),
                                           ),
@@ -848,22 +926,31 @@ class _DetalleProductoPageState extends State<DetalleProductoPage> {
                                       final r = doc.data();
                                       final int rating = _toInt(r['rating']);
                                       final String comentario =
-                                          (r['comentario'] ?? '').toString().trim();
+                                          (r['comentario'] ?? '')
+                                              .toString()
+                                              .trim();
                                       final String texto = comentario.isNotEmpty
                                           ? comentario
                                           : _defaultReviewText(rating);
-                                      final String fecha = _formatDate(r['createdAt']);
+                                      final String fecha = _formatDate(
+                                        r['createdAt'],
+                                      );
                                       final String clienteUid =
-                                          (r['clienteUid'] ?? '').toString().trim();
+                                          (r['clienteUid'] ?? '')
+                                              .toString()
+                                              .trim();
 
                                       return Padding(
-                                        padding: const EdgeInsets.only(bottom: 12),
+                                        padding: const EdgeInsets.only(
+                                          bottom: 12,
+                                        ),
                                         child: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
                                           stream: clienteUid.isEmpty
                                               ? null
                                               : _userStream(clienteUid),
                                           builder: (context, userSnap) {
-                                            final u = userSnap.data?.data() ?? {};
+                                            final u =
+                                                userSnap.data?.data() ?? {};
 
                                             final String nombreCliente =
                                                 (u['nombre'] ??
@@ -888,17 +975,23 @@ class _DetalleProductoPageState extends State<DetalleProductoPage> {
                                               width: double.infinity,
                                               padding: const EdgeInsets.all(14),
                                               decoration: BoxDecoration(
-                                                color: Palette.fieldBg.withOpacity(0.55),
-                                                borderRadius: BorderRadius.circular(18),
+                                                color: Palette.fieldBg
+                                                    .withOpacity(0.55),
+                                                borderRadius:
+                                                    BorderRadius.circular(18),
                                                 border: Border.all(
-                                                  color: Palette.primary.withOpacity(0.07),
+                                                  color: Palette.primary
+                                                      .withOpacity(0.07),
                                                 ),
                                               ),
                                               child: Column(
-                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
                                                 children: [
                                                   Row(
-                                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                                    crossAxisAlignment:
+                                                        CrossAxisAlignment
+                                                            .start,
                                                     children: [
                                                       _ReviewerAvatar(
                                                         imageUrl: fotoUrl,
@@ -908,32 +1001,50 @@ class _DetalleProductoPageState extends State<DetalleProductoPage> {
                                                       Expanded(
                                                         child: Column(
                                                           crossAxisAlignment:
-                                                              CrossAxisAlignment.start,
+                                                              CrossAxisAlignment
+                                                                  .start,
                                                           children: [
                                                             Text(
-                                                              nombreCliente.isNotEmpty
+                                                              nombreCliente
+                                                                      .isNotEmpty
                                                                   ? nombreCliente
                                                                   : 'Cliente',
                                                               maxLines: 1,
                                                               overflow:
-                                                                  TextOverflow.ellipsis,
+                                                                  TextOverflow
+                                                                      .ellipsis,
                                                               style: TextStyle(
-                                                                color: Palette.ink,
-                                                                fontWeight: FontWeight.w900,
+                                                                color:
+                                                                    Palette.ink,
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .w900,
                                                                 fontSize: 13.5,
                                                               ),
                                                             ),
-                                                            const SizedBox(height: 4),
+                                                            const SizedBox(
+                                                              height: 4,
+                                                            ),
                                                             Row(
                                                               children: [
-                                                                _StaticStars(rating: rating),
+                                                                _StaticStars(
+                                                                  rating:
+                                                                      rating,
+                                                                ),
                                                                 const Spacer(),
                                                                 Text(
                                                                   fecha,
                                                                   style: TextStyle(
-                                                                    color: Palette.ink.withOpacity(0.45),
-                                                                    fontWeight: FontWeight.w700,
-                                                                    fontSize: 11.5,
+                                                                    color: Palette
+                                                                        .ink
+                                                                        .withOpacity(
+                                                                          0.45,
+                                                                        ),
+                                                                    fontWeight:
+                                                                        FontWeight
+                                                                            .w700,
+                                                                    fontSize:
+                                                                        11.5,
                                                                   ),
                                                                 ),
                                                               ],
@@ -947,8 +1058,10 @@ class _DetalleProductoPageState extends State<DetalleProductoPage> {
                                                   Text(
                                                     texto,
                                                     style: TextStyle(
-                                                      color: Palette.ink.withOpacity(0.72),
-                                                      fontWeight: FontWeight.w600,
+                                                      color: Palette.ink
+                                                          .withOpacity(0.72),
+                                                      fontWeight:
+                                                          FontWeight.w600,
                                                       height: 1.4,
                                                     ),
                                                   ),
@@ -981,10 +1094,7 @@ class _DetalleProductoPageState extends State<DetalleProductoPage> {
 /* ---------------- BLOQUE DETALLES ---------------- */
 
 class _DetailInfoBlock extends StatelessWidget {
-  const _DetailInfoBlock({
-    required this.title,
-    required this.value,
-  });
+  const _DetailInfoBlock({required this.title, required this.value});
 
   final String title;
   final String value;
@@ -997,9 +1107,7 @@ class _DetailInfoBlock extends StatelessWidget {
       decoration: BoxDecoration(
         color: Palette.fieldBg.withOpacity(0.65),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: Palette.primary.withOpacity(0.08),
-        ),
+        border: Border.all(color: Palette.primary.withOpacity(0.08)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1157,7 +1265,9 @@ class _SlidingCartBarState extends State<_SlidingCartBar> {
                         child: ElevatedButton(
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Palette.button,
-                            disabledBackgroundColor: Palette.ink.withOpacity(0.18),
+                            disabledBackgroundColor: Palette.ink.withOpacity(
+                              0.18,
+                            ),
                             elevation: 0,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(28),
@@ -1177,8 +1287,8 @@ class _SlidingCartBarState extends State<_SlidingCartBar> {
                                   sinStock
                                       ? 'Sin stock'
                                       : excedeStock
-                                          ? 'Supera stock'
-                                          : 'Anadir al carrito',
+                                      ? 'Supera stock'
+                                      : 'Anadir al carrito',
                                   style: const TextStyle(
                                     color: Colors.white,
                                     fontWeight: FontWeight.w900,
@@ -1316,7 +1426,8 @@ class _RowLine extends StatelessWidget {
             left,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: leftStyle ??
+            style:
+                leftStyle ??
                 TextStyle(
                   color: Palette.ink.withOpacity(0.65),
                   fontWeight: FontWeight.w700,
@@ -1336,11 +1447,8 @@ class _RowLine extends StatelessWidget {
 /* ---------------- UI COMPONENTS ---------------- */
 
 class _TopCircleButton extends StatelessWidget {
-  const _TopCircleButton({
-    Key? key,
-    required this.icon,
-    required this.onTap,
-  }) : super(key: key);
+  const _TopCircleButton({Key? key, required this.icon, required this.onTap})
+    : super(key: key);
 
   final IconData icon;
   final VoidCallback onTap;
@@ -1444,11 +1552,8 @@ class _QtyStepper extends StatelessWidget {
 }
 
 class _QtyBtn extends StatelessWidget {
-  const _QtyBtn({
-    Key? key,
-    required this.icon,
-    required this.onTap,
-  }) : super(key: key);
+  const _QtyBtn({Key? key, required this.icon, required this.onTap})
+    : super(key: key);
 
   final IconData icon;
   final VoidCallback onTap;
@@ -1497,10 +1602,7 @@ class _StaticStars extends StatelessWidget {
 }
 
 class _ReviewerAvatar extends StatelessWidget {
-  const _ReviewerAvatar({
-    required this.imageUrl,
-    required this.name,
-  });
+  const _ReviewerAvatar({required this.imageUrl, required this.name});
 
   final String imageUrl;
   final String name;
@@ -1521,9 +1623,7 @@ class _ReviewerAvatar extends StatelessWidget {
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         color: Palette.button.withOpacity(0.12),
-        border: Border.all(
-          color: Palette.button.withOpacity(0.18),
-        ),
+        border: Border.all(color: Palette.button.withOpacity(0.18)),
       ),
       child: ClipOval(
         child: hasImage

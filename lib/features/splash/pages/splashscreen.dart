@@ -1,6 +1,4 @@
 // lib/features/splash/splash_page.dart
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 
@@ -17,8 +15,8 @@ class SplashPage extends StatefulWidget {
 class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
   late final AuthService _authService;
 
-  late final AnimationController _shineCtrl; // brillo
-  late final AnimationController _loaderCtrl; // puntitos
+  late final AnimationController _shineCtrl;
+  late final AnimationController _loaderCtrl;
 
   @override
   void initState() {
@@ -59,13 +57,11 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
     final role = await _authService.getUserRole();
     if (!mounted) return;
 
-    // ADMIN -> SidebarShellPage
-    if (role == 'admin') {
+    if (role == 'admin' || role == 'superadmin') {
       Modular.to.navigate('/admin');
       return;
     }
 
-    // CLIENTE NORMAL y CLIENTE MAYORISTA
     if (role == 'cliente' || role == 'cliente_mayorista') {
       Modular.to.navigate('/home-pasajero');
       return;
@@ -76,7 +72,6 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
       return;
     }
 
-    // fallback
     Modular.to.navigate('/login');
   }
 
@@ -118,8 +113,16 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
                           ),
                         ],
                       ),
-                      child: const Center(
-                        child: _RedTulipSticker(size: 64),
+                      child: Center(
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(18),
+                          child: Image.asset(
+                            'assets/icon/logo.png',
+                            width: 110,
+                            height: 110,
+                            fit: BoxFit.contain,
+                          ),
+                        ),
                       ),
                     ),
 
@@ -226,49 +229,4 @@ class _ThreeDotsLoading extends StatelessWidget {
       }),
     );
   }
-}
-
-/// Sticker flor
-class _RedTulipSticker extends StatelessWidget {
-  final double size;
-  const _RedTulipSticker({required this.size});
-
-  @override
-  Widget build(BuildContext context) {
-    return CustomPaint(
-      size: Size(size, size),
-      painter: _RedTulipStickerPainter(),
-    );
-  }
-}
-
-class _RedTulipStickerPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size s) {
-    final outline = Paint()
-      ..color = Colors.black.withOpacity(0.9)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = s.width * 0.07
-      ..strokeJoin = StrokeJoin.round
-      ..strokeCap = StrokeCap.round;
-
-    final red = Paint()..color = const Color(0xFFE31B23);
-    final redDark = Paint()..color = const Color(0xFFB01218);
-    final redDeep = Paint()..color = const Color(0xFF7A0D12);
-
-    final green = Paint()..color = const Color(0xFF2E8B57);
-    final greenDark = Paint()..color = const Color(0xFF1D6B3E);
-
-    final shadow = Paint()
-      ..color = Colors.black.withOpacity(0.10)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5);
-
-    final cx = s.width * 0.5;
-    final topY = s.height * 0.12;
-
-    // Mantén aquí tu painter completo original
-  }
-
-  @override
-  bool shouldRepaint(covariant _RedTulipStickerPainter oldDelegate) => false;
 }

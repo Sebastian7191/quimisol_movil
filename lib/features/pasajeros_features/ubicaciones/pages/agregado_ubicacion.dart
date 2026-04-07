@@ -1,22 +1,14 @@
 // lib/features/perfil/agregado_ubicacion.dart
 //
+// ✅ Crear ubicación nueva
+// ✅ Editar ubicación existente
 // ✅ flutter_map ^8.2.2 + OSM tiles
-// ✅ Inicia en ubicación actual (Geolocator)
+// ✅ Inicia en ubicación actual o en ubicación recibida
 // ✅ Pin fijo al centro
 // ✅ Reverse geocoding con debounce 1.5s (Mapbox REST)
-// ✅ Buscador avanzado tipo Google Maps:
-//    - Mapbox Search Box API (suggest + retrieve) con session_token
-//    - fallback a Geocoding clásico si SearchBox no está disponible
-// ✅ UI muestra SOLO dirección (sin "Departamento...")
-// ✅ Departamento interno (SIN "Departamento de ...", guardado como "Cochabamba", "La paz", etc.)
-// ✅ Panel inferior pegado abajo; SOLO sube al enfocar "Nombre"
-// ✅ Botón deshabilitado hasta terminar de cargar
-// ✅ AppBar rosa profesional (Palette.button)
-// ✅ GUARDA EN FIRESTORE (Base de datos) al presionar "Guardar mi Ubicación"
-//
-// Requiere:
-// cloud_firestore: ^5.x
-// firebase_auth: ^5.x
+// ✅ Buscador avanzado tipo Google Maps
+// ✅ Guarda en Firestore
+// ✅ Si viene initialUbicacion => ACTUALIZA en vez de crear duplicado
 
 import 'dart:async';
 import 'dart:convert';
@@ -34,7 +26,14 @@ import 'package:latlong2/latlong.dart';
 import 'package:quimisol_movil/core/theme/palette.dart';
 
 class AgregadoUbicacionPage extends StatefulWidget {
-  const AgregadoUbicacionPage({super.key});
+  final UbicDraft? initialUbicacion;
+
+  const AgregadoUbicacionPage({
+    super.key,
+    this.initialUbicacion,
+  });
+
+  bool get isEdit => initialUbicacion != null;
 
   @override
   State<AgregadoUbicacionPage> createState() => _AgregadoUbicacionPageState();
@@ -42,7 +41,8 @@ class AgregadoUbicacionPage extends StatefulWidget {
 
 class _AgregadoUbicacionPageState extends State<AgregadoUbicacionPage> {
   static const String _kMapboxToken =
-      'MAPBOX_TOKEN'; // Reemplaza con tu token Mapbox válido
+      'TOKEN_MAPBOX';
+
   String get _mapboxToken => _kMapboxToken;
 
   final MapController _mapCtrl = MapController();
@@ -63,7 +63,6 @@ class _AgregadoUbicacionPageState extends State<AgregadoUbicacionPage> {
   final _nameCtrl = TextEditingController(text: 'Casa');
   final FocusNode _nameFocus = FocusNode();
 
-  // 🔎 Buscador avanzado
   final TextEditingController _searchCtrl = TextEditingController();
   final FocusNode _searchFocus = FocusNode();
   Timer? _searchDebounce;
@@ -71,15 +70,12 @@ class _AgregadoUbicacionPageState extends State<AgregadoUbicacionPage> {
   bool _searching = false;
   List<_SuggestHit> _hits = [];
 
-  // session token (importante para Search Box API)
   String _sessionToken = _newSessionToken();
 
-  // filtros “tipo Maps” (opcional)
   static const String _countryFilter = 'BO';
   static const String _types =
       'poi,address,place,locality,neighborhood,street,region';
 
-  // Firebase
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
@@ -109,11 +105,15 @@ class _AgregadoUbicacionPageState extends State<AgregadoUbicacionPage> {
   @override
   void initState() {
     super.initState();
-    _initCurrentLocation();
+
+    if (widget.initialUbicacion != null) {
+      _initEditMode(widget.initialUbicacion!);
+    } else {
+      _initCurrentLocation();
+    }
 
     _searchCtrl.addListener(_onSearchChanged);
 
-    // ✅ para que el botón se habilite/deshabilite al escribir el nombre
     _nameCtrl.addListener(() {
       if (mounted) setState(() {});
     });
@@ -148,9 +148,23 @@ class _AgregadoUbicacionPageState extends State<AgregadoUbicacionPage> {
     super.dispose();
   }
 
-  // ---------------------------
-  // Ubicación inicial + reverse
-  // ---------------------------
+  void _initEditMode(UbicDraft initial) {
+    _nameCtrl.text = initial.nombre;
+    _address = initial.direccion;
+    _department = _normalizeDepartment(initial.departamento);
+    _center = LatLng(initial.lat, initial.lng);
+    _loadingLocation = false;
+    _error = null;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_center != null) {
+        _mapCtrl.move(_center!, 16.0);
+      }
+    });
+  }
+
+  String _s(dynamic v) => (v ?? '').toString().trim();
+
   Future<void> _initCurrentLocation() async {
     setState(() {
       _loadingLocation = true;
@@ -239,7 +253,6 @@ class _AgregadoUbicacionPageState extends State<AgregadoUbicacionPage> {
     return filtered.join(', ');
   }
 
-  // ✅ Normaliza departamento sin "Departamento de ..." y en minúsculas
   String _normalizeDepartment(String dep) {
     var d = dep.trim();
     if (d.isEmpty) return '';
@@ -268,7 +281,6 @@ class _AgregadoUbicacionPageState extends State<AgregadoUbicacionPage> {
     return d.toLowerCase();
   }
 
-  // ✅ Capitaliza SOLO la primera letra: "cochabamba" -> "Cochabamba"
   String _capitalizeFirst(String value) {
     if (value.isEmpty) return value;
     return value[0].toUpperCase() + value.substring(1);
@@ -317,7 +329,6 @@ class _AgregadoUbicacionPageState extends State<AgregadoUbicacionPage> {
       final f0 = features.first as Map<String, dynamic>;
       final context = (f0['context'] as List?) ?? [];
 
-      // departamento interno (region.*)
       String dep = '';
       for (final c in context) {
         final item = c as Map<String, dynamic>;
@@ -328,10 +339,8 @@ class _AgregadoUbicacionPageState extends State<AgregadoUbicacionPage> {
         }
       }
 
-      // ✅ normalizar (minúsculas, sin prefijos)
       final depNorm = _normalizeDepartment(dep);
 
-      // dirección limpia
       final street = (f0['text'] as String?)?.trim() ?? '';
       final number = (f0['address'] as String?)?.trim();
       String streetLine = street;
@@ -367,7 +376,7 @@ class _AgregadoUbicacionPageState extends State<AgregadoUbicacionPage> {
         _address = niceAddress.isNotEmpty
             ? niceAddress
             : 'Dirección no disponible';
-        _department = depNorm; // ✅ guardado interno normalizado (minúsculas)
+        _department = depNorm;
       });
     } catch (e) {
       setState(() {
@@ -384,9 +393,6 @@ class _AgregadoUbicacionPageState extends State<AgregadoUbicacionPage> {
     }
   }
 
-  // ---------------------------
-  // 🔎 BUSCADOR AVANZADO (Maps-like)
-  // ---------------------------
   void _onSearchChanged() {
     final q = _searchCtrl.text.trim();
     _searchDebounce?.cancel();
@@ -520,8 +526,7 @@ class _AgregadoUbicacionPageState extends State<AgregadoUbicacionPage> {
             subtitle: subtitle,
             mapboxId: null,
             sourceType:
-                (m['place_type'] is List &&
-                    (m['place_type'] as List).isNotEmpty)
+                (m['place_type'] is List && (m['place_type'] as List).isNotEmpty)
                 ? ((m['place_type'] as List).first as String?) ?? ''
                 : '',
             point: LatLng(lat, lng),
@@ -597,9 +602,6 @@ class _AgregadoUbicacionPageState extends State<AgregadoUbicacionPage> {
     });
   }
 
-  // ---------------------------
-  // ✅ GUARDAR EN BASE DE DATOS (Firestore)
-  // ---------------------------
   Future<void> _saveThisLocation() async {
     if (!_canUseLocation) return;
 
@@ -613,33 +615,44 @@ class _AgregadoUbicacionPageState extends State<AgregadoUbicacionPage> {
     try {
       final uid = _auth.currentUser?.uid;
 
-      // ✅ normaliza a minúsculas + quita "departamento de ..."
-      final depRaw = _normalizeDepartment(_department); // "cochabamba"
-      // ✅ muestra/guarda con inicial mayúscula
-      final depFinal = _capitalizeFirst(depRaw); // "Cochabamba"
+      final depRaw = _normalizeDepartment(_department);
+      final depFinal = _capitalizeFirst(depRaw);
 
       final payload = <String, dynamic>{
         'nombre': nombre,
         'direccion': _address,
-        'departamento': depFinal, // ✅ "Cochabamba", "La paz", etc.
+        'departamento': depFinal,
         'lat': c.latitude,
         'lng': c.longitude,
         'uid': uid,
-        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
       };
 
-      final doc = await _ubicacionesRef.add(payload);
+      String docId;
+
+      if (widget.isEdit) {
+        docId = widget.initialUbicacion!.id;
+        await _ubicacionesRef.doc(docId).set(payload, SetOptions(merge: true));
+      } else {
+        payload['createdAt'] = FieldValue.serverTimestamp();
+        final doc = await _ubicacionesRef.add(payload);
+        docId = doc.id;
+      }
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Ubicación guardada ✅')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            widget.isEdit ? 'Ubicación actualizada ✅' : 'Ubicación guardada ✅',
+          ),
+        ),
+      );
 
       Navigator.pop(
         context,
         UbicDraft(
-          id: doc.id,
+          id: docId,
           nombre: nombre,
           direccion: _address,
           departamento: depFinal,
@@ -651,7 +664,13 @@ class _AgregadoUbicacionPageState extends State<AgregadoUbicacionPage> {
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No se pudo guardar la ubicación.')),
+        SnackBar(
+          content: Text(
+            widget.isEdit
+                ? 'No se pudo actualizar la ubicación.'
+                : 'No se pudo guardar la ubicación.',
+          ),
+        ),
       );
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -667,9 +686,10 @@ class _AgregadoUbicacionPageState extends State<AgregadoUbicacionPage> {
       resizeToAvoidBottomInset: false,
       backgroundColor: Palette.fieldBg,
       appBar: _ProAppBar(
-        title: 'Seleccionar ubicación',
+        title: widget.isEdit ? 'Editar ubicación' : 'Seleccionar ubicación',
         onBack: () => Navigator.pop(context),
-        onMyLocation: _initCurrentLocation,
+        onMyLocation: widget.isEdit ? () {} : _initCurrentLocation,
+        disableMyLocation: widget.isEdit,
       ),
       body: Stack(
         children: [
@@ -727,6 +747,9 @@ class _AgregadoUbicacionPageState extends State<AgregadoUbicacionPage> {
               canUse: _canUseLocation,
               saving: _saving,
               onUse: _saveThisLocation,
+              buttonText: widget.isEdit
+                  ? 'Guardar cambios'
+                  : 'Guardar mi Ubicación',
             ),
           ),
         ],
@@ -788,17 +811,17 @@ class _AgregadoUbicacionPageState extends State<AgregadoUbicacionPage> {
   }
 }
 
-// ------------------ UI widgets ------------------
-
 class _ProAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String title;
   final VoidCallback onBack;
   final VoidCallback onMyLocation;
+  final bool disableMyLocation;
 
   const _ProAppBar({
     required this.title,
     required this.onBack,
     required this.onMyLocation,
+    this.disableMyLocation = false,
   });
 
   @override
@@ -845,8 +868,13 @@ class _ProAppBar extends StatelessWidget implements PreferredSizeWidget {
               ),
               IconButton(
                 tooltip: 'Mi ubicación',
-                onPressed: onMyLocation,
-                icon: Icon(Icons.my_location_rounded, color: Palette.button),
+                onPressed: disableMyLocation ? null : onMyLocation,
+                icon: Icon(
+                  Icons.my_location_rounded,
+                  color: disableMyLocation
+                      ? Palette.button.withOpacity(0.35)
+                      : Palette.button,
+                ),
               ),
             ],
           ),
@@ -982,6 +1010,7 @@ class _BottomPanel extends StatelessWidget {
   final bool canUse;
   final bool saving;
   final VoidCallback onUse;
+  final String buttonText;
 
   const _BottomPanel({
     required this.nameCtrl,
@@ -991,6 +1020,7 @@ class _BottomPanel extends StatelessWidget {
     required this.canUse,
     required this.saving,
     required this.onUse,
+    required this.buttonText,
   });
 
   @override
@@ -1105,9 +1135,9 @@ class _BottomPanel extends StatelessWidget {
                         height: 18,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : const Text(
-                        'Guardar mi Ubicación',
-                        style: TextStyle(fontWeight: FontWeight.w900),
+                    : Text(
+                        buttonText,
+                        style: const TextStyle(fontWeight: FontWeight.w900),
                       ),
               ),
             ),
@@ -1118,17 +1148,11 @@ class _BottomPanel extends StatelessWidget {
   }
 }
 
-// ------------------ Model ------------------
-
 class _SuggestHit {
   final String title;
   final String subtitle;
   final String sourceType;
-
-  // SearchBox:
   final String? mapboxId;
-
-  // Fallback geocoding:
   final LatLng? point;
 
   _SuggestHit({
@@ -1163,17 +1187,15 @@ class UbicDraft {
   double get longitud => lng;
 
   Map<String, dynamic> toJson() => {
-    'id': id,
-    'nombre': nombre,
-    'direccion': direccion,
-    'departamento': departamento,
-    'lat': lat,
-    'lng': lng,
-    'uid': uid,
-  };
+        'id': id,
+        'nombre': nombre,
+        'direccion': direccion,
+        'departamento': departamento,
+        'lat': lat,
+        'lng': lng,
+        'uid': uid,
+      };
 }
-
-// ------------------ Utils ------------------
 
 String _newSessionToken() {
   final r = Random();

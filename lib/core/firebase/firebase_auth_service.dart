@@ -8,23 +8,16 @@ class FirebaseAuthService implements AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
-  // ✅ Mantener una sola instancia
   final GoogleSignIn _googleSignIn = GoogleSignIn(
     scopes: ['email'],
   );
 
-  // ──────────────────────────────────────────────
-  //  ESTADO DE LOGIN
-  // ──────────────────────────────────────────────
   @override
   Future<bool> isLoggedIn() async => _auth.currentUser != null;
 
   @override
   Future<String?> getUserId() async => _auth.currentUser?.uid;
 
-  // ──────────────────────────────────────────────
-  //  OBTENER ROL
-  // ──────────────────────────────────────────────
   @override
   Future<String?> getUserRole() async {
     final uid = _auth.currentUser?.uid;
@@ -39,9 +32,6 @@ class FirebaseAuthService implements AuthService {
     }
   }
 
-  // ──────────────────────────────────────────────
-  //  LOGIN EMAIL
-  // ──────────────────────────────────────────────
   @override
   Future<void> signInWithEmail(String email, String password) async {
     try {
@@ -54,9 +44,6 @@ class FirebaseAuthService implements AuthService {
     }
   }
 
-  // ──────────────────────────────────────────────
-  //  REGISTRO EMAIL (SIN NOMBRE)
-  // ──────────────────────────────────────────────
   @override
   Future<void> registerWithEmail(String email, String password) async {
     try {
@@ -76,22 +63,18 @@ class FirebaseAuthService implements AuthService {
     }
   }
 
-  // ──────────────────────────────────────────────
-  //  LOGIN GOOGLE (RETORNA isNewUser + name + photo)
-  // ──────────────────────────────────────────────
   @override
-  Future<GoogleLoginResult> signInWithGoogle() async {
+  Future<GoogleLoginResult?> signInWithGoogle() async {
     try {
-      // ✅ Fuerza limpiar selección previa (ayuda a mostrar chooser)
       try {
         await _googleSignIn.signOut();
       } catch (_) {}
 
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
 
+      // ✅ Canceló selección de cuenta: no navegar, no continuar
       if (googleUser == null) {
-        // cancelado por el usuario
-        return const GoogleLoginResult(isNewUser: false);
+        return null;
       }
 
       final googleAuth = await googleUser.authentication;
@@ -102,25 +85,37 @@ class FirebaseAuthService implements AuthService {
       );
 
       final userCred = await _auth.signInWithCredential(credential);
-      final uid = userCred.user!.uid;
+      final user = userCred.user;
 
+      if (user == null) {
+        throw Exception('No se pudo obtener el usuario autenticado.');
+      }
+
+      final uid = user.uid;
       final ref = _db.collection('usuarios').doc(uid);
       final doc = await ref.get();
+      final data = doc.data() ?? <String, dynamic>{};
 
-      final data = doc.data();
       final bool isProfileCompleted =
-          doc.exists && data?['profile_completed'] == true;
+          doc.exists && data['profile_completed'] == true;
 
-      // ✅ Si ya existe role, lo respetamos
-      final String? existingRole = data?['role'] as String?;
-      final bool hasRole = (existingRole != null && existingRole.isNotEmpty);
+      final String existingRole = (data['role'] ?? '').toString().trim();
+      final bool hasRole = existingRole.isNotEmpty;
 
-      final payload = <String, dynamic>{
-        'email': userCred.user!.email,
+      final String existingName = (data['name'] ?? '').toString().trim();
+      final String existingPhoto = (data['photo'] ?? '').toString().trim();
+
+      final String googleName = (user.displayName ?? '').trim();
+      final String googlePhoto = (user.photoURL ?? '').trim();
+      final String googleEmail = (user.email ?? '').trim();
+
+      final Map<String, dynamic> payload = {
+        'email': googleEmail,
         if (!hasRole) 'role': 'cliente',
-        'profile_completed': isProfileCompleted ? true : false,
-        if (userCred.user!.displayName != null) 'name': userCred.user!.displayName,
-        if (userCred.user!.photoURL != null) 'photo': userCred.user!.photoURL,
+        'profile_completed': isProfileCompleted,
+        if (existingName.isEmpty && googleName.isNotEmpty) 'name': googleName,
+        if (existingPhoto.isEmpty && googlePhoto.isNotEmpty)
+          'photo': googlePhoto,
         if (!doc.exists) 'created_at': FieldValue.serverTimestamp(),
         'updated_at': FieldValue.serverTimestamp(),
       };
@@ -129,8 +124,12 @@ class FirebaseAuthService implements AuthService {
 
       return GoogleLoginResult(
         isNewUser: !isProfileCompleted,
-        name: userCred.user!.displayName,
-        photoUrl: userCred.user!.photoURL,
+        name: existingName.isNotEmpty
+            ? existingName
+            : (googleName.isNotEmpty ? googleName : null),
+        photoUrl: existingPhoto.isNotEmpty
+            ? existingPhoto
+            : (googlePhoto.isNotEmpty ? googlePhoto : null),
       );
     } on FirebaseAuthException catch (e) {
       throw Exception(_firebaseError(e));
@@ -139,15 +138,10 @@ class FirebaseAuthService implements AuthService {
     }
   }
 
-  // ──────────────────────────────────────────────
-  //  LOGOUT
-  // ──────────────────────────────────────────────
   @override
   Future<void> logout() async {
-    // ✅ Primero Firebase
     await _auth.signOut();
 
-    // ✅ Luego Google (disconnect fuerza mejor que vuelva a preguntar cuenta)
     try {
       await _googleSignIn.disconnect();
     } catch (_) {
@@ -157,9 +151,6 @@ class FirebaseAuthService implements AuthService {
     }
   }
 
-  // ──────────────────────────────────────────────
-  //  ERRORES LEGIBLES
-  // ──────────────────────────────────────────────
   String _firebaseError(FirebaseAuthException e) {
     switch (e.code) {
       case 'user-not-found':

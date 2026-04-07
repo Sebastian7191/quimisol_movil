@@ -103,7 +103,7 @@ class _WishlistPageState extends State<WishlistPage> {
                   const SizedBox(width: 38), // 👈 sin flecha
                   const Spacer(),
                   Text(
-                    'Lista de Deseos',
+                    'Lista de Favoritos',
                     style: TextStyle(
                       color: ink,
                       fontWeight: FontWeight.w900,
@@ -115,9 +115,7 @@ class _WishlistPageState extends State<WishlistPage> {
                     onTap: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(
-                          builder: (_) => const CarritoPage(),
-                        ),
+                        MaterialPageRoute(builder: (_) => const CarritoPage()),
                       );
                     },
                     borderRadius: BorderRadius.circular(14),
@@ -181,15 +179,6 @@ class _WishlistPageState extends State<WishlistPage> {
                   ),
                   const SizedBox(width: 10),
                   _FilterChipX(
-                    text: 'Disponibles',
-                    active: _filter == 1,
-                    primary: primary,
-                    chipBg: chipBg,
-                    onTap: () => setState(() => _filter = 1),
-                    ink: ink,
-                  ),
-                  const SizedBox(width: 10),
-                  _FilterChipX(
                     text: 'Recientes',
                     active: _filter == 2,
                     primary: primary,
@@ -217,7 +206,7 @@ class _WishlistPageState extends State<WishlistPage> {
               child: _filtered.isEmpty
                   ? Center(
                       child: Text(
-                        'No tienes productos en tu lista de deseos.',
+                        'No tienes productos en tu lista de favoritos.',
                         style: TextStyle(
                           color: ink.withOpacity(0.55),
                           fontWeight: FontWeight.w800,
@@ -313,7 +302,6 @@ class _WishCard extends StatelessWidget {
   final Color ink;
   final VoidCallback onRemove;
 
-  // ✅ manda el precio final al mover al carrito (para aplicar descuento)
   final Future<void> Function(double priceToUse)? onMoveToCart;
 
   Stream<DocumentSnapshot<Map<String, dynamic>>> _descuentoStream(String id) {
@@ -355,15 +343,17 @@ class _WishCard extends StatelessWidget {
             finalPrice = base * (1 - (pct / 100.0));
             finalPrice = math.max(0.0, finalPrice);
 
-            final String pctTxt =
-                (pct % 1 == 0) ? pct.toStringAsFixed(0) : pct.toStringAsFixed(1);
+            final String pctTxt = (pct % 1 == 0)
+                ? pct.toStringAsFixed(0)
+                : pct.toStringAsFixed(1);
 
             badge = '-$pctTxt%';
           } else {
             finalPrice = math.max(0.0, base - valor);
 
-            final String vTxt =
-                (valor % 1 == 0) ? valor.toStringAsFixed(0) : valor.toStringAsFixed(2);
+            final String vTxt = (valor % 1 == 0)
+                ? valor.toStringAsFixed(0)
+                : valor.toStringAsFixed(2);
 
             badge = '-Bs $vTxt';
           }
@@ -400,7 +390,6 @@ class _WishCard extends StatelessWidget {
                     ),
                   ),
 
-                  // ✅ Badge descuento
                   if (hasDescuento)
                     Positioned(
                       left: 8,
@@ -435,11 +424,27 @@ class _WishCard extends StatelessWidget {
                   Positioned(
                     top: 8,
                     right: 8,
-                    child: InkWell(
-                      onTap: onRemove,
-                      child: Icon(
-                        Icons.delete_outline_rounded,
-                        color: ink.withOpacity(0.70),
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: onRemove,
+                        borderRadius: BorderRadius.circular(999),
+                        child: Container(
+                          width: 38,
+                          height: 38,
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.45),
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: Colors.white.withOpacity(0.18),
+                            ),
+                          ),
+                          child: const Icon(
+                            Icons.delete_outline_rounded,
+                            color: Colors.white,
+                            size: 20,
+                          ),
+                        ),
                       ),
                     ),
                   ),
@@ -454,16 +459,12 @@ class _WishCard extends StatelessWidget {
                   item.name,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: ink,
-                    fontWeight: FontWeight.w900,
-                  ),
+                  style: TextStyle(color: ink, fontWeight: FontWeight.w900),
                 ),
               ),
 
               const SizedBox(height: 6),
 
-              // ✅ Precio con descuento + tachado
               Row(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
