@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart' show kIsWeb; //agregue esto no me preguntes por que, es para detectar si esta en web o no...jaja la app se respondio sola
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -8,16 +10,21 @@ class FirebaseAuthService implements AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
-  final GoogleSignIn _googleSignIn = GoogleSignIn(
-    scopes: ['email'],
-  );
+  // Una sola instancia en móvil
+  final GoogleSignIn _googleSignIn = GoogleSignIn(scopes: ['email']);
 
+  // ──────────────────────────────────────────────
+  //  ESTADO DE LOGIN
+  // ──────────────────────────────────────────────
   @override
   Future<bool> isLoggedIn() async => _auth.currentUser != null;
 
   @override
   Future<String?> getUserId() async => _auth.currentUser?.uid;
 
+  // ──────────────────────────────────────────────
+  //  OBTENER ROL
+  // ──────────────────────────────────────────────
   @override
   Future<String?> getUserRole() async {
     final uid = _auth.currentUser?.uid;
@@ -32,91 +39,149 @@ class FirebaseAuthService implements AuthService {
     }
   }
 
+  // ──────────────────────────────────────────────
+  //  LOGIN EMAIL
+  // ──────────────────────────────────────────────
   @override
   Future<void> signInWithEmail(String email, String password) async {
+    final cleanEmail = email.trim();
+    final cleanPass = password.trim();
+
     try {
       await _auth.signInWithEmailAndPassword(
-        email: email.trim(),
-        password: password,
+        email: cleanEmail,
+        password: cleanPass,
       );
     } on FirebaseAuthException catch (e) {
+      // Caso típico en web: intentan entrar con password pero la cuenta es Google-only
+      if (_looksLikeGoogleOnlyAccount(e)) {
+        throw Exception(
+          'Este correo parece estar registrado con Google. '
+          'Usa "Continuar con Google" o crea una contraseña con "¿Olvidaste tu contraseña?".',
+        );
+      }
       throw Exception(_firebaseError(e));
     }
   }
 
+  bool _looksLikeGoogleOnlyAccount(FirebaseAuthException e) {
+    return e.code == 'invalid-credential' ||
+        e.code == 'invalid-login-credentials';
+  }
+
+  // ──────────────────────────────────────────────
+  //  REGISTRO EMAIL (SIN NOMBRE)
+  // ──────────────────────────────────────────────
   @override
   Future<void> registerWithEmail(String email, String password) async {
+    final cleanEmail = email.trim();
+    final cleanPass = password.trim();
+
     try {
       final cred = await _auth.createUserWithEmailAndPassword(
-        email: email.trim(),
-        password: password,
+        email: cleanEmail,
+        password: cleanPass,
       );
 
       await _db.collection('usuarios').doc(cred.user!.uid).set({
-        'email': email.trim(),
+        'email': cleanEmail,
         'role': 'cliente',
         'profile_completed': false,
         'created_at': FieldValue.serverTimestamp(),
+        'updated_at': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
     } on FirebaseAuthException catch (e) {
+      if (e.code == 'email-already-in-use') {
+        throw Exception(
+          'Este correo ya está registrado. '
+          'Si te registraste con Google, usa "Continuar con Google".',
+        );
+      }
       throw Exception(_firebaseError(e));
     }
   }
 
+  // ──────────────────────────────────────────────
+  //  LOGIN GOOGLE (WEB + MÓVIL)
+  //  ✅ WEB: signInWithPopup
+  //  ✅ MÓVIL: _googleSignIn (una sola instancia)
+  //  ✅ Valida que exista en Firestore (usuarios/{uid})
+  // ──────────────────────────────────────────────
   @override
-  Future<GoogleLoginResult?> signInWithGoogle() async {
+  Future<GoogleLoginResult> signInWithGoogle() async {
     try {
-      try {
-        await _googleSignIn.signOut();
-      } catch (_) {}
+      UserCredential userCred;
 
-      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+      if (kIsWeb) {
+        final provider = GoogleAuthProvider()
+          ..addScope('email')
+          ..setCustomParameters({'prompt': 'select_account'});
 
-      // ✅ Canceló selección de cuenta: no navegar, no continuar
-      if (googleUser == null) {
-        return null;
+        try {
+          userCred = await _auth.signInWithPopup(provider);
+        } on FirebaseAuthException catch (e) {
+          if (e.code == 'popup-closed-by-user' ||
+              e.code == 'cancelled-popup-request' ||
+              e.code == 'popup-blocked') {
+            return const GoogleLoginResult(isNewUser: false);
+          }
+          rethrow;
+        }
+      } else {
+        // ✅ Forzar chooser (como tu compa)
+        try {
+          await _googleSignIn.signOut();
+        } catch (_) {}
+
+        final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+        if (googleUser == null) {
+          return const GoogleLoginResult(isNewUser: false);
+        }
+
+        final googleAuth = await googleUser.authentication;
+
+        final credential = GoogleAuthProvider.credential(
+          accessToken: googleAuth.accessToken,
+          idToken: googleAuth.idToken,
+        );
+
+        userCred = await _auth.signInWithCredential(credential);
       }
 
-      final googleAuth = await googleUser.authentication;
+      final uid = userCred.user!.uid;
 
-      final credential = GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
-        idToken: googleAuth.idToken,
-      );
-
-      final userCred = await _auth.signInWithCredential(credential);
-      final user = userCred.user;
-
-      if (user == null) {
-        throw Exception('No se pudo obtener el usuario autenticado.');
-      }
-
-      final uid = user.uid;
       final ref = _db.collection('usuarios').doc(uid);
       final doc = await ref.get();
-      final data = doc.data() ?? <String, dynamic>{};
 
-      final bool isProfileCompleted =
-          doc.exists && data['profile_completed'] == true;
+      // ✅ Solo deja entrar si existe en tu sistema
+      if (!doc.exists) {
+        await _auth.signOut();
+        if (!kIsWeb) {
+          try {
+            await _googleSignIn.disconnect();
+          } catch (_) {
+            try {
+              await _googleSignIn.signOut();
+            } catch (_) {}
+          }
+        }
+        throw Exception('Tu cuenta de Google no está registrada en el sistema.');
+      }
 
-      final String existingRole = (data['role'] ?? '').toString().trim();
-      final bool hasRole = existingRole.isNotEmpty;
+      final data = doc.data();
+      final bool isProfileCompleted = data?['profile_completed'] == true;
 
-      final String existingName = (data['name'] ?? '').toString().trim();
-      final String existingPhoto = (data['photo'] ?? '').toString().trim();
+      // ✅ Respeta role existente
+      final String? existingRole = data?['role'] as String?;
+      final bool hasRole = (existingRole != null && existingRole.isNotEmpty);
 
-      final String googleName = (user.displayName ?? '').trim();
-      final String googlePhoto = (user.photoURL ?? '').trim();
-      final String googleEmail = (user.email ?? '').trim();
-
-      final Map<String, dynamic> payload = {
-        'email': googleEmail,
+      // ✅ Actualiza básicos (y role solo si no existe)
+      final payload = <String, dynamic>{
+        'email': userCred.user!.email,
         if (!hasRole) 'role': 'cliente',
-        'profile_completed': isProfileCompleted,
-        if (existingName.isEmpty && googleName.isNotEmpty) 'name': googleName,
-        if (existingPhoto.isEmpty && googlePhoto.isNotEmpty)
-          'photo': googlePhoto,
-        if (!doc.exists) 'created_at': FieldValue.serverTimestamp(),
+        'profile_completed': isProfileCompleted ? true : false,
+        if (userCred.user!.displayName != null) 'name': userCred.user!.displayName,
+        if (userCred.user!.photoURL != null) 'photo': userCred.user!.photoURL,
         'updated_at': FieldValue.serverTimestamp(),
       };
 
@@ -124,33 +189,51 @@ class FirebaseAuthService implements AuthService {
 
       return GoogleLoginResult(
         isNewUser: !isProfileCompleted,
-        name: existingName.isNotEmpty
-            ? existingName
-            : (googleName.isNotEmpty ? googleName : null),
-        photoUrl: existingPhoto.isNotEmpty
-            ? existingPhoto
-            : (googlePhoto.isNotEmpty ? googlePhoto : null),
+        name: userCred.user!.displayName,
+        photoUrl: userCred.user!.photoURL,
       );
     } on FirebaseAuthException catch (e) {
       throw Exception(_firebaseError(e));
     } catch (e) {
-      throw Exception('Error al iniciar con Google: $e');
+      throw Exception('No se pudo iniciar sesión con Google: $e');
     }
   }
 
+  // ──────────────────────────────────────────────
+  //  RESET PASSWORD
+  // ──────────────────────────────────────────────
+  Future<void> sendPasswordReset(String email) async {
+    final cleanEmail = email.trim();
+    try {
+      await _auth.sendPasswordResetEmail(email: cleanEmail);
+    } on FirebaseAuthException catch (e) {
+      throw Exception(_firebaseError(e));
+    }
+  }
+
+  // ──────────────────────────────────────────────
+  //  LOGOUT
+  // ──────────────────────────────────────────────
   @override
   Future<void> logout() async {
+    // ✅ Primero Firebase
     await _auth.signOut();
 
-    try {
-      await _googleSignIn.disconnect();
-    } catch (_) {
+    // ✅ Luego Google (en móvil) para que vuelva a preguntar cuenta
+    if (!kIsWeb) {
       try {
-        await _googleSignIn.signOut();
-      } catch (_) {}
+        await _googleSignIn.disconnect();
+      } catch (_) {
+        try {
+          await _googleSignIn.signOut();
+        } catch (_) {}
+      }
     }
   }
 
+  // ──────────────────────────────────────────────
+  //  ERRORES LEGIBLES
+  // ──────────────────────────────────────────────
   String _firebaseError(FirebaseAuthException e) {
     switch (e.code) {
       case 'user-not-found':
@@ -163,6 +246,10 @@ class FirebaseAuthService implements AuthService {
         return 'El correo no es válido.';
       case 'weak-password':
         return 'La contraseña es muy débil.';
+      case 'too-many-requests':
+        return 'Demasiados intentos. Intenta más tarde.';
+      case 'operation-not-allowed':
+        return 'Este método de inicio de sesión no está habilitado.';
       default:
         return e.message ?? 'Error desconocido.';
     }

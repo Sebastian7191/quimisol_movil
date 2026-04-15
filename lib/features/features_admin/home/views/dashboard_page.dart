@@ -1,6 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:quimisol_movil/core/theme/palette.dart';
+import 'package:quimisol_movil/features/features_admin/productos/reports/widgets/predictive_report_panel.dart';
 
 import '../controllers/dashboard_controller.dart';
 import '../data/dashboard_firestore.dart';
@@ -124,16 +124,18 @@ class _DashboardPageState extends State<DashboardPage> {
                       );
                     },
                   ),
+                  const SizedBox(height: 18),
+                  PredictiveReportPanel(departamentoSeleccionado: c.departamento),
 
                   const SizedBox(height: 22),
-                  Text(
+                 /* Text(
                     'Tip: si algún gráfico sale vacío, revisa el rango/filtros.',
                     style: TextStyle(
                       color: Palette.ink.withValues(alpha: 0.6),
                       fontWeight: FontWeight.w600,
                       fontSize: 12,
                     ),
-                  ),
+                  ),*/
                 ],
               ),
             );
