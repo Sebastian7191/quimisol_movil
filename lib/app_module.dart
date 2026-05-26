@@ -6,6 +6,7 @@ import 'package:quimisol_movil/shared/services/auth_service.dart';
 
 // === STORES GLOBALES ===
 import 'package:quimisol_movil/shared/stores/user_store.dart';
+import 'package:quimisol_movil/shared/stores/guest_store.dart';
 
 // === SUB-MÓDULOS POR FEATURE ===
 import 'package:quimisol_movil/features/splash/splash_module.dart';
@@ -22,6 +23,9 @@ class AppModule extends Module {
 
     // 👤 User global
     i.addSingleton<UserStore>(UserStore.new);
+
+    // 👻 Modo invitado global
+    i.addSingleton<GuestStore>(GuestStore.new);
   }
 
   @override

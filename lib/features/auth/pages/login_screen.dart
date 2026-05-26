@@ -9,6 +9,7 @@ import '../../../../../shared/widgets/rounded_card.dart';
 import '../../../../../shared/buttons/app_button.dart';
 
 import 'package:quimisol_movil/shared/services/auth_service.dart';
+import 'package:quimisol_movil/shared/stores/guest_store.dart';
 import 'package:quimisol_movil/core/services/notifications/fcm_token_service.dart';
 
 // Header con logo + “BIENVENIDOS”
@@ -101,7 +102,17 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  void _handleGuestLogin() {
+    Modular.get<GuestStore>().enterAsGuest();
+    Modular.to.navigate('/pasajero/');
+  }
+
   Future<void> _redirectByRole() async {
+    // ✅ Si el usuario llega a login real, salimos del modo invitado.
+    try {
+      Modular.get<GuestStore>().exitGuest();
+    } catch (_) {}
+
     final role = await _authService.getUserRole();
     if (!mounted) return;
 
@@ -341,7 +352,38 @@ class _LoginScreenState extends State<LoginScreen> {
 
                         _googleFullButton(),
 
-                        const SizedBox(height: 10),
+                        const SizedBox(height: 14),
+
+                        SizedBox(
+                          width: double.infinity,
+                          height: 50,
+                          child: TextButton.icon(
+                            onPressed: _isLoading ? null : _handleGuestLogin,
+                            style: TextButton.styleFrom(
+                              foregroundColor: Palette.primary,
+                              backgroundColor: Palette.fieldBg,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(28),
+                                side: BorderSide(
+                                  color: Palette.primary.withValues(alpha: 0.25),
+                                ),
+                              ),
+                            ),
+                            icon: const Icon(
+                              Icons.visibility_outlined,
+                              size: 20,
+                            ),
+                            label: const Text(
+                              'Continuar como invitado',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w800,
+                                fontSize: 14.5,
+                              ),
+                            ),
+                          ),
+                        ),
+
+                        const SizedBox(height: 6),
 
                         TextButton(
                           onPressed: () {

@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter_modular/flutter_modular.dart';
 import 'package:quimisol_movil/core/theme/palette.dart';
 import 'package:quimisol_movil/features/pasajeros_features/homepage/pages/home_page_clientes.dart';
 import 'package:quimisol_movil/features/pasajeros_features/pedidos/pages/lista_pedidos.dart';
@@ -9,6 +10,8 @@ import 'package:quimisol_movil/features/pasajeros_features/soporte/pages/soporte
 import 'package:quimisol_movil/features/pasajeros_features/pedidos/services/pedido_review_service.dart';
 import 'package:quimisol_movil/features/pasajeros_features/pedidos/widgets/review_entrega_sheet.dart';
 import 'package:quimisol_movil/features/pasajeros_features/pedidos/widgets/review_productos_sheet.dart';
+import 'package:quimisol_movil/shared/stores/guest_store.dart';
+import 'package:quimisol_movil/shared/widgets/guest_lock_view.dart';
 
 class Navbar extends StatefulWidget {
   final int initialIndex;
@@ -59,6 +62,14 @@ class _NavbarState extends State<Navbar> {
 
   Future<void> _checkPendingReviewFlow() async {
     if (!mounted || _checkingReview || _reviewFlowDone) return;
+
+    // ✅ Los invitados no tienen pedidos asociados.
+    try {
+      if (Modular.get<GuestStore>().value) {
+        _reviewFlowDone = true;
+        return;
+      }
+    } catch (_) {}
 
     _checkingReview = true;
 
@@ -172,29 +183,62 @@ class _NavbarState extends State<Navbar> {
 
   @override
   Widget build(BuildContext context) {
-    final pages = <Widget>[
-      const HomeCliente(),
-      const WishlistPage(),
-      MisPedidosPage(initialTab: widget.initialPedidosTab),
-      const SoporteChatPage(),
-      PerfilPage(
-        onOpenDeseados: _goToDeseados,
-        onOpenPedidos: _goToPedidos,
-        onOpenSoporte: _goToSoporte,
-      ),
-    ];
+    GuestStore? guestStore;
+    try {
+      guestStore = Modular.get<GuestStore>();
+    } catch (_) {
+      guestStore = null;
+    }
 
-    return Scaffold(
-      backgroundColor: Palette.fieldBg,
-      extendBody: true,
-      body: IndexedStack(
-        index: _currentIndex,
-        children: pages,
-      ),
-      bottomNavigationBar: _BottomPillNavbarAnimated(
-        currentIndex: _currentIndex,
-        onChanged: (i) => setState(() => _currentIndex = i),
-      ),
+    return ValueListenableBuilder<bool>(
+      valueListenable: guestStore?.isGuest ?? ValueNotifier<bool>(false),
+      builder: (_, isGuest, __) {
+        final pages = <Widget>[
+          const HomeCliente(),
+          isGuest
+              ? const GuestLockView(
+                  icon: Icons.favorite_rounded,
+                  title: 'Guarda tus favoritos',
+                  message:
+                      'Inicia sesión para guardar productos en tu lista de favoritos y volver a ellos cuando quieras.',
+                )
+              : const WishlistPage(),
+          isGuest
+              ? const GuestLockView(
+                  icon: Icons.shopping_bag_outlined,
+                  title: 'Aún no tienes pedidos',
+                  message:
+                      'Inicia sesión para realizar pedidos y ver el historial de tus compras.',
+                )
+              : MisPedidosPage(initialTab: widget.initialPedidosTab),
+          isGuest
+              ? const GuestLockView(
+                  icon: Icons.support_agent_rounded,
+                  title: 'Soporte para clientes',
+                  message:
+                      'Inicia sesión para hablar con nuestro equipo de soporte y resolver tus dudas.',
+                )
+              : const SoporteChatPage(),
+          PerfilPage(
+            onOpenDeseados: _goToDeseados,
+            onOpenPedidos: _goToPedidos,
+            onOpenSoporte: _goToSoporte,
+          ),
+        ];
+
+        return Scaffold(
+          backgroundColor: Palette.fieldBg,
+          extendBody: true,
+          body: IndexedStack(
+            index: _currentIndex,
+            children: pages,
+          ),
+          bottomNavigationBar: _BottomPillNavbarAnimated(
+            currentIndex: _currentIndex,
+            onChanged: (i) => setState(() => _currentIndex = i),
+          ),
+        );
+      },
     );
   }
 }

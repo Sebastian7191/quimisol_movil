@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 
 import 'package:quimisol_movil/shared/services/auth_service.dart';
+import 'package:quimisol_movil/shared/stores/guest_store.dart';
 import 'package:quimisol_movil/core/theme/palette.dart';
 
 class SplashPage extends StatefulWidget {
@@ -49,10 +50,19 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
     final isLogged = await _authService.isLoggedIn();
     if (!mounted) return;
 
+    // ✅ Sin sesión: entrar automáticamente como invitado al home de pasajero.
     if (!isLogged) {
-      Modular.to.navigate('/auth/login');
+      try {
+        Modular.get<GuestStore>().enterAsGuest();
+      } catch (_) {}
+      Modular.to.navigate('/pasajero/');
       return;
     }
+
+    // ✅ Con sesión: salir de modo invitado y redirigir por rol.
+    try {
+      Modular.get<GuestStore>().exitGuest();
+    } catch (_) {}
 
     final role = await _authService.getUserRole();
     if (!mounted) return;
@@ -72,7 +82,11 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
       return;
     }
 
-    Modular.to.navigate('/auth/login');
+    // Fallback: si el rol no es reconocido, lo dejamos navegar como invitado.
+    try {
+      Modular.get<GuestStore>().enterAsGuest();
+    } catch (_) {}
+    Modular.to.navigate('/pasajero/');
   }
 
   @override

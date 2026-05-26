@@ -27,6 +27,8 @@ import 'package:quimisol_movil/features/conductores_features/notificaciones/page
 import 'package:quimisol_movil/features/pasajeros_features/carrito/pages/carrito.dart';
 import 'package:quimisol_movil/features/pasajeros_features/wishlist/pages/wishlist_store.dart';
 import 'package:quimisol_movil/shared/services/auth_service.dart';
+import 'package:quimisol_movil/shared/stores/guest_store.dart';
+import 'package:quimisol_movil/shared/widgets/guest_lock_view.dart';
 
 import 'detalle_producto.dart';
 
@@ -40,6 +42,14 @@ class HomeCliente extends StatefulWidget {
 class _HomeClienteState extends State<HomeCliente> {
   late final AuthService _authService;
 
+  bool get _isGuest {
+    try {
+      return Modular.get<GuestStore>().value;
+    } catch (_) {
+      return false;
+    }
+  }
+
   String _selectedDepto = '';
   String _detectedDepto = '';
   bool _autoDeptoApplied = false;
@@ -48,6 +58,10 @@ class _HomeClienteState extends State<HomeCliente> {
 
   final TextEditingController _searchCtrl = TextEditingController();
   String _searchQuery = '';
+
+  // 📄 Paginación
+  static const int _pageSize = 8;
+  int _currentPage = 0;
 
   late final Stream<QuerySnapshot<Map<String, dynamic>>> _almacenes$;
   late final Stream<QuerySnapshot<Map<String, dynamic>>> _productos$;
@@ -75,7 +89,10 @@ class _HomeClienteState extends State<HomeCliente> {
     _searchCtrl.addListener(() {
       final value = _searchCtrl.text.trim();
       if (value == _searchQuery) return;
-      setState(() => _searchQuery = value);
+      setState(() {
+        _searchQuery = value;
+        _currentPage = 0;
+      });
     });
 
     _initUserDeptoFromLocation();
@@ -323,7 +340,10 @@ class _HomeClienteState extends State<HomeCliente> {
     );
 
     if (chosen == null) return;
-    setState(() => _selectedDepto = chosen);
+    setState(() {
+      _selectedDepto = chosen;
+      _currentPage = 0;
+    });
   }
 
   void _openNotificaciones() {
@@ -405,8 +425,31 @@ class _HomeClienteState extends State<HomeCliente> {
                   selectedDepto: _selectedDepto,
                   onPickDepto: () => _openDeptoPicker(deptos),
                   onLogout: _logout,
-                  onBell: _openNotificaciones,
+                  isGuest: _isGuest,
+                  onBell: () {
+                    if (_isGuest) {
+                      showGuestLockSheet(
+                        context,
+                        icon: Icons.notifications_none_rounded,
+                        title: 'Tus notificaciones',
+                        message:
+                            'Inicia sesión para ver tus notificaciones de pedidos y promociones.',
+                      );
+                      return;
+                    }
+                    _openNotificaciones();
+                  },
                   onCart: () {
+                    if (_isGuest) {
+                      showGuestLockSheet(
+                        context,
+                        icon: Icons.shopping_cart_outlined,
+                        title: 'Tu carrito está vacío',
+                        message:
+                            'Inicia sesión para agregar productos al carrito y realizar tus compras.',
+                      );
+                      return;
+                    }
                     Navigator.push(
                       context,
                       MaterialPageRoute(builder: (_) => const CarritoPage()),
@@ -488,9 +531,10 @@ class _HomeClienteState extends State<HomeCliente> {
                                       cat.id == _selectedCategoriaId;
 
                                   return GestureDetector(
-                                    onTap: () => setState(
-                                      () => _selectedCategoriaId = cat.id,
-                                    ),
+                                    onTap: () => setState(() {
+                                      _selectedCategoriaId = cat.id;
+                                      _currentPage = 0;
+                                    }),
                                     child: _CategoryPill(
                                       label: cat.nombre,
                                       selected: selected,
@@ -638,36 +682,76 @@ class _HomeClienteState extends State<HomeCliente> {
                               );
                             }
 
-                            return GridView.builder(
-                              shrinkWrap: true,
-                              physics: const NeverScrollableScrollPhysics(),
-                              itemCount: filtered.length,
-                              gridDelegate:
-                                  const SliverGridDelegateWithFixedCrossAxisCount(
-                                    crossAxisCount: 2,
-                                    crossAxisSpacing: 14,
-                                    mainAxisSpacing: 14,
-                                    childAspectRatio: 0.60,
-                                  ),
-                              itemBuilder: (_, i) {
-                                final prod = filtered[i];
-                                return InkWell(
-                                  onTap: () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (_) =>
-                                            DetalleProductoPage(product: prod),
+                            // 📄 Paginación: corta `filtered` a la página actual.
+                            final totalPages =
+                                (filtered.length / _pageSize).ceil();
+                            if (totalPages > 0 &&
+                                _currentPage >= totalPages) {
+                              WidgetsBinding.instance.addPostFrameCallback((_) {
+                                if (!mounted) return;
+                                setState(() => _currentPage = totalPages - 1);
+                              });
+                            }
+                            final safePage = totalPages == 0
+                                ? 0
+                                : _currentPage.clamp(0, totalPages - 1);
+                            final startIdx = safePage * _pageSize;
+                            final endIdx = math.min(
+                              startIdx + _pageSize,
+                              filtered.length,
+                            );
+                            final pageItems = filtered.sublist(
+                              startIdx,
+                              endIdx,
+                            );
+
+                            return Column(
+                              children: [
+                                GridView.builder(
+                                  shrinkWrap: true,
+                                  physics:
+                                      const NeverScrollableScrollPhysics(),
+                                  itemCount: pageItems.length,
+                                  gridDelegate:
+                                      const SliverGridDelegateWithFixedCrossAxisCount(
+                                        crossAxisCount: 2,
+                                        crossAxisSpacing: 14,
+                                        mainAxisSpacing: 14,
+                                        childAspectRatio: 0.60,
+                                      ),
+                                  itemBuilder: (_, i) {
+                                    final prod = pageItems[i];
+                                    return InkWell(
+                                      onTap: () {
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (_) => DetalleProductoPage(
+                                              product: prod,
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                      borderRadius: BorderRadius.circular(24),
+                                      child: _ProductCard(
+                                        product: prod,
+                                        wishlist: _wishlist,
                                       ),
                                     );
                                   },
-                                  borderRadius: BorderRadius.circular(24),
-                                  child: _ProductCard(
-                                    product: prod,
-                                    wishlist: _wishlist,
+                                ),
+                                if (totalPages > 1) ...[
+                                  const SizedBox(height: 18),
+                                  _PaginationBar(
+                                    currentPage: safePage,
+                                    totalPages: totalPages,
+                                    totalItems: filtered.length,
+                                    pageSize: _pageSize,
+                                    onChanged: (p) =>
+                                        setState(() => _currentPage = p),
                                   ),
-                                );
-                              },
+                                ],
+                              ],
                             );
                           },
                         ),
@@ -748,6 +832,7 @@ class _PinkPedidosHeader extends StatefulWidget {
     required this.onSearchChanged,
     required this.onClearSearch,
     required this.onSearch,
+    this.isGuest = false,
   });
 
   final List<String> deptos;
@@ -762,6 +847,8 @@ class _PinkPedidosHeader extends StatefulWidget {
   final ValueChanged<String> onSearchChanged;
   final VoidCallback onClearSearch;
   final VoidCallback onSearch;
+
+  final bool isGuest;
 
   @override
   State<_PinkPedidosHeader> createState() => _PinkPedidosHeaderState();
@@ -921,55 +1008,93 @@ class _PinkPedidosHeaderState extends State<_PinkPedidosHeader> {
                     onTap: widget.onCart,
                   ),
                   const SizedBox(width: 10),
-                  PopupMenuButton<String>(
-                    onSelected: (_) => widget.onLogout(),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    itemBuilder: (_) => const [
-                      PopupMenuItem(
-                        value: 'logout',
-                        child: Text('Cerrar sesión'),
+                  if (widget.isGuest)
+                    InkWell(
+                      onTap: () {
+                        try {
+                          Modular.get<GuestStore>().exitGuest();
+                        } catch (_) {}
+                        Modular.to.navigate('/auth/login');
+                      },
+                      borderRadius: BorderRadius.circular(20),
+                      child: Container(
+                        height: 36,
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: const [
+                            Icon(
+                              Icons.login_rounded,
+                              color: Palette.primary,
+                              size: 16,
+                            ),
+                            SizedBox(width: 6),
+                            Text(
+                              'Ingresar',
+                              style: TextStyle(
+                                color: Palette.primary,
+                                fontWeight: FontWeight.w900,
+                                fontSize: 12.5,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ],
-                    child:
-                        StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-                          stream: FirebaseFirestore.instance
-                              .collection('usuarios')
-                              .doc(FirebaseAuth.instance.currentUser?.uid)
-                              .snapshots(),
-                          builder: (context, snap) {
-                            final photoUrl =
-                                snap.data?.data()?['photo'] as String?;
+                    )
+                  else
+                    PopupMenuButton<String>(
+                      onSelected: (_) => widget.onLogout(),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      itemBuilder: (_) => const [
+                        PopupMenuItem(
+                          value: 'logout',
+                          child: Text('Cerrar sesión'),
+                        ),
+                      ],
+                      child:
+                          StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+                            stream: FirebaseFirestore.instance
+                                .collection('usuarios')
+                                .doc(FirebaseAuth.instance.currentUser?.uid)
+                                .snapshots(),
+                            builder: (context, snap) {
+                              final photoUrl =
+                                  snap.data?.data()?['photo'] as String?;
 
-                            return Container(
-                              height: 36,
-                              width: 36,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: Colors.white70,
-                                  width: 2,
+                              return Container(
+                                height: 36,
+                                width: 36,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: Colors.white70,
+                                    width: 2,
+                                  ),
+                                  color: Colors.white.withOpacity(0.15),
+                                  image: photoUrl != null && photoUrl.isNotEmpty
+                                      ? DecorationImage(
+                                          image: NetworkImage(photoUrl),
+                                          fit: BoxFit.cover,
+                                        )
+                                      : null,
                                 ),
-                                color: Colors.white.withOpacity(0.15),
-                                image: photoUrl != null && photoUrl.isNotEmpty
-                                    ? DecorationImage(
-                                        image: NetworkImage(photoUrl),
-                                        fit: BoxFit.cover,
+                                child: photoUrl == null || photoUrl.isEmpty
+                                    ? Icon(
+                                        Icons.person_rounded,
+                                        color: Colors.white.withOpacity(0.9),
+                                        size: 20,
                                       )
                                     : null,
-                              ),
-                              child: photoUrl == null || photoUrl.isEmpty
-                                  ? Icon(
-                                      Icons.person_rounded,
-                                      color: Colors.white.withOpacity(0.9),
-                                      size: 20,
-                                    )
-                                  : null,
-                            );
-                          },
-                        ),
-                  ),
+                              );
+                            },
+                          ),
+                    ),
                 ],
               ),
               const SizedBox(height: 12),
@@ -1415,6 +1540,22 @@ class _ProductCardState extends State<_ProductCard>
   }
 
   void _tapLike(bool isLiked) {
+    bool isGuest = false;
+    try {
+      isGuest = Modular.get<GuestStore>().value;
+    } catch (_) {}
+
+    if (isGuest) {
+      showGuestLockSheet(
+        context,
+        icon: Icons.favorite_rounded,
+        title: 'Guarda tus favoritos',
+        message:
+            'Inicia sesión para marcar productos como favoritos y encontrarlos más rápido.',
+      );
+      return;
+    }
+
     if (!isLiked) _ctrl.forward(from: 0);
     widget.wishlist.toggle(widget.product);
   }
@@ -1795,6 +1936,188 @@ class _NoImage extends StatelessWidget {
           Icons.image_outlined,
           color: Palette.ink.withOpacity(0.25),
           size: 34,
+        ),
+      ),
+    );
+  }
+}
+
+/* ---------------- PAGINATION ---------------- */
+
+class _PaginationBar extends StatelessWidget {
+  const _PaginationBar({
+    required this.currentPage,
+    required this.totalPages,
+    required this.totalItems,
+    required this.pageSize,
+    required this.onChanged,
+  });
+
+  final int currentPage;
+  final int totalPages;
+  final int totalItems;
+  final int pageSize;
+  final ValueChanged<int> onChanged;
+
+  /// Devuelve los números de página visibles. Usa `-1` como marcador de "…".
+  /// Patrón: siempre primera, última y vecinos de la actual. Resto colapsa.
+  List<int> _visiblePages() {
+    if (totalPages <= 7) {
+      return List.generate(totalPages, (i) => i);
+    }
+
+    final pages = <int>{0, totalPages - 1, currentPage};
+    for (final offset in [-1, 1]) {
+      final p = currentPage + offset;
+      if (p > 0 && p < totalPages - 1) pages.add(p);
+    }
+
+    final sorted = pages.toList()..sort();
+    final result = <int>[];
+    for (int i = 0; i < sorted.length; i++) {
+      if (i > 0 && sorted[i] - sorted[i - 1] > 1) result.add(-1);
+      result.add(sorted[i]);
+    }
+    return result;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final from = currentPage * pageSize + 1;
+    final to = math.min((currentPage + 1) * pageSize, totalItems);
+
+    return Column(
+      children: [
+        Text(
+          'Mostrando $from–$to de $totalItems productos',
+          style: TextStyle(
+            fontSize: 12.5,
+            fontWeight: FontWeight.w700,
+            color: Palette.ink.withOpacity(0.55),
+          ),
+        ),
+        const SizedBox(height: 10),
+        Wrap(
+          alignment: WrapAlignment.center,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 6,
+          runSpacing: 6,
+          children: [
+            _PageArrow(
+              icon: Icons.chevron_left_rounded,
+              enabled: currentPage > 0,
+              onTap: () => onChanged(currentPage - 1),
+            ),
+            ..._visiblePages().map((p) {
+              if (p == -1) {
+                return const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 4),
+                  child: Text(
+                    '…',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w900,
+                      color: Palette.ink,
+                    ),
+                  ),
+                );
+              }
+              return _PageNumber(
+                page: p + 1,
+                selected: p == currentPage,
+                onTap: () => onChanged(p),
+              );
+            }),
+            _PageArrow(
+              icon: Icons.chevron_right_rounded,
+              enabled: currentPage < totalPages - 1,
+              onTap: () => onChanged(currentPage + 1),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _PageNumber extends StatelessWidget {
+  const _PageNumber({
+    required this.page,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final int page;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        height: 36,
+        constraints: const BoxConstraints(minWidth: 36),
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+        decoration: BoxDecoration(
+          color: selected ? Palette.button : Palette.white,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: selected
+                ? Palette.button
+                : Palette.ink.withOpacity(0.12),
+          ),
+          boxShadow: selected
+              ? [
+                  BoxShadow(
+                    color: Palette.button.withOpacity(0.25),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ]
+              : null,
+        ),
+        alignment: Alignment.center,
+        child: Text(
+          '$page',
+          style: TextStyle(
+            fontWeight: FontWeight.w900,
+            fontSize: 13,
+            color: selected ? Palette.white : Palette.ink,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PageArrow extends StatelessWidget {
+  const _PageArrow({
+    required this.icon,
+    required this.enabled,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final bool enabled;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Opacity(
+      opacity: enabled ? 1.0 : 0.35,
+      child: InkWell(
+        onTap: enabled ? onTap : null,
+        borderRadius: BorderRadius.circular(10),
+        child: Container(
+          height: 36,
+          width: 36,
+          decoration: BoxDecoration(
+            color: Palette.white,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: Palette.ink.withOpacity(0.12)),
+          ),
+          child: Icon(icon, color: Palette.ink, size: 20),
         ),
       ),
     );

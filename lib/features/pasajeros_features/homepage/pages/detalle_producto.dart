@@ -4,11 +4,14 @@ import 'dart:math' as math;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_modular/flutter_modular.dart';
 
 import 'package:quimisol_movil/core/theme/palette.dart';
 import 'package:quimisol_movil/features/pasajeros_features/homepage/pages/home_page_clientes.dart';
 import 'package:quimisol_movil/features/pasajeros_features/carrito/pages/carrito.dart';
 import 'package:quimisol_movil/features/pasajeros_features/carrito/pages/carrito_store.dart';
+import 'package:quimisol_movil/shared/stores/guest_store.dart';
+import 'package:quimisol_movil/shared/widgets/guest_lock_view.dart';
 
 class DetalleProductoPage extends StatefulWidget {
   const DetalleProductoPage({Key? key, required this.product})
@@ -173,6 +176,23 @@ class _DetalleProductoPageState extends State<DetalleProductoPage> {
 
   Future<void> _addToCartAndGo({required double priceToUse}) async {
     if (_adding) return;
+
+    // ✅ Modo invitado: no permitir agregar al carrito.
+    bool isGuest = false;
+    try {
+      isGuest = Modular.get<GuestStore>().value;
+    } catch (_) {}
+
+    if (isGuest) {
+      await showGuestLockSheet(
+        context,
+        icon: Icons.shopping_cart_outlined,
+        title: 'Inicia sesión para comprar',
+        message:
+            'Para agregar productos al carrito y realizar tu pedido necesitas tener una cuenta.',
+      );
+      return;
+    }
 
     final p = widget.product;
 

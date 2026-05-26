@@ -6,6 +6,8 @@ import 'package:quimisol_movil/core/theme/palette.dart';
 import 'package:quimisol_movil/features/pasajeros_features/carrito/pages/carrito.dart';
 import 'package:quimisol_movil/features/pasajeros_features/laboratorios/pages/laboratorios_clientes.dart';
 import 'package:quimisol_movil/features/pasajeros_features/ubicaciones/pages/lista_ubicaciones.dart';
+import 'package:quimisol_movil/shared/stores/guest_store.dart';
+import 'package:quimisol_movil/shared/widgets/guest_lock_view.dart';
 import 'perfil_form.dart';
 
 class PerfilPage extends StatefulWidget {
@@ -82,6 +84,21 @@ class _PerfilPageState extends State<PerfilPage> {
 
   @override
   Widget build(BuildContext context) {
+    // ✅ Si es invitado, no consultamos Firestore y mostramos vista bloqueada.
+    bool isGuest = false;
+    try {
+      isGuest = Modular.get<GuestStore>().value;
+    } catch (_) {}
+
+    if (isGuest || _uid.isEmpty) {
+      return const GuestLockView(
+        icon: Icons.person_outline_rounded,
+        title: 'Tu perfil te espera',
+        message:
+            'Inicia sesión o regístrate para gestionar tu cuenta, ubicaciones, pedidos, favoritos y todas las funciones de Quimisol.',
+      );
+    }
+
     final ink = Palette.ink;
     final pink = Palette.button;
 
