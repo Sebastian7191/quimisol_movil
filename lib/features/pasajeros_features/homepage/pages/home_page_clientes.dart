@@ -308,7 +308,7 @@ class _HomeClienteState extends State<HomeCliente> {
     if (ok != true) return;
 
     await _authService.logout();
-    Modular.to.navigate('/login');
+    Modular.to.navigate('/auth/login');
   }
 
   void _openDeptoPicker(List<String> deptos) async {

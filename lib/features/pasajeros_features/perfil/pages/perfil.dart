@@ -259,7 +259,7 @@ class _PerfilPageState extends State<PerfilPage> {
                     onTap: () async {
                       await _auth.signOut();
                       if (!mounted) return;
-                      Modular.to.navigate('/login');
+                      Modular.to.navigate('/auth/login');
                     },
                   ),
                 ],

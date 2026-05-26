@@ -50,7 +50,7 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
     if (!mounted) return;
 
     if (!isLogged) {
-      Modular.to.navigate('/login');
+      Modular.to.navigate('/auth/login');
       return;
     }
 
@@ -58,21 +58,21 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
     if (!mounted) return;
 
     if (role == 'admin' || role == 'superadmin') {
-      Modular.to.navigate('/admin');
+      Modular.to.navigate('/admin/');
       return;
     }
 
     if (role == 'cliente' || role == 'cliente_mayorista') {
-      Modular.to.navigate('/home-pasajero');
+      Modular.to.navigate('/pasajero/');
       return;
     }
 
     if (role == 'repartidor' || role == 'conductor') {
-      Modular.to.navigate('/home-conductor');
+      Modular.to.navigate('/conductor/');
       return;
     }
 
-    Modular.to.navigate('/login');
+    Modular.to.navigate('/auth/login');
   }
 
   @override

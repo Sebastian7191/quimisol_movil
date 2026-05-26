@@ -117,7 +117,7 @@ class _PerfilCompletarPageState extends State<PerfilCompletarPage> {
       }, SetOptions(merge: true));
 
       if (!mounted) return;
-      Modular.to.navigate('/home-pasajero');
+      Modular.to.navigate('/pasajero/');
     } catch (_) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Error al guardar perfil')),

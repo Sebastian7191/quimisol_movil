@@ -172,7 +172,7 @@ class _ConductorProfilePageState extends State<ConductorProfilePage> {
                     onTap: () async {
                       await widget.onLogout();
                       if (!mounted) return;
-                      Modular.to.navigate('/login');
+                      Modular.to.navigate('/auth/login');
                     },
                   ),
                 ],

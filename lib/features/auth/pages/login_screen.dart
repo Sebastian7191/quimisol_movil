@@ -87,7 +87,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (res.isNewUser) {
         Modular.to.navigate(
-          '/perfil-completar',
+          '/auth/perfil-completar',
           arguments: {'name': res.name, 'photoUrl': res.photoUrl},
         );
         return;
@@ -106,21 +106,21 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!mounted) return;
 
     if (role == 'admin' || role == 'superadmin') {
-      Modular.to.navigate('/admin');
+      Modular.to.navigate('/admin/');
       return;
     }
 
     if (role == 'cliente') {
-      Modular.to.navigate('/home-pasajero');
+      Modular.to.navigate('/pasajero/');
       return;
     }
 
     if (role == 'conductor' || role == 'repartidor') {
-      Modular.to.navigate('/home-conductor');
+      Modular.to.navigate('/conductor/');
       return;
     }
 
-    Modular.to.navigate('/home-pasajero');
+    Modular.to.navigate('/pasajero/');
   }
 
   String _getFriendlyAuthMessage(String error) {

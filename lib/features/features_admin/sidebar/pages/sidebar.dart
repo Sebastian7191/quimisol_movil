@@ -51,12 +51,12 @@ class _SidebarShellPageState extends State<SidebarShellPage> {
       const _SideItem(
         icon: Icons.dashboard_rounded,
         label: 'Dashboard',
-        route: '/dashboard',
+        route: '/admin/dashboard',
       ),
       const _SideItem(
         icon: Icons.people_alt_rounded,
         label: 'Usuarios',
-        route: '/usuarios',
+        route: '/admin/usuarios',
       ),
     ];
 
@@ -65,7 +65,7 @@ class _SidebarShellPageState extends State<SidebarShellPage> {
         const _SideItem(
           icon: Icons.warehouse_rounded,
           label: 'Almacenes',
-          route: '/almacenes',
+          route: '/admin/almacenes',
         ),
       );
     }
@@ -74,32 +74,32 @@ class _SidebarShellPageState extends State<SidebarShellPage> {
       const _SideItem(
         icon: Icons.inventory_2_rounded,
         label: 'Productos',
-        route: '/productos',
+        route: '/admin/productos',
       ),
       const _SideItem(
         icon: Icons.straighten_rounded,
         label: 'Unidades',
-        route: '/unidades',
+        route: '/admin/unidades',
       ),
       const _SideItem(
         icon: Icons.category_rounded,
         label: 'Categorías',
-        route: '/categorias',
+        route: '/admin/categorias',
       ),
       const _SideItem(
         icon: Icons.campaign_rounded,
         label: 'Banners',
-        route: '/banners',
+        route: '/admin/banners',
       ),
       const _SideItem(
         icon: Icons.science_rounded,
         label: 'Laboratorios',
-        route: '/laboratorios',
+        route: '/admin/laboratorios',
       ),
       const _SideItem(
         icon: Icons.receipt_long_rounded,
         label: 'Pedidos',
-        route: '/pedidos',
+        route: '/admin/pedidos',
       ),
     ]);
 
@@ -108,7 +108,7 @@ class _SidebarShellPageState extends State<SidebarShellPage> {
         const _SideItem(
           icon: Icons.payments_rounded,
           label: 'Pagos',
-          route: '/pagos',
+          route: '/admin/pagos',
         ),
       );
     }
@@ -217,8 +217,8 @@ class _SidebarShellPageState extends State<SidebarShellPage> {
       final isAllowed = allowedRoutes.any((route) => currentPath.startsWith(route));
 
       if (!isAllowed) {
-        Modular.to.navigate('/dashboard');
-        _syncIndexWithPath('/dashboard');
+        Modular.to.navigate('/admin/dashboard');
+        _syncIndexWithPath('/admin/dashboard');
       }
     } catch (_) {
       if (!mounted) return;
@@ -272,7 +272,7 @@ class _SidebarShellPageState extends State<SidebarShellPage> {
       await auth.logout();
 
       if (!mounted) return;
-      Modular.to.navigate('/login');
+      Modular.to.navigate('/auth/login');
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -293,9 +293,9 @@ class _SidebarShellPageState extends State<SidebarShellPage> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final p = Modular.to.path;
 
-      if (p == '/' || p.isEmpty) {
-        Modular.to.navigate('/dashboard');
-        _syncIndexWithPath('/dashboard');
+      if (p == '/' || p.isEmpty || p == '/admin' || p == '/admin/') {
+        Modular.to.navigate('/admin/dashboard');
+        _syncIndexWithPath('/admin/dashboard');
       } else {
         _syncIndexWithPath(p);
       }
