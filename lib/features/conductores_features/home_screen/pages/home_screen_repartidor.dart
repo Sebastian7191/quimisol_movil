@@ -102,7 +102,7 @@ class _HomeScreenConductorState extends State<HomeScreenConductor> {
 
     await _authService.logout();
     if (!mounted) return;
-    Modular.to.pushNamedAndRemoveUntil('/login', (_) => false);
+    Modular.to.navigate('/auth/login');
   }
 
   @override
@@ -193,6 +193,7 @@ class _StatusSwitch extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
+      behavior: HitTestBehavior.opaque,
       onTap: () => onChanged(!isOnline),
       child: Container(
         width: 190,

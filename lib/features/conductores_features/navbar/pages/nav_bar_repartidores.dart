@@ -41,7 +41,7 @@ class _NavbarRepartidoresState extends State<NavBarRepartidores> {
     await _authService.logout();
 
     if (!mounted) return;
-    Modular.to.pushNamedAndRemoveUntil('/login', (_) => false);
+    Modular.to.navigate('/auth/login');
   }
 
   @override

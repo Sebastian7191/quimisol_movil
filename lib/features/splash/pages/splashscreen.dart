@@ -18,6 +18,11 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
 
   late final AnimationController _shineCtrl;
   late final AnimationController _loaderCtrl;
+  late final AnimationController _enterCtrl;
+  late final AnimationController _exitCtrl;
+
+  late final Animation<double> _enterFade;
+  late final Animation<double> _enterScale;
 
   @override
   void initState() {
@@ -34,6 +39,22 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
       duration: const Duration(milliseconds: 900),
     )..repeat();
 
+    _enterCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 700),
+    );
+    _enterFade = CurvedAnimation(parent: _enterCtrl, curve: Curves.easeOut);
+    _enterScale = Tween<double>(begin: 0.88, end: 1.0)
+        .chain(CurveTween(curve: Curves.easeOutCubic))
+        .animate(_enterCtrl);
+    _enterCtrl.forward();
+
+    _exitCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 280),
+      value: 1.0,
+    );
+
     _init();
   }
 
@@ -41,7 +62,16 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
   void dispose() {
     _shineCtrl.dispose();
     _loaderCtrl.dispose();
+    _enterCtrl.dispose();
+    _exitCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _navigateWithFade(String route) async {
+    if (!mounted) return;
+    await _exitCtrl.reverse();
+    if (!mounted) return;
+    Modular.to.navigate(route);
   }
 
   Future<void> _init() async {
@@ -55,7 +85,7 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
       try {
         Modular.get<GuestStore>().enterAsGuest();
       } catch (_) {}
-      Modular.to.navigate('/pasajero/');
+      await _navigateWithFade('/pasajero/');
       return;
     }
 
@@ -68,17 +98,17 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
     if (!mounted) return;
 
     if (role == 'admin' || role == 'superadmin') {
-      Modular.to.navigate('/admin/');
+      await _navigateWithFade('/admin/');
       return;
     }
 
     if (role == 'cliente' || role == 'cliente_mayorista') {
-      Modular.to.navigate('/pasajero/');
+      await _navigateWithFade('/pasajero/');
       return;
     }
 
     if (role == 'repartidor' || role == 'conductor') {
-      Modular.to.navigate('/conductor/');
+      await _navigateWithFade('/conductor/');
       return;
     }
 
@@ -86,7 +116,7 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
     try {
       Modular.get<GuestStore>().enterAsGuest();
     } catch (_) {}
-    Modular.to.navigate('/pasajero/');
+    await _navigateWithFade('/pasajero/');
   }
 
   @override
@@ -95,7 +125,12 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
 
     return Scaffold(
       body: AnimatedBuilder(
-        animation: Listenable.merge([_shineCtrl, _loaderCtrl]),
+        animation: Listenable.merge([
+          _shineCtrl,
+          _loaderCtrl,
+          _enterCtrl,
+          _exitCtrl,
+        ]),
         builder: (_, __) {
           return Stack(
             children: [
@@ -109,66 +144,75 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
                 ),
               ),
 
-              Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 110,
-                      height: 110,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(26),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.18),
-                            blurRadius: 22,
-                            offset: const Offset(0, 10),
-                          ),
-                        ],
-                      ),
-                      child: Center(
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(18),
-                          child: Image.asset(
-                            'assets/icon/logo.png',
+              Opacity(
+                opacity: _exitCtrl.value,
+                child: Center(
+                  child: FadeTransition(
+                    opacity: _enterFade,
+                    child: ScaleTransition(
+                      scale: _enterScale,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
                             width: 110,
                             height: 110,
-                            fit: BoxFit.contain,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(26),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.18),
+                                  blurRadius: 22,
+                                  offset: const Offset(0, 10),
+                                ),
+                              ],
+                            ),
+                            child: Center(
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(18),
+                                child: Image.asset(
+                                  'assets/icon/logo.png',
+                                  width: 110,
+                                  height: 110,
+                                  fit: BoxFit.contain,
+                                ),
+                              ),
+                            ),
                           ),
-                        ),
+
+                          const SizedBox(height: 18),
+
+                          const Text(
+                            'Quimisol',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 34,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 0.4,
+                            ),
+                          ),
+
+                          const SizedBox(height: 10),
+
+                          const Text(
+                            'Productos e insumos químicos\nal alcance de tu negocio',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: Colors.white70,
+                              fontSize: 14.5,
+                              fontWeight: FontWeight.w600,
+                              height: 1.3,
+                            ),
+                          ),
+
+                          const SizedBox(height: 18),
+
+                          _ThreeDotsLoading(t: _loaderCtrl.value),
+                        ],
                       ),
                     ),
-
-                    const SizedBox(height: 18),
-
-                    const Text(
-                      'Quimisol',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 34,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: 0.4,
-                      ),
-                    ),
-
-                    const SizedBox(height: 10),
-
-                    const Text(
-                      'Productos e insumos químicos\nal alcance de tu negocio',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: Colors.white70,
-                        fontSize: 14.5,
-                        fontWeight: FontWeight.w600,
-                        height: 1.3,
-                      ),
-                    ),
-
-                    const SizedBox(height: 18),
-
-                    _ThreeDotsLoading(t: _loaderCtrl.value),
-                  ],
+                  ),
                 ),
               ),
             ],
