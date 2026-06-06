@@ -50,7 +50,6 @@ class _AdminSupportChatPageState extends State<AdminSupportChatPage>
   bool _userIsNearBottom = true;
   bool _forceScrollToBottomOnce = true; // al abrir
   bool _takingOnOpen = false; // evita doble “take”
-  bool _greetingPrefilled = false; // evita re-escribir input
 
   DocumentReference<Map<String, dynamic>> get _chatRef =>
       _db.collection('support_chats').doc(widget.chatId);
@@ -142,31 +141,62 @@ class _AdminSupportChatPageState extends State<AdminSupportChatPage>
     } catch (_) {}
   }
 
-  /// ✅ Prefill del saludo EN EL INPUT (NO se envía solo)
-  void _prefillGreetingMessage() {
-    if (_messageCtrl.text.trim().isNotEmpty) return;
-    if (_greetingPrefilled) return;
+  /// ✅ Envía el saludo automáticamente cuando el admin toma el ticket
+  /// por primera vez. NO escribe en el input — manda el mensaje directo.
+  Future<void> _sendGreetingMessage() async {
+    if (_adminUid == null) return;
 
     final greeting =
-        'Hola, soy ${_adminName ?? 'Soporte'}, ¿En qué puedo ayudarle?';
+        'Hola, soy ${_adminName ?? 'Soporte'}, ¿en qué puedo ayudarle?';
 
-    _messageCtrl.text = greeting;
-    _messageCtrl.selection = TextSelection.fromPosition(
-      TextPosition(offset: greeting.length),
-    );
+    try {
+      final msgRef = _messagesRef.doc();
+      final batch = _db.batch();
 
-    _greetingPrefilled = true;
-    setState(() => _isTyping = true);
+      batch.set(msgRef, {
+        'messageId': msgRef.id,
+        'senderUid': _adminUid,
+        'senderRole': 'support',
+        'senderName': _adminName ?? 'Soporte',
+        'type': 'text',
+        'text': greeting,
+        'imageUrl': null,
+        'storagePath': null,
+        'createdAt': FieldValue.serverTimestamp(),
+        'isRead': false,
+        'readAt': null,
+        'status': 'sent',
+      });
 
-    _inputFocus.requestFocus();
+      batch.set(
+        _chatRef,
+        {
+          'updatedAt': FieldValue.serverTimestamp(),
+          'lastMessage': greeting,
+          'lastMessageType': 'text',
+          'lastMessageAt': FieldValue.serverTimestamp(),
+          'unreadCountClient': FieldValue.increment(1),
+          'lastReadAtSupport': FieldValue.serverTimestamp(),
+        },
+        SetOptions(merge: true),
+      );
+
+      await batch.commit();
+
+      _scrollToBottom(force: true);
+    } catch (_) {
+      // silencioso — si falla, el admin puede escribir manualmente
+    }
   }
 
-  /// ✅ Tomar ticket al abrir si NO tiene asignado
+  /// ✅ Tomar ticket al abrir si NO tiene asignado.
+  /// Si lo toma por primera vez, envía el saludo automáticamente.
   Future<void> _takeTicketOnOpenIfNeeded() async {
     if (_takingOnOpen) return;
     if (_adminUid == null) return;
 
     _takingOnOpen = true;
+    bool justTookIt = false;
     try {
       await _db.runTransaction((tx) async {
         final snap = await tx.get(_chatRef);
@@ -187,10 +217,13 @@ class _AdminSupportChatPageState extends State<AdminSupportChatPage>
             },
             SetOptions(merge: true),
           );
+          justTookIt = true;
         }
       });
 
-      _prefillGreetingMessage();
+      if (justTookIt) {
+        await _sendGreetingMessage();
+      }
     } catch (_) {
       // silencioso
     } finally {
@@ -278,7 +311,6 @@ class _AdminSupportChatPageState extends State<AdminSupportChatPage>
       await batch.commit();
 
       _messageCtrl.clear();
-      _greetingPrefilled = false;
       _scrollToBottom(force: true);
     } catch (e) {
       if (!mounted) return;
@@ -428,14 +460,35 @@ class _AdminSupportChatPageState extends State<AdminSupportChatPage>
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
 
-      final msgRef = _messagesRef.doc();
-      await msgRef.set({
-        'messageId': msgRef.id,
+      // Mensaje sistema de cierre
+      final closedMsgRef = _messagesRef.doc();
+      await closedMsgRef.set({
+        'messageId': closedMsgRef.id,
         'senderUid': _adminUid,
         'senderRole': 'system',
         'senderName': 'Sistema',
         'type': 'system',
         'text': '✅ El ticket fue marcado como completado por soporte.',
+        'imageUrl': null,
+        'storagePath': null,
+        'createdAt': FieldValue.serverTimestamp(),
+        'isRead': false,
+        'readAt': null,
+        'status': 'sent',
+      });
+
+      // ✅ Mensaje del bot preguntando al cliente si desea reabrir.
+      //    Cuando el cliente entra al chat, verá Sí/No abajo de este mensaje.
+      final reopenMsgRef = _messagesRef.doc();
+      await reopenMsgRef.set({
+        'messageId': reopenMsgRef.id,
+        'senderUid': 'system',
+        'senderRole': 'system',
+        'senderName': 'Soporte Quimisol',
+        'type': 'text',
+        'metaType': 'reopen_ticket_question',
+        'text':
+            'Hola, bienvenido de nuevo 👋 ¿Deseas abrir un ticket de soporte con un asesor?',
         'imageUrl': null,
         'storagePath': null,
         'createdAt': FieldValue.serverTimestamp(),

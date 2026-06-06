@@ -20,4 +20,8 @@ abstract class AuthService {
   Future<void> registerWithEmail(String email, String password);
 
   Future<GoogleLoginResult?> signInWithGoogle();
+
+  Future<void> sendPasswordResetCode(String email);
+  Future<void> verifyResetCode(String email, String code);
+  Future<void> resetPasswordWithCode(String email, String code, String newPassword);
 }

@@ -14,6 +14,7 @@ import 'package:quimisol_movil/core/services/notifications/fcm_token_service.dar
 
 // Header con logo + “BIENVENIDOS”
 import '../widgets/login_header.dart';
+import 'forgot_password_page.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -326,7 +327,11 @@ class _LoginScreenState extends State<LoginScreen> {
                             child: TextButton(
                               onPressed: () {
                                 if (_isLoading) return;
-                                // TODO: implementar recuperación de contraseña
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => const ForgotPasswordPage(),
+                                  ),
+                                );
                               },
                               child: const Text(
                                 '¿Olvidaste tu contraseña?',

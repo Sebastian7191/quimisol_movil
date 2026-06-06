@@ -2,11 +2,14 @@
 
 const admin = require("firebase-admin");
 const { setGlobalOptions } = require("firebase-functions/v2");
+const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const {
   onDocumentCreated,
   onDocumentUpdated,
 } = require("firebase-functions/v2/firestore");
 const logger = require("firebase-functions/logger");
+const crypto = require("crypto");
+const nodemailer = require("nodemailer");
 
 admin.initializeApp();
 
@@ -596,5 +599,241 @@ exports.notificarCambioEstadoPago = onDocumentUpdated(
     } catch (error) {
       logger.error("Error en notificarCambioEstadoPago", error);
     }
+  },
+);
+
+/* =========================================================
+ * RECUPERACIÓN DE CONTRASEÑA
+ *
+ * Configura el correo remitente con variables de entorno:
+ *   EMAIL_USER = tu_correo@gmail.com
+ *   EMAIL_PASS = contraseña_de_aplicación_de_gmail
+ *
+ * Crea un archivo functions/.env con esas dos líneas,
+ * o usa Firebase Secret Manager:
+ *   firebase functions:secrets:set EMAIL_USER
+ *   firebase functions:secrets:set EMAIL_PASS
+ * =======================================================*/
+
+function buildTransporter() {
+  return nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS,
+    },
+  });
+}
+
+/* 5) ENVIAR CÓDIGO DE RECUPERACIÓN
+ * Callable: enviarCodigoRecuperacion({ email })
+ * Genera un código de 6 dígitos, lo guarda hasheado en
+ * Firestore (password_reset_codes/{email}) y envía el email.
+ * =======================================================*/
+exports.enviarCodigoRecuperacion = onCall(
+  { region: "us-central1" },
+  async (request) => {
+    const email = (request.data.email || "").trim().toLowerCase();
+
+    if (!email || !email.includes("@")) {
+      throw new HttpsError("invalid-argument", "Correo inválido");
+    }
+
+    // Verificar que el usuario existe en Firebase Auth
+    try {
+      await admin.auth().getUserByEmail(email);
+    } catch (_) {
+      throw new HttpsError(
+        "not-found",
+        "No existe una cuenta con este correo",
+      );
+    }
+
+    // Generar código de 6 dígitos
+    const code = String(Math.floor(100000 + Math.random() * 900000));
+    const codeHash = crypto
+      .createHash("sha256")
+      .update(code)
+      .digest("hex");
+    const expiry = admin.firestore.Timestamp.fromDate(
+      new Date(Date.now() + 10 * 60 * 1000), // 10 minutos
+    );
+
+    await admin
+      .firestore()
+      .collection("password_reset_codes")
+      .doc(email)
+      .set({
+        codeHash,
+        expiry,
+        used: false,
+        attempts: 0,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+    // Enviar email
+    const transporter = buildTransporter();
+    await transporter.sendMail({
+      from: `"Quimisol" <${process.env.EMAIL_USER}>`,
+      to: email,
+      subject: "Código de recuperación de contraseña",
+      html: `
+        <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;padding:24px;">
+          <h2 style="color:#1DA1F2;">Recuperación de contraseña</h2>
+          <p>Recibimos una solicitud para restablecer la contraseña de tu cuenta.</p>
+          <p>Tu código de verificación es:</p>
+          <div style="background:#EAF6F7;border-radius:12px;padding:28px;text-align:center;margin:20px 0;">
+            <span style="font-size:44px;font-weight:bold;letter-spacing:14px;color:#1DA1F2;">${code}</span>
+          </div>
+          <p style="color:#666;">Este código expira en <strong>10 minutos</strong>.</p>
+          <p style="color:#666;">Si no solicitaste este código, ignora este mensaje.</p>
+        </div>
+      `,
+    });
+
+    logger.info("Código de recuperación enviado", { email });
+    return { success: true };
+  },
+);
+
+/* 6) VERIFICAR CÓDIGO (sin consumirlo)
+ * Callable: verificarCodigo({ email, code })
+ * Verifica que el código sea correcto y no haya expirado.
+ * Incrementa el contador de intentos fallidos si es incorrecto.
+ * =======================================================*/
+exports.verificarCodigo = onCall(
+  { region: "us-central1" },
+  async (request) => {
+    const email = (request.data.email || "").trim().toLowerCase();
+    const code = (request.data.code || "").trim();
+
+    if (!email || !code) {
+      throw new HttpsError("invalid-argument", "Datos incompletos");
+    }
+
+    const docRef = admin
+      .firestore()
+      .collection("password_reset_codes")
+      .doc(email);
+    const doc = await docRef.get();
+
+    if (!doc.exists) {
+      throw new HttpsError("not-found", "Código inválido o expirado");
+    }
+
+    const { codeHash, expiry, used, attempts } = doc.data();
+
+    if (used) {
+      throw new HttpsError(
+        "failed-precondition",
+        "Este código ya fue utilizado",
+      );
+    }
+
+    if (expiry.toDate() < new Date()) {
+      throw new HttpsError("deadline-exceeded", "El código ha expirado");
+    }
+
+    if (attempts >= 5) {
+      throw new HttpsError(
+        "resource-exhausted",
+        "Demasiados intentos incorrectos. Solicita un nuevo código",
+      );
+    }
+
+    const inputHash = crypto
+      .createHash("sha256")
+      .update(code)
+      .digest("hex");
+
+    if (codeHash !== inputHash) {
+      await docRef.update({
+        attempts: admin.firestore.FieldValue.increment(1),
+      });
+      const remaining = 5 - (attempts + 1);
+      throw new HttpsError(
+        "invalid-argument",
+        `Código incorrecto. ${remaining} intento${remaining === 1 ? "" : "s"} restante${remaining === 1 ? "" : "s"}`,
+      );
+    }
+
+    return { success: true };
+  },
+);
+
+/* 7) VERIFICAR Y RESETEAR CONTRASEÑA
+ * Callable: verificarYResetear({ email, code, newPassword })
+ * Verifica el código, actualiza la contraseña via Admin SDK
+ * y marca el código como usado.
+ * =======================================================*/
+exports.verificarYResetear = onCall(
+  { region: "us-central1" },
+  async (request) => {
+    const email = (request.data.email || "").trim().toLowerCase();
+    const code = (request.data.code || "").trim();
+    const newPassword = request.data.newPassword || "";
+
+    if (!email || !code || !newPassword) {
+      throw new HttpsError("invalid-argument", "Datos incompletos");
+    }
+
+    if (newPassword.length < 6) {
+      throw new HttpsError(
+        "invalid-argument",
+        "La contraseña debe tener al menos 6 caracteres",
+      );
+    }
+
+    const docRef = admin
+      .firestore()
+      .collection("password_reset_codes")
+      .doc(email);
+    const doc = await docRef.get();
+
+    if (!doc.exists) {
+      throw new HttpsError("not-found", "Código inválido o expirado");
+    }
+
+    const { codeHash, expiry, used, attempts } = doc.data();
+
+    if (used) {
+      throw new HttpsError(
+        "failed-precondition",
+        "Este código ya fue utilizado",
+      );
+    }
+
+    if (expiry.toDate() < new Date()) {
+      throw new HttpsError("deadline-exceeded", "El código ha expirado");
+    }
+
+    if (attempts >= 5) {
+      throw new HttpsError(
+        "resource-exhausted",
+        "Demasiados intentos incorrectos. Solicita un nuevo código",
+      );
+    }
+
+    const inputHash = crypto
+      .createHash("sha256")
+      .update(code)
+      .digest("hex");
+
+    if (codeHash !== inputHash) {
+      await docRef.update({
+        attempts: admin.firestore.FieldValue.increment(1),
+      });
+      throw new HttpsError("invalid-argument", "Código incorrecto");
+    }
+
+    // Marcar código como usado
+    await docRef.update({ used: true });
+
+    // Actualizar contraseña con Admin SDK
+    const user = await admin.auth().getUserByEmail(email);
+    await admin.auth().updateUser(user.uid, { password: newPassword });
+
+    logger.info("Contraseña restablecida exitosamente", { email });
+    return { success: true };
   },
 );

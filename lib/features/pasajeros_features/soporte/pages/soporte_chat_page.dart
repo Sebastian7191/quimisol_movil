@@ -276,7 +276,11 @@ class _SoporteChatPageState extends State<SoporteChatPage>
               if (text.isNotEmpty) {
                 final metaType = (d['metaType'] ?? '').toString();
 
-                if (metaType == 'open_ticket_question') {
+                final isAnyBotQuestion =
+                    metaType == 'open_ticket_question' ||
+                    metaType == 'reopen_ticket_question';
+
+                if (isAnyBotQuestion) {
                   hasOpenQuestion = true;
                 }
 
@@ -285,7 +289,7 @@ class _SoporteChatPageState extends State<SoporteChatPage>
                     text: text,
                     isMine: isMine,
                     time: time,
-                    isBotQuestion: metaType == 'open_ticket_question',
+                    isBotQuestion: isAnyBotQuestion,
                     isBotAnswer: metaType == 'open_ticket_answer',
                   ),
                 );
@@ -299,13 +303,36 @@ class _SoporteChatPageState extends State<SoporteChatPage>
 
           if (!mounted) return;
 
+          // ✅ Si el ticket está completado pero NO existe la pregunta del bot
+          //    de reapertura (ticket cerrado con versión vieja o reglas que no
+          //    permiten escribir senderRole=system desde cliente), inyectamos
+          //    la pregunta SOLO en la UI local para que el cliente vea Sí/No.
+          final shouldInjectReopenPrompt =
+              status == 'completed' && !hasOpenQuestion;
+
           setState(() {
             _messages
               ..clear()
               ..addAll(loaded);
 
+            if (shouldInjectReopenPrompt) {
+              _messages.add(
+                _ChatMessage.text(
+                  text:
+                      'Hola, bienvenido de nuevo 👋 ¿Deseas abrir un ticket de soporte con un asesor?',
+                  isMine: false,
+                  time: _formatNow(),
+                  isBotQuestion: true,
+                ),
+              );
+            }
+
             _chatStatus = status;
-            _awaitingOpenTicketAnswer = status == 'draft' && hasOpenQuestion;
+            // ✅ El bot espera respuesta tanto en el pre-chat (draft) como
+            //    cuando el admin cerró el ticket (completed) — reapertura.
+            _awaitingOpenTicketAnswer =
+                (status == 'draft' || status == 'completed') &&
+                    (hasOpenQuestion || shouldInjectReopenPrompt);
             _chatRejected = status == 'cancelled_by_client';
             _chatCreated = true;
           });
@@ -458,9 +485,7 @@ class _SoporteChatPageState extends State<SoporteChatPage>
 
   void _toggleEmojiPicker() {
     final canUse =
-        _chatStatus == 'pending' ||
-        _chatStatus == 'in_progress' ||
-        _chatStatus == 'completed';
+        _chatStatus == 'pending' || _chatStatus == 'in_progress';
 
     if (!canUse) return;
 
@@ -530,6 +555,7 @@ class _SoporteChatPageState extends State<SoporteChatPage>
     if (!_awaitingOpenTicketAnswer || _creatingChat) return;
 
     final answerText = yes ? 'Sí' : 'No';
+    final isReopen = _chatStatus == 'completed';
 
     setState(() {
       _messages.add(
@@ -579,6 +605,8 @@ class _SoporteChatPageState extends State<SoporteChatPage>
 
       await FcmTokenService.ensureTokenIfMissingForCurrentUser();
 
+      // ✅ Reabrir libera asignación previa para que cualquier asesor pueda
+      //    tomarlo y enviar saludo inicial nuevamente.
       await chatRef.set({
         'status': 'pending',
         'updatedAt': FieldValue.serverTimestamp(),
@@ -586,11 +614,20 @@ class _SoporteChatPageState extends State<SoporteChatPage>
         'lastMessageType': 'text',
         'lastMessageAt': FieldValue.serverTimestamp(),
         'lastReadAtClient': FieldValue.serverTimestamp(),
+        if (isReopen) ...{
+          'assignedSupportUid': null,
+          'assignedSupportName': null,
+          'takenAt': null,
+          'completedAt': null,
+          'completedByUid': null,
+          'completedByName': null,
+        },
       }, SetOptions(merge: true));
 
       await _addSystemMessage(
-        text:
-            '✅ Tu ticket fue creado correctamente.\nUn asesor te responderá pronto. Por favor espera unos minutos.',
+        text: isReopen
+            ? 'El asesor te responderá pronto, por favor espera unos minutos.'
+            : '✅ Tu ticket fue creado correctamente.\nUn asesor te responderá pronto. Por favor espera unos minutos.',
         metaType: 'ticket_created_info',
         countAsLastMessage: false,
       );
@@ -638,21 +675,19 @@ class _SoporteChatPageState extends State<SoporteChatPage>
     if (text.isEmpty) return;
 
     final canSend =
-        _chatStatus == 'pending' ||
-        _chatStatus == 'in_progress' ||
-        _chatStatus == 'completed';
+        _chatStatus == 'pending' || _chatStatus == 'in_progress';
 
     if (!canSend || _chatId == null || _clientUid == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Primero responde Sí para abrir el ticket.'),
+        SnackBar(
+          content: Text(
+            _chatStatus == 'completed'
+                ? 'Tu ticket fue completado. Responde Sí para abrir uno nuevo.'
+                : 'Primero responde Sí para abrir el ticket.',
+          ),
         ),
       );
       return;
-    }
-
-    if (_chatStatus == 'completed') {
-      _chatStatus = 'pending';
     }
 
     setState(() {
@@ -693,16 +728,10 @@ class _SoporteChatPageState extends State<SoporteChatPage>
         'lastMessageType': 'text',
         'lastMessageAt': FieldValue.serverTimestamp(),
         'unreadCountSupport': FieldValue.increment(1),
-        'status': 'pending',
         'lastReadAtClient': FieldValue.serverTimestamp(),
-        'completedAt': null,
-        'completedByUid': null,
-        'completedByName': null,
       }, SetOptions(merge: true));
 
       await batch.commit();
-
-      setState(() => _chatStatus = 'pending');
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -716,14 +745,16 @@ class _SoporteChatPageState extends State<SoporteChatPage>
 
   Future<void> _pickAndSendImage() async {
     final canSend =
-        _chatStatus == 'pending' ||
-        _chatStatus == 'in_progress' ||
-        _chatStatus == 'completed';
+        _chatStatus == 'pending' || _chatStatus == 'in_progress';
 
     if (!canSend || _chatId == null || _clientUid == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Primero responde Sí para abrir el ticket.'),
+        SnackBar(
+          content: Text(
+            _chatStatus == 'completed'
+                ? 'Tu ticket fue completado. Responde Sí para abrir uno nuevo.'
+                : 'Primero responde Sí para abrir el ticket.',
+          ),
         ),
       );
       return;
@@ -816,16 +847,10 @@ class _SoporteChatPageState extends State<SoporteChatPage>
         'lastMessageType': 'image',
         'lastMessageAt': FieldValue.serverTimestamp(),
         'unreadCountSupport': FieldValue.increment(1),
-        'status': 'pending',
         'lastReadAtClient': FieldValue.serverTimestamp(),
-        'completedAt': null,
-        'completedByUid': null,
-        'completedByName': null,
       }, SetOptions(merge: true));
 
       await batch.commit();
-
-      setState(() => _chatStatus = 'pending');
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -972,7 +997,7 @@ class _SoporteChatPageState extends State<SoporteChatPage>
                                 : _chatStatus == 'cancelled_by_client'
                                     ? 'No se abrió ticket. Si deseas soporte, vuelve a responder Sí.'
                                     : _chatStatus == 'completed'
-                                        ? 'Este ticket está completado. Si envías un mensaje, se reabrirá.'
+                                        ? 'Ticket completado. Responde Sí abajo si necesitas otro.'
                                         : _chatStatus == 'in_progress'
                                             ? 'Tu ticket está siendo atendido por soporte.'
                                             : 'Tu ticket está pendiente de atención.',
@@ -987,49 +1012,62 @@ class _SoporteChatPageState extends State<SoporteChatPage>
                     ),
                   ),
                   Expanded(
-                    child: ListView.builder(
-                      controller: _scrollCtrl,
-                      padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
-                      itemCount: _messages.length,
-                      itemBuilder: (context, index) {
-                        final msg = _messages[index];
-                        final showYesNo =
-                            msg.isBotQuestion &&
-                            _awaitingOpenTicketAnswer &&
-                            !_creatingChat;
+                    child: Builder(
+                      builder: (context) {
+                        // Solo el último mensaje del bot puede mostrar Sí/No.
+                        int lastBotQIdx = -1;
+                        for (int i = _messages.length - 1; i >= 0; i--) {
+                          if (_messages[i].isBotQuestion) {
+                            lastBotQIdx = i;
+                            break;
+                          }
+                        }
 
-                        return Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            _MessageBubble(message: msg),
-                            if (showYesNo)
-                              Padding(
-                                padding: const EdgeInsets.only(
-                                  left: 6,
-                                  right: 6,
-                                  bottom: 10,
-                                ),
-                                child: Wrap(
-                                  spacing: 8,
-                                  runSpacing: 8,
-                                  children: [
-                                    _QuickReplyButton(
-                                      label: 'Sí',
-                                      icon: Icons.check_circle_outline,
-                                      color: Colors.green,
-                                      onTap: () => _onBotAnswerOpenTicket(true),
+                        return ListView.builder(
+                          controller: _scrollCtrl,
+                          padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
+                          itemCount: _messages.length,
+                          itemBuilder: (context, index) {
+                            final msg = _messages[index];
+                            final showYesNo = index == lastBotQIdx &&
+                                _awaitingOpenTicketAnswer &&
+                                !_creatingChat;
+
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                _MessageBubble(message: msg),
+                                if (showYesNo)
+                                  Padding(
+                                    padding: const EdgeInsets.only(
+                                      left: 6,
+                                      right: 6,
+                                      bottom: 10,
                                     ),
-                                    _QuickReplyButton(
-                                      label: 'No',
-                                      icon: Icons.cancel_outlined,
-                                      color: Colors.redAccent,
-                                      onTap: () =>
-                                          _onBotAnswerOpenTicket(false),
+                                    child: Wrap(
+                                      spacing: 8,
+                                      runSpacing: 8,
+                                      children: [
+                                        _QuickReplyButton(
+                                          label: 'Sí',
+                                          icon: Icons.check_circle_outline,
+                                          color: Colors.green,
+                                          onTap: () =>
+                                              _onBotAnswerOpenTicket(true),
+                                        ),
+                                        _QuickReplyButton(
+                                          label: 'No',
+                                          icon: Icons.cancel_outlined,
+                                          color: Colors.redAccent,
+                                          onTap: () =>
+                                              _onBotAnswerOpenTicket(false),
+                                        ),
+                                      ],
                                     ),
-                                  ],
-                                ),
-                              ),
-                          ],
+                                  ),
+                              ],
+                            );
+                          },
                         );
                       },
                     ),

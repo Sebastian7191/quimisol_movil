@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
 import 'package:quimisol_movil/shared/services/auth_service.dart';
@@ -11,6 +12,8 @@ class FirebaseAuthService implements AuthService {
   final GoogleSignIn _googleSignIn = GoogleSignIn(
     scopes: ['email'],
   );
+
+  final FirebaseFunctions _functions = FirebaseFunctions.instanceFor(region: 'us-central1');
 
   @override
   Future<bool> isLoggedIn() async => _auth.currentUser != null;
@@ -148,6 +151,49 @@ class FirebaseAuthService implements AuthService {
       try {
         await _googleSignIn.signOut();
       } catch (_) {}
+    }
+  }
+
+  @override
+  Future<void> sendPasswordResetCode(String email) async {
+    try {
+      final callable = _functions.httpsCallable('enviarCodigoRecuperacion');
+      await callable.call({'email': email.trim().toLowerCase()});
+    } on FirebaseFunctionsException catch (e) {
+      throw Exception(e.message ?? 'Error al enviar el código');
+    }
+  }
+
+  @override
+  Future<void> verifyResetCode(String email, String code) async {
+    try {
+      final callable = _functions.httpsCallable('verificarCodigo');
+      await callable.call({
+        'email': email.trim().toLowerCase(),
+        'code': code.trim(),
+      });
+    } on FirebaseFunctionsException catch (e) {
+      throw Exception(e.message ?? 'Código incorrecto');
+    }
+  }
+
+  @override
+  Future<void> resetPasswordWithCode(String email, String code, String newPassword) async {
+    try {
+      final callable = _functions.httpsCallable('verificarYResetear');
+      await callable.call({
+        'email': email.trim().toLowerCase(),
+        'code': code.trim(),
+        'newPassword': newPassword,
+      });
+      await _auth.signInWithEmailAndPassword(
+        email: email.trim(),
+        password: newPassword,
+      );
+    } on FirebaseFunctionsException catch (e) {
+      throw Exception(e.message ?? 'Error al cambiar la contraseña');
+    } on FirebaseAuthException catch (e) {
+      throw Exception(_firebaseError(e));
     }
   }
 
