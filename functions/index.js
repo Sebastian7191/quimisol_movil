@@ -27,6 +27,7 @@ async function sendPushToUserByUid({
   data = {},
   androidChannelId,
   logContext = {},
+  saveToFirestore = true,
 }) {
   if (!uidDestino) {
     logger.warn("sendPushToUserByUid: uidDestino vacío", logContext);
@@ -44,8 +45,33 @@ async function sendPushToUserByUid({
   const userData = userSnap.data() || {};
   const tokens = Array.isArray(userData.fcmTokens) ? userData.fcmTokens : [];
 
+  // ✅ Guardar en Firestore aunque no haya token (para la pantalla in-app)
+  if (saveToFirestore) {
+    try {
+      await userRef.collection("notificaciones").add({
+        title: title || "Notificación",
+        body: body || "",
+        type: data.type || "general",
+        data: Object.fromEntries(
+          Object.entries(data).map(([k, v]) => [k, String(v ?? "")]),
+        ),
+        read: false,
+        created_at: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    } catch (err) {
+      logger.error("Error guardando notificación en Firestore", {
+        uidDestino,
+        err: String(err),
+        ...logContext,
+      });
+    }
+  }
+
   if (!tokens.length) {
-    logger.warn("Usuario sin fcmTokens", { uidDestino, ...logContext });
+    logger.warn("Usuario sin fcmTokens, notificación solo guardada en Firestore", {
+      uidDestino,
+      ...logContext,
+    });
     return;
   }
 
@@ -369,6 +395,7 @@ exports.notificarMensajeSoporte = onDocumentCreated(
         },
         androidChannelId: "support_chat_channel",
         logContext: { trigger: "notificarMensajeSoporte", chatId, messageId },
+        saveToFirestore: false, // El chat de soporte tiene su propia UI
       });
     } catch (error) {
       logger.error("Error en notificarMensajeSoporte", error);
@@ -598,6 +625,96 @@ exports.notificarCambioEstadoPago = onDocumentUpdated(
       });
     } catch (error) {
       logger.error("Error en notificarCambioEstadoPago", error);
+    }
+  },
+);
+
+/* =========================================================
+ * 5) NOTIFICAR AL CONDUCTOR CUANDO SE LE ASIGNA UN PEDIDO
+ * Trigger: pedidos/{pedidoId} — cuando conductorUid cambia
+ *          de vacío/null a un uid válido.
+ * =======================================================*/
+
+exports.notificarConductorAsignado = onDocumentUpdated(
+  {
+    document: "pedidos/{pedidoId}",
+    region: "us-central1",
+  },
+  async (event) => {
+    try {
+      const beforeSnap = event.data?.before;
+      const afterSnap = event.data?.after;
+
+      if (!beforeSnap || !afterSnap) return;
+
+      const beforeData = beforeSnap.data() || {};
+      const afterData = afterSnap.data() || {};
+      const pedidoId = event.params.pedidoId;
+
+      // Leer uid del conductor con múltiples fallbacks
+      const conductorAntes = String(
+        beforeData.conductorUid ||
+          beforeData.repartidorUid ||
+          beforeData.driverUid ||
+          "",
+      ).trim();
+
+      const conductorDespues = String(
+        afterData.conductorUid ||
+          afterData.repartidorUid ||
+          afterData.driverUid ||
+          "",
+      ).trim();
+
+      // Solo disparar cuando se asigna por primera vez
+      if (!conductorDespues || conductorAntes === conductorDespues) {
+        return;
+      }
+
+      const codigoPedido = String(
+        afterData.codigo || afterData.codigoPedido || "",
+      ).trim();
+
+      const departamento = String(
+        afterData.departamento ||
+          afterData?.ubicacion?.departamento ||
+          afterData?.direccion?.departamento ||
+          "",
+      ).trim();
+
+      const title = "Nuevo pedido asignado";
+      const body = codigoPedido
+        ? `Se te asignó el pedido ${codigoPedido}${departamento ? ` en ${departamento}` : ""}`
+        : "Se te asignó un nuevo pedido";
+
+      await sendPushToUserByUid({
+        uidDestino: conductorDespues,
+        title,
+        body,
+        data: {
+          type: "pedido_asignado",
+          pedidoId,
+          codigo: codigoPedido,
+          departamento,
+          target: "mis_pedidos",
+        },
+        androidChannelId: "orders_channel",
+        logContext: {
+          trigger: "notificarConductorAsignado",
+          pedidoId,
+          conductorDespues,
+          codigoPedido,
+        },
+        saveToFirestore: true,
+      });
+
+      logger.info("Notificación de asignación enviada al conductor", {
+        pedidoId,
+        conductorDespues,
+        codigoPedido,
+      });
+    } catch (error) {
+      logger.error("Error en notificarConductorAsignado", error);
     }
   },
 );

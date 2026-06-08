@@ -7,6 +7,8 @@ import 'package:quimisol_movil/core/theme/palette.dart';
 
 import '../controllers/pedidos_controller.dart';
 import 'detalle_pedido.dart';
+import 'pedidos_entregados.dart';
+import 'widgets/depto_block.dart';
 import 'widgets/micro_widgets.dart';
 import 'widgets/stagger_in.dart';
 
@@ -64,7 +66,6 @@ class _PedidosPageState extends State<PedidosPage> with TickerProviderStateMixin
       kEstadoPendiente,
       kEstadoAceptado,
       kEstadoEnCamino,
-      kEstadoEntregado,
       kEstadoCancelado,
     ];
 
@@ -198,6 +199,12 @@ class _PedidosPageState extends State<PedidosPage> with TickerProviderStateMixin
     setState(() => _estado = res);
   }
 
+  void _openEntregados() {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const PedidosEntregadosPage()),
+    );
+  }
+
   String _estadoLabel(String v) {
     switch (v) {
       case kEstadoPendiente:
@@ -231,126 +238,147 @@ class _PedidosPageState extends State<PedidosPage> with TickerProviderStateMixin
           : null,
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       body: SafeArea(
-        child: Column(
-          children: [
-            _PedidosHeader(
-              compact: compact,
-              bgCtrl: _bgCtrl,
-              searchCtrl: _searchCtrl,
-              estado: _estado,
-              onEstado: (v) => setState(() => _estado = v),
-              onOpenEstadoSheet: _openEstadoSheet,
+        child: CustomScrollView(
+          slivers: [
+            // ✅ La cabecera ahora hace scroll junto con la lista,
+            // así libera espacio de visión para gestionar los pedidos.
+            SliverToBoxAdapter(
+              child: _PedidosHeader(
+                compact: compact,
+                bgCtrl: _bgCtrl,
+                searchCtrl: _searchCtrl,
+                estado: _estado,
+                onEstado: (v) => setState(() => _estado = v),
+                onOpenEstadoSheet: _openEstadoSheet,
+                onOpenEntregados: _openEntregados,
+              ),
             ),
-            Expanded(
-              child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                stream: controller.pedidosStream(),
-                builder: (context, snap) {
-                  if (snap.hasError) {
-                    return Center(
+            StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+              stream: controller.pedidosStream(),
+              builder: (context, snap) {
+                if (snap.hasError) {
+                  return SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: Center(
                       child: Text(
                         'Error: ${snap.error}',
                         style: TextStyle(color: ink),
                       ),
-                    );
-                  }
-                  if (snap.connectionState == ConnectionState.waiting) {
-                    return const LoadingFancy(text: 'Cargando pedidos…');
-                  }
-
-                  final docs = snap.data?.docs ?? [];
-                  final idToDoc = {for (final d in docs) d.id: d};
-
-                  // ✅ si entró desde la push, abrir ese pedido una sola vez
-                  if (!_openedInitialPedido &&
-                      widget.initialPedidoId != null &&
-                      widget.initialPedidoId!.trim().isNotEmpty &&
-                      idToDoc.containsKey(widget.initialPedidoId)) {
-                    _openedInitialPedido = true;
-
-                    WidgetsBinding.instance.addPostFrameCallback((_) async {
-                      if (!mounted) return;
-                      await showPedidoDetalleDialog(
-                        context,
-                        widget.initialPedidoId!,
-                      );
-                      if (mounted) setState(() {});
-                    });
-                  }
-
-                  final pedidos = docs.map((d) => controller.parsePedidoRow(d)).toList();
-
-                  final filtered = controller.filterPedidos(
-                    pedidos: pedidos,
-                    query: _q,
-                    estado: _estado,
+                    ),
                   );
+                }
+                if (snap.connectionState == ConnectionState.waiting) {
+                  return const SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: LoadingFancy(text: 'Cargando pedidos…'),
+                  );
+                }
 
-                  if (filtered.isEmpty) {
-                    return EmptyState(query: _q, estado: _estado);
-                  }
+                final docs = snap.data?.docs ?? [];
+                final idToDoc = {for (final d in docs) d.id: d};
 
-                  final sections = controller.groupByDepartamento(filtered);
+                // ✅ si entró desde la push, abrir ese pedido una sola vez
+                if (!_openedInitialPedido &&
+                    widget.initialPedidoId != null &&
+                    widget.initialPedidoId!.trim().isNotEmpty &&
+                    idToDoc.containsKey(widget.initialPedidoId)) {
+                  _openedInitialPedido = true;
 
-                  return ListView.builder(
-                    padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
-                    itemCount: sections.length + 1,
-                    itemBuilder: (_, i) {
-                      if (i == 0) {
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 12),
-                          child: Row(
-                            children: [
-                              Text(
-                                'Resultados',
-                                style: TextStyle(
-                                  color: ink.withValues(alpha: 0.55),
-                                  fontWeight: FontWeight.w800,
+                  WidgetsBinding.instance.addPostFrameCallback((_) async {
+                    if (!mounted) return;
+                    await showPedidoDetalleDialog(
+                      context,
+                      widget.initialPedidoId!,
+                    );
+                    if (mounted) setState(() {});
+                  });
+                }
+
+                // ✅ los entregados tienen su propia page (botón "Entregados"
+                // en la cabecera); aquí solo se gestionan los pedidos activos
+                final pedidos = docs
+                    .map((d) => controller.parsePedidoRow(d))
+                    .where((p) => !controller.isEntregado(p))
+                    .toList();
+
+                final filtered = controller.filterPedidos(
+                  pedidos: pedidos,
+                  query: _q,
+                  estado: _estado,
+                );
+
+                if (filtered.isEmpty) {
+                  return SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: EmptyState(query: _q, estado: _estado),
+                  );
+                }
+
+                final sections = controller.groupByDepartamento(filtered);
+
+                return SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
+                  sliver: SliverList(
+                    delegate: SliverChildBuilderDelegate(
+                      (_, i) {
+                        if (i == 0) {
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: Row(
+                              children: [
+                                Text(
+                                  'Resultados',
+                                  style: TextStyle(
+                                    color: ink.withValues(alpha: 0.55),
+                                    fontWeight: FontWeight.w800,
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(width: 8),
-                              CountPill(count: filtered.length),
-                              const Spacer(),
-                              if (!compact)
-                                const HintPill(text: 'Toca un pedido para ver detalle'),
-                            ],
+                                const SizedBox(width: 8),
+                                CountPill(count: filtered.length),
+                                const Spacer(),
+                                if (!compact)
+                                  const HintPill(text: 'Toca un pedido para ver detalle'),
+                              ],
+                            ),
+                          );
+                        }
+
+                        final s = sections[i - 1];
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 14),
+                          child: DeptoBlock(
+                            title: s.departamento,
+                            count: s.pedidos.length,
+                            children: List.generate(s.pedidos.length, (idx) {
+                              final p = s.pedidos[idx];
+                              final delay = math.min(420, (idx + i) * 18);
+
+                              return StaggerIn(
+                                delayMs: delay,
+                                child: Padding(
+                                  padding: EdgeInsets.only(
+                                    bottom: idx == s.pedidos.length - 1 ? 0 : 10,
+                                  ),
+                                  child: PedidoCard(
+                                    pedido: p,
+                                    onTap: () async {
+                                      final doc = idToDoc[p.id];
+                                      if (doc == null) return;
+                                      await showPedidoDetalleDialog(context, doc.id);
+                                      if (mounted) setState(() {});
+                                    },
+                                  ),
+                                ),
+                              );
+                            }),
                           ),
                         );
-                      }
-
-                      final s = sections[i - 1];
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 14),
-                        child: _DeptoBlock(
-                          title: s.departamento,
-                          count: s.pedidos.length,
-                          children: List.generate(s.pedidos.length, (idx) {
-                            final p = s.pedidos[idx];
-                            final delay = math.min(420, (idx + i) * 18);
-
-                            return StaggerIn(
-                              delayMs: delay,
-                              child: Padding(
-                                padding: EdgeInsets.only(
-                                  bottom: idx == s.pedidos.length - 1 ? 0 : 10,
-                                ),
-                                child: PedidoCard(
-                                  pedido: p,
-                                  onTap: () async {
-                                    final doc = idToDoc[p.id];
-                                    if (doc == null) return;
-                                    await showPedidoDetalleDialog(context, doc.id);
-                                    if (mounted) setState(() {});
-                                  },
-                                ),
-                              ),
-                            );
-                          }),
-                        ),
-                      );
-                    },
-                  );
-                },
-              ),
+                      },
+                      childCount: sections.length + 1,
+                    ),
+                  ),
+                );
+              },
             ),
           ],
         ),
@@ -422,6 +450,7 @@ class _PedidosHeader extends StatelessWidget {
     required this.estado,
     required this.onEstado,
     required this.onOpenEstadoSheet,
+    required this.onOpenEntregados,
   });
 
   final bool compact;
@@ -429,6 +458,7 @@ class _PedidosHeader extends StatelessWidget {
   final TextEditingController searchCtrl;
   final String estado;
   final ValueChanged<String> onEstado;
+  final VoidCallback onOpenEntregados;
   final VoidCallback onOpenEstadoSheet;
 
   @override
@@ -617,6 +647,49 @@ class _PedidosHeader extends StatelessWidget {
                     ],
                   ),
                 ),
+                const SizedBox(height: 10),
+                InkWell(
+                  onTap: onOpenEntregados,
+                  borderRadius: BorderRadius.circular(16),
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.14),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.30)),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          height: 30,
+                          width: 30,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.20),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(
+                            Icons.task_alt_rounded,
+                            color: Colors.white,
+                            size: 17,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        const Expanded(
+                          child: Text(
+                            'Ver pedidos entregados',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w800,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ),
+                        const Icon(Icons.chevron_right_rounded, color: Colors.white70),
+                      ],
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
@@ -640,7 +713,6 @@ class _EstadoFilterMini extends StatelessWidget {
       kEstadoPendiente,
       kEstadoAceptado,
       kEstadoEnCamino,
-      kEstadoEntregado,
       kEstadoCancelado,
     ];
 
@@ -694,84 +766,6 @@ class _EstadoFilterMini extends StatelessWidget {
               )
               .toList(growable: false),
         ),
-      ),
-    );
-  }
-}
-
-/* ================= SECCIONES POR DEPTO ================= */
-
-class _DeptoBlock extends StatelessWidget {
-  const _DeptoBlock({
-    required this.title,
-    required this.count,
-    required this.children,
-  });
-
-  final String title;
-  final int count;
-  final List<Widget> children;
-
-  @override
-  Widget build(BuildContext context) {
-    final ink = Palette.ink;
-
-    return Container(
-      decoration: BoxDecoration(
-        color: Palette.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: ink.withValues(alpha: 0.06)),
-      ),
-      padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                height: 34,
-                width: 34,
-                decoration: BoxDecoration(
-                  color: Palette.button.withValues(alpha: 0.26),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Palette.primary.withValues(alpha: 0.10)),
-                ),
-                child: const Icon(Icons.map_rounded, color: Palette.primary, size: 18),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: ink,
-                    fontWeight: FontWeight.w900,
-                    fontSize: 14.5,
-                  ),
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                decoration: BoxDecoration(
-                  color: Palette.fieldBg,
-                  borderRadius: BorderRadius.circular(999),
-                  border: Border.all(color: ink.withValues(alpha: 0.06)),
-                ),
-                child: Text(
-                  '$count',
-                  style: TextStyle(
-                    color: ink.withValues(alpha: 0.8),
-                    fontWeight: FontWeight.w900,
-                    fontSize: 12,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          ...children,
-        ],
       ),
     );
   }

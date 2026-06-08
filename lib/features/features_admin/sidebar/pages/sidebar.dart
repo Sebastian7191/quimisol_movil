@@ -341,7 +341,11 @@ class _SidebarShellPageState extends State<SidebarShellPage> {
           children: [
             Positioned.fill(
               child: Padding(
-                padding: EdgeInsets.all(isMobile ? 10 : 14),
+                // ✅ En móvil dejamos espacio arriba para que el botón ☰
+                // flotante (top: 10, ~42px) no tape el header de la página.
+                padding: isMobile
+                    ? const EdgeInsets.fromLTRB(10, 64, 10, 10)
+                    : const EdgeInsets.all(14),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(18),
                   child: Container(

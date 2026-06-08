@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:quimisol_movil/core/constants/pedido_estado.dart';
 import '../data/pedido_row.dart';
 import '../data/depto_section.dart';
 
@@ -21,7 +22,9 @@ class PedidosController {
     final q = query.trim().toLowerCase();
 
     return pedidos.where((p) {
-      if (estado != 'Todos' && p.estado != estado) return false;
+      // ✅ p.estado viene crudo de Firestore (ej. "entregado"); hay que
+      // normalizarlo al estado canónico (ej. "Entregado") antes de comparar.
+      if (estado != 'Todos' && normalizeEstado(p.estado) != estado) return false;
       if (q.isEmpty) return true;
 
       return p.codigo.toLowerCase().contains(q) ||
@@ -31,6 +34,9 @@ class PedidosController {
           p.estadoPago.toLowerCase().contains(q);
     }).toList();
   }
+
+  // ✅ true si el pedido ya fue entregado (comparación por estado canónico)
+  bool isEntregado(PedidoRow p) => normalizeEstado(p.estado) == kEstadoEntregado;
 
   // Agrupar por depa
   List<DeptoSection> groupByDepartamento(List<PedidoRow> pedidos) {

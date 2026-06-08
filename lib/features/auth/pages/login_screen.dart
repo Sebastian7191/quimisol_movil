@@ -63,7 +63,8 @@ class _LoginScreenState extends State<LoginScreen> {
         await _authService.signInWithEmail(email, password);
       }
 
-      await FcmTokenService.ensureTokenIfMissingForCurrentUser();
+      await FcmTokenService.upsertCurrentTokenForCurrentUser();
+      FcmTokenService.listenTokenRefreshForCurrentUser();
       await _redirectByRole();
     } catch (e) {
       _showErrorSnack(_getFriendlyAuthMessage(e.toString()));
@@ -83,7 +84,8 @@ class _LoginScreenState extends State<LoginScreen> {
         return;
       }
 
-      await FcmTokenService.ensureTokenIfMissingForCurrentUser();
+      await FcmTokenService.upsertCurrentTokenForCurrentUser();
+      FcmTokenService.listenTokenRefreshForCurrentUser();
 
       if (!mounted) return;
 

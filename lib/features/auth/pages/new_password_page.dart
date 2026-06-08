@@ -60,7 +60,8 @@ class _NewPasswordPageState extends State<NewPasswordPage> {
     setState(() => _isLoading = true);
     try {
       await _authService.resetPasswordWithCode(widget.email, widget.code, password);
-      await FcmTokenService.ensureTokenIfMissingForCurrentUser();
+      await FcmTokenService.upsertCurrentTokenForCurrentUser();
+      FcmTokenService.listenTokenRefreshForCurrentUser();
       if (!mounted) return;
       await _redirectByRole();
     } catch (e) {
