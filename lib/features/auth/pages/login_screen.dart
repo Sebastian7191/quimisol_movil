@@ -11,6 +11,7 @@ import '../../../../../shared/buttons/app_button.dart';
 import 'package:quimisol_movil/shared/services/auth_service.dart';
 import 'package:quimisol_movil/shared/stores/guest_store.dart';
 import 'package:quimisol_movil/core/services/notifications/fcm_token_service.dart';
+import 'package:quimisol_movil/core/utils/form_validators.dart';
 
 // Header con logo + “BIENVENIDOS”
 import '../widgets/login_header.dart';
@@ -28,10 +29,12 @@ class _LoginScreenState extends State<LoginScreen> {
 
   final _emailCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
+  final _confirmPasswordCtrl = TextEditingController();
 
   bool _isRegisterMode = false;
   bool _isLoading = false;
   bool _obscurePassword = true;
+  bool _obscureConfirmPassword = true;
 
   late final AuthService _authService;
 
@@ -45,7 +48,18 @@ class _LoginScreenState extends State<LoginScreen> {
   void dispose() {
     _emailCtrl.dispose();
     _passwordCtrl.dispose();
+    _confirmPasswordCtrl.dispose();
     super.dispose();
+  }
+
+  void _toggleMode() {
+    setState(() {
+      _isRegisterMode = !_isRegisterMode;
+      // ✅ Al cambiar de modo limpiamos la confirmación para que no
+      // queden residuos de validación entre login y registro.
+      _confirmPasswordCtrl.clear();
+      _formKey.currentState?.reset();
+    });
   }
 
   Future<void> _handleEmailSubmit() async {
@@ -168,7 +182,7 @@ class _LoginScreenState extends State<LoginScreen> {
     }
 
     if (message.contains('weak-password')) {
-      return 'La contraseña es muy débil. Usa al menos 6 caracteres.';
+      return 'La contraseña es muy débil. $passwordRequirementsHint';
     }
 
     if (message.contains('popup_closed') ||
@@ -266,6 +280,9 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               child: Center(
                 child: RoundedCard(
+                  // Card semitransparente: deja ver el degradado del fondo
+                  // para que el logo blanco del encabezado resalte.
+                  color: Palette.card.withValues(alpha: 0.55),
                   child: Form(
                     key: _formKey,
                     child: Column(
@@ -277,25 +294,19 @@ class _LoginScreenState extends State<LoginScreen> {
                         TextFormField(
                           controller: _emailCtrl,
                           keyboardType: TextInputType.emailAddress,
+                          inputFormatters: emailInputFormatters,
                           decoration: _pillDecoration(
                             hint: 'Ingrese su correo',
                             icon: Icons.email,
                           ),
-                          validator: (value) {
-                            if (value == null || value.trim().isEmpty) {
-                              return 'Ingresa tu correo';
-                            }
-                            if (!value.contains('@')) {
-                              return 'Correo inválido';
-                            }
-                            return null;
-                          },
+                          validator: validateEmail,
                         ),
                         const SizedBox(height: 16),
 
                         TextFormField(
                           controller: _passwordCtrl,
                           obscureText: _obscurePassword,
+                          inputFormatters: passwordInputFormatters,
                           decoration: _pillDecoration(
                             hint: 'Ingrese su contraseña',
                             icon: Icons.lock,
@@ -310,16 +321,55 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                             ),
                           ),
-                          validator: (value) {
-                            if (value == null || value.trim().isEmpty) {
-                              return 'Ingresa tu contraseña';
-                            }
-                            if (value.length < 6) {
-                              return 'Mínimo 6 caracteres';
-                            }
-                            return null;
-                          },
+                          // ✅ En registro exigimos una contraseña con un mínimo
+                          // de seguridad; en login solo que no esté vacía (para
+                          // no bloquear cuentas ya creadas con reglas distintas).
+                          validator: _isRegisterMode
+                              ? validateNewPassword
+                              : validateLoginPassword,
                         ),
+
+                        if (_isRegisterMode) ...[
+                          const SizedBox(height: 6),
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: Padding(
+                              padding: const EdgeInsets.only(left: 18),
+                              child: Text(
+                                passwordRequirementsHint,
+                                style: TextStyle(
+                                  color: Palette.ink.withValues(alpha: 0.55),
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          TextFormField(
+                            controller: _confirmPasswordCtrl,
+                            obscureText: _obscureConfirmPassword,
+                            inputFormatters: passwordInputFormatters,
+                            decoration: _pillDecoration(
+                              hint: 'Confirme su contraseña',
+                              icon: Icons.lock_outline,
+                              suffixIcon: IconButton(
+                                onPressed: () => setState(
+                                  () => _obscureConfirmPassword =
+                                      !_obscureConfirmPassword,
+                                ),
+                                icon: Icon(
+                                  _obscureConfirmPassword
+                                      ? Icons.visibility_rounded
+                                      : Icons.visibility_off_rounded,
+                                ),
+                              ),
+                            ),
+                            validator: (value) => validatePasswordConfirmation(
+                              value,
+                              _passwordCtrl.text,
+                            ),
+                          ),
+                        ],
 
                         const SizedBox(height: 10),
 
@@ -372,7 +422,9 @@ class _LoginScreenState extends State<LoginScreen> {
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(28),
                                 side: BorderSide(
-                                  color: Palette.primary.withValues(alpha: 0.25),
+                                  color: Palette.primary.withValues(
+                                    alpha: 0.25,
+                                  ),
                                 ),
                               ),
                             ),
@@ -395,7 +447,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         TextButton(
                           onPressed: () {
                             if (_isLoading) return;
-                            setState(() => _isRegisterMode = !_isRegisterMode);
+                            _toggleMode();
                           },
                           child: Text(
                             _isRegisterMode

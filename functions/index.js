@@ -7,6 +7,7 @@ const {
   onDocumentCreated,
   onDocumentUpdated,
 } = require("firebase-functions/v2/firestore");
+const { onSchedule } = require("firebase-functions/v2/scheduler");
 const logger = require("firebase-functions/logger");
 const crypto = require("crypto");
 const nodemailer = require("nodemailer");
@@ -169,6 +170,27 @@ async function sendPushToManyUids({
 
 function norm(v) {
   return String(v || "").trim().toLowerCase();
+}
+
+// ✅ Reutilizado por los recordatorios programados: dado un conjunto de
+// almacenes, devuelve los UIDs de los admins asignados a ellos (mismo
+// criterio de roles/campos que usa notificarNuevoPedido).
+async function getAdminUidsByAlmacenIds(almacenIds) {
+  if (!almacenIds.length) return [];
+
+  const usuariosSnap = await admin.firestore().collection("usuarios").get();
+
+  return usuariosSnap.docs
+    .filter((d) => {
+      const u = d.data() || {};
+      const rol = String(u.rol || u.role || "").trim().toLowerCase();
+      const almacenId = String(
+        u.almacenId || u.idAlmacen || u.assignedAlmacenId || "",
+      ).trim();
+
+      return rol === "admin" && almacenIds.includes(almacenId);
+    })
+    .map((d) => d.id);
 }
 
 /* =========================================================
@@ -720,6 +742,488 @@ exports.notificarConductorAsignado = onDocumentUpdated(
 );
 
 /* =========================================================
+ * 6) RECORDATORIO: PEDIDOS PENDIENTES SIN ATENDER
+ * Trigger: programado, cada hora.
+ *
+ * A diferencia de notificarNuevoPedido (que avisa una vez al
+ * crearse), este recordatorio detecta pedidos que llevan
+ * varias horas en "Pendiente" sin que ningún admin los acepte
+ * y vuelve a avisar — pero solo UNA vez por pedido (se marca
+ * con recordatorioPendienteEnviadoAt) para no saturar.
+ * =======================================================*/
+
+const HORAS_LIMITE_PENDIENTE = 3;
+const DIAS_VENTANA_PENDIENTES = 7;
+
+exports.recordatorioPedidosPendientes = onSchedule(
+  {
+    schedule: "every 60 minutes",
+    region: "us-central1",
+    timeZone: "America/La_Paz",
+  },
+  async () => {
+    try {
+      const ahora = Date.now();
+      const limiteMs = HORAS_LIMITE_PENDIENTE * 60 * 60 * 1000;
+      const desde = new Date(ahora - DIAS_VENTANA_PENDIENTES * 24 * 60 * 60 * 1000);
+
+      const pedidosSnap = await admin
+        .firestore()
+        .collection("pedidos")
+        .where("createdAt", ">=", admin.firestore.Timestamp.fromDate(desde))
+        .get();
+
+      // Agrupar por departamento los pedidos "atascados" que aún no
+      // recibieron recordatorio.
+      const idsPorDepto = new Map();
+
+      for (const doc of pedidosSnap.docs) {
+        const data = doc.data() || {};
+
+        if (norm(data.estado) !== "pendiente") continue;
+        if (data.recordatorioPendienteEnviadoAt) continue;
+
+        const createdAt = data.createdAt?.toDate?.();
+        if (!createdAt || ahora - createdAt.getTime() < limiteMs) continue;
+
+        const depto = String(
+          data.departamento ||
+            data?.ubicacion?.departamento ||
+            data?.direccion?.departamento ||
+            "",
+        ).trim();
+        if (!depto) continue;
+
+        if (!idsPorDepto.has(depto)) idsPorDepto.set(depto, []);
+        idsPorDepto.get(depto).push(doc.id);
+      }
+
+      if (!idsPorDepto.size) {
+        logger.info("recordatorioPedidosPendientes: nada que recordar");
+        return;
+      }
+
+      const almacenesSnap = await admin.firestore().collection("almacenes").get();
+
+      for (const [depto, pedidoIds] of idsPorDepto.entries()) {
+        const almacenesIdsDepto = almacenesSnap.docs
+          .filter((d) => norm((d.data() || {}).departamento) === norm(depto))
+          .map((d) => d.id);
+
+        if (!almacenesIdsDepto.length) {
+          logger.warn("recordatorioPedidosPendientes: depto sin almacenes", { depto });
+          continue;
+        }
+
+        const adminUids = await getAdminUidsByAlmacenIds(almacenesIdsDepto);
+        if (!adminUids.length) {
+          logger.warn("recordatorioPedidosPendientes: depto sin admins", { depto });
+          continue;
+        }
+
+        const cantidad = pedidoIds.length;
+
+        await sendPushToManyUids({
+          uids: adminUids,
+          title: "Pedidos pendientes sin atender",
+          body:
+            cantidad === 1
+              ? `Hay 1 pedido pendiente hace más de ${HORAS_LIMITE_PENDIENTE} horas en ${depto}. Revísalo.`
+              : `Hay ${cantidad} pedidos pendientes hace más de ${HORAS_LIMITE_PENDIENTE} horas en ${depto}. Revísalos.`,
+          data: {
+            type: "recordatorio_pedidos_pendientes",
+            departamento: depto,
+            cantidad,
+            target: "gestion_pedidos",
+          },
+          androidChannelId: "reminders_channel",
+          logContext: {
+            trigger: "recordatorioPedidosPendientes",
+            depto,
+            cantidad,
+            adminsCount: adminUids.length,
+          },
+        });
+
+        // ✅ Marcar cada pedido para no volver a recordarlo.
+        const batch = admin.firestore().batch();
+        for (const id of pedidoIds) {
+          batch.set(
+            admin.firestore().collection("pedidos").doc(id),
+            { recordatorioPendienteEnviadoAt: admin.firestore.FieldValue.serverTimestamp() },
+            { merge: true },
+          );
+        }
+        await batch.commit();
+
+        logger.info("Recordatorio de pedidos pendientes enviado", {
+          depto,
+          cantidad,
+          adminsCount: adminUids.length,
+        });
+      }
+    } catch (error) {
+      logger.error("Error en recordatorioPedidosPendientes", error);
+    }
+  },
+);
+
+/* =========================================================
+ * 7) RECORDATORIO: STOCK BAJO (resumen diario por almacén)
+ * Trigger: programado, una vez al día.
+ *
+ * Mismo umbral que usa el dashboard ("Stock bajo" = <= 5
+ * unidades). Antes esa cifra era solo visual; ahora se avisa
+ * a los admins de cada almacén para que repongan a tiempo.
+ * =======================================================*/
+
+const UMBRAL_STOCK_BAJO = 5;
+
+exports.recordatorioStockBajo = onSchedule(
+  {
+    schedule: "every day 08:00",
+    region: "us-central1",
+    timeZone: "America/La_Paz",
+  },
+  async () => {
+    try {
+      const productosSnap = await admin.firestore().collection("productos").get();
+
+      // Agrupar por almacén: cuántos están con stock bajo y cuántos agotados.
+      const porAlmacen = new Map();
+
+      for (const doc of productosSnap.docs) {
+        const data = doc.data() || {};
+        const stock = Number(data.stock ?? 0);
+        if (!Number.isFinite(stock) || stock > UMBRAL_STOCK_BAJO) continue;
+
+        const almacenId = String(data.almacenId || "").trim();
+        if (!almacenId) continue;
+
+        if (!porAlmacen.has(almacenId)) {
+          porAlmacen.set(almacenId, {
+            nombre: String(data.almacenNombre || "tu almacén").trim(),
+            bajos: 0,
+            agotados: 0,
+          });
+        }
+
+        const entry = porAlmacen.get(almacenId);
+        entry.bajos += 1;
+        if (stock <= 0) entry.agotados += 1;
+      }
+
+      if (!porAlmacen.size) {
+        logger.info("recordatorioStockBajo: sin productos con stock bajo");
+        return;
+      }
+
+      for (const [almacenId, info] of porAlmacen.entries()) {
+        const adminUids = await getAdminUidsByAlmacenIds([almacenId]);
+        if (!adminUids.length) {
+          logger.warn("recordatorioStockBajo: almacén sin admins", { almacenId });
+          continue;
+        }
+
+        const conStockBajo = info.bajos - info.agotados;
+        const partes = [];
+        if (info.agotados > 0) {
+          partes.push(`${info.agotados} agotado${info.agotados === 1 ? "" : "s"}`);
+        }
+        if (conStockBajo > 0) {
+          partes.push(`${conStockBajo} con stock bajo`);
+        }
+
+        await sendPushToManyUids({
+          uids: adminUids,
+          title: "Recordatorio: repón inventario",
+          body: `${info.nombre}: ${partes.join(" y ")}. Revisa y repón antes de quedarte sin stock.`,
+          data: {
+            type: "recordatorio_stock_bajo",
+            almacenId,
+            bajos: info.bajos,
+            agotados: info.agotados,
+            target: "productos",
+          },
+          androidChannelId: "reminders_channel",
+          logContext: {
+            trigger: "recordatorioStockBajo",
+            almacenId,
+            bajos: info.bajos,
+            agotados: info.agotados,
+            adminsCount: adminUids.length,
+          },
+        });
+
+        logger.info("Recordatorio de stock bajo enviado", {
+          almacenId,
+          bajos: info.bajos,
+          agotados: info.agotados,
+          adminsCount: adminUids.length,
+        });
+      }
+    } catch (error) {
+      logger.error("Error en recordatorioStockBajo", error);
+    }
+  },
+);
+
+/* =========================================================
+ * 8) RECORDATORIO: ENTREGAS PROGRAMADAS PARA HOY (REPARTIDOR)
+ * Trigger: programado, una vez al día (mañana).
+ *
+ * Le avisa a cada repartidor cuántos pedidos tiene asignados
+ * con `fecha_envio` (fecha de entrega programada) dentro del
+ * día de hoy, para que organice su ruta desde temprano.
+ * =======================================================*/
+
+exports.recordatorioRepartidorPedidosHoy = onSchedule(
+  {
+    schedule: "every day 07:00",
+    region: "us-central1",
+    timeZone: "America/La_Paz",
+  },
+  async () => {
+    try {
+      const ahora = new Date();
+      const inicioHoy = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate(), 0, 0, 0);
+      const finHoy = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate(), 23, 59, 59, 999);
+
+      const pedidosSnap = await admin
+        .firestore()
+        .collection("pedidos")
+        .where("fecha_envio", ">=", admin.firestore.Timestamp.fromDate(inicioHoy))
+        .where("fecha_envio", "<=", admin.firestore.Timestamp.fromDate(finHoy))
+        .get();
+
+      const cantidadPorRepartidor = new Map();
+
+      for (const doc of pedidosSnap.docs) {
+        const data = doc.data() || {};
+        const estado = norm(data.estado);
+        if (estado === "entregado" || estado === "cancelado") continue;
+
+        const repartidorUid = String(
+          data.conductorUid || data.repartidorUid || data.driverUid || "",
+        ).trim();
+        if (!repartidorUid) continue;
+
+        cantidadPorRepartidor.set(
+          repartidorUid,
+          (cantidadPorRepartidor.get(repartidorUid) || 0) + 1,
+        );
+      }
+
+      if (!cantidadPorRepartidor.size) {
+        logger.info("recordatorioRepartidorPedidosHoy: nadie tiene entregas programadas para hoy");
+        return;
+      }
+
+      for (const [uid, cantidad] of cantidadPorRepartidor.entries()) {
+        await sendPushToUserByUid({
+          uidDestino: uid,
+          title: "Tus entregas de hoy",
+          body:
+            cantidad === 1
+              ? "Tienes 1 pedido programado para entregar hoy. Organiza tu ruta."
+              : `Tienes ${cantidad} pedidos programados para entregar hoy. Organiza tu ruta.`,
+          data: {
+            type: "recordatorio_entregas_hoy",
+            cantidad,
+            target: "mis_pedidos",
+          },
+          androidChannelId: "reminders_channel",
+          logContext: { trigger: "recordatorioRepartidorPedidosHoy", uid, cantidad },
+        });
+      }
+
+      logger.info("Recordatorio de entregas de hoy enviado", {
+        repartidores: cantidadPorRepartidor.size,
+      });
+    } catch (error) {
+      logger.error("Error en recordatorioRepartidorPedidosHoy", error);
+    }
+  },
+);
+
+/* =========================================================
+ * 9) ALERTA: PEDIDO A PUNTO DE CAER EN RETRASO (REPARTIDOR)
+ * Trigger: programado, cada 30 minutos.
+ *
+ * Cuando faltan ~2 horas para la `fecha_envio` (fecha/hora de
+ * entrega programada) y el pedido todavía no está "Entregado",
+ * se avisa al repartidor asignado para que apure la entrega
+ * antes de que pase a estar retrasado. Una sola vez por pedido
+ * (se marca con alertaRetrasoEnviada).
+ * =======================================================*/
+
+const HORAS_ALERTA_RETRASO = 2;
+
+exports.alertaPedidosPorRetrasarse = onSchedule(
+  {
+    schedule: "every 30 minutes",
+    region: "us-central1",
+    timeZone: "America/La_Paz",
+  },
+  async () => {
+    try {
+      const ahoraMs = Date.now();
+      const limiteFecha = new Date(ahoraMs + HORAS_ALERTA_RETRASO * 60 * 60 * 1000);
+
+      const pedidosSnap = await admin
+        .firestore()
+        .collection("pedidos")
+        .where("fecha_envio", ">=", admin.firestore.Timestamp.fromDate(new Date(ahoraMs)))
+        .where("fecha_envio", "<=", admin.firestore.Timestamp.fromDate(limiteFecha))
+        .get();
+
+      for (const doc of pedidosSnap.docs) {
+        const data = doc.data() || {};
+
+        const estado = norm(data.estado);
+        if (estado === "entregado" || estado === "cancelado") continue;
+        if (data.alertaRetrasoEnviada) continue;
+
+        const repartidorUid = String(
+          data.conductorUid || data.repartidorUid || data.driverUid || "",
+        ).trim();
+        if (!repartidorUid) continue;
+
+        const fechaEnvio = data.fecha_envio?.toDate?.();
+        if (!fechaEnvio) continue;
+
+        const codigoPedido = String(data.codigo || data.codigoPedido || "").trim();
+        const horaTexto = fechaEnvio.toLocaleTimeString("es-BO", {
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+
+        await sendPushToUserByUid({
+          uidDestino: repartidorUid,
+          title: "Pedido a punto de retrasarse",
+          body: codigoPedido
+            ? `El pedido ${codigoPedido} está programado para las ${horaTexto} y aún no se entrega. Apresúrate para no generar un retraso.`
+            : `Tienes una entrega programada para las ${horaTexto} que aún no se completa. Apresúrate para no generar un retraso.`,
+          data: {
+            type: "alerta_pedido_por_retrasarse",
+            pedidoId: doc.id,
+            codigo: codigoPedido,
+            target: "mis_pedidos",
+          },
+          androidChannelId: "reminders_channel",
+          logContext: {
+            trigger: "alertaPedidosPorRetrasarse",
+            pedidoId: doc.id,
+            repartidorUid,
+            codigoPedido,
+          },
+        });
+
+        await doc.ref.set(
+          { alertaRetrasoEnviada: admin.firestore.FieldValue.serverTimestamp() },
+          { merge: true },
+        );
+
+        logger.info("Alerta de pedido por retrasarse enviada", {
+          pedidoId: doc.id,
+          repartidorUid,
+          codigoPedido,
+        });
+      }
+    } catch (error) {
+      logger.error("Error en alertaPedidosPorRetrasarse", error);
+    }
+  },
+);
+
+/* =========================================================
+ * 10) RECORDATORIO: CARRITO ABANDONADO (CLIENTE)
+ * Trigger: programado, una vez al día (tarde).
+ *
+ * Si un cliente dejó productos en `usuarios/{uid}/carrito`
+ * sin moverlos por varias horas, se le recuerda completar la
+ * compra. Solo se vuelve a avisar si tocó el carrito de nuevo
+ * después del último aviso (carritoRecordatorioEnviadoAt), para
+ * no ser invasivos.
+ * =======================================================*/
+
+const HORAS_CARRITO_ABANDONADO = 6;
+
+function esRolCliente(rolRaw) {
+  const rol = norm(rolRaw);
+  if (!rol) return true;
+  if (rol === "admin") return false;
+  if (rol.includes("repartidor") || rol.includes("delivery") || rol === "driver") return false;
+  return true;
+}
+
+exports.recordatorioCarritoAbandonado = onSchedule(
+  {
+    schedule: "every day 18:00",
+    region: "us-central1",
+    timeZone: "America/La_Paz",
+  },
+  async () => {
+    try {
+      const ahoraMs = Date.now();
+      const limiteMs = HORAS_CARRITO_ABANDONADO * 60 * 60 * 1000;
+
+      const usuariosSnap = await admin.firestore().collection("usuarios").get();
+
+      for (const userDoc of usuariosSnap.docs) {
+        const userData = userDoc.data() || {};
+        if (!esRolCliente(userData.rol || userData.role)) continue;
+
+        const carritoSnap = await userDoc.ref.collection("carrito").get();
+        if (carritoSnap.empty) continue;
+
+        let masReciente = null;
+        for (const item of carritoSnap.docs) {
+          const updatedAt = (item.data() || {}).updatedAt?.toDate?.();
+          if (updatedAt && (!masReciente || updatedAt > masReciente)) {
+            masReciente = updatedAt;
+          }
+        }
+        if (!masReciente || ahoraMs - masReciente.getTime() < limiteMs) continue;
+
+        const ultimoAviso = userData.carritoRecordatorioEnviadoAt?.toDate?.();
+        if (ultimoAviso && masReciente <= ultimoAviso) continue;
+
+        const cantidad = carritoSnap.size;
+
+        await sendPushToUserByUid({
+          uidDestino: userDoc.id,
+          title: "Tienes productos esperando en tu carrito",
+          body:
+            cantidad === 1
+              ? "Dejaste 1 producto en tu carrito. Complétalo antes de que se agote."
+              : `Dejaste ${cantidad} productos en tu carrito. Complétalo antes de que se agoten.`,
+          data: {
+            type: "recordatorio_carrito_abandonado",
+            cantidad,
+            target: "carrito",
+          },
+          androidChannelId: "reminders_channel",
+          logContext: { trigger: "recordatorioCarritoAbandonado", uid: userDoc.id, cantidad },
+        });
+
+        await userDoc.ref.set(
+          { carritoRecordatorioEnviadoAt: admin.firestore.FieldValue.serverTimestamp() },
+          { merge: true },
+        );
+
+        logger.info("Recordatorio de carrito abandonado enviado", {
+          uid: userDoc.id,
+          cantidad,
+        });
+      }
+    } catch (error) {
+      logger.error("Error en recordatorioCarritoAbandonado", error);
+    }
+  },
+);
+
+/* =========================================================
  * RECUPERACIÓN DE CONTRASEÑA
  *
  * Configura el correo remitente con variables de entorno:
@@ -894,10 +1398,16 @@ exports.verificarYResetear = onCall(
       throw new HttpsError("invalid-argument", "Datos incompletos");
     }
 
-    if (newPassword.length < 6) {
+    // ✅ Defensa en profundidad: la app ya valida esto en el formulario,
+    // pero igual lo exigimos aquí por si alguien llama la función directo.
+    if (
+      newPassword.length < 8 ||
+      !/[A-Z]/.test(newPassword) ||
+      !/[0-9]/.test(newPassword)
+    ) {
       throw new HttpsError(
         "invalid-argument",
-        "La contraseña debe tener al menos 6 caracteres",
+        "La contraseña debe tener al menos 8 caracteres, una mayúscula y un número",
       );
     }
 

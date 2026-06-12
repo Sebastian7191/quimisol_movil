@@ -14,14 +14,21 @@ class PedidosController {
   }
 
   // Filtro principal
+  // adminDepto: si es null → superadmin (ve todo); si tiene valor → solo ese dpto.
   List<PedidoRow> filterPedidos({
     required List<PedidoRow> pedidos,
     required String query,
     required String estado,
+    String? adminDepto,
   }) {
     final q = query.trim().toLowerCase();
+    final deptoFilter = adminDepto?.trim().toLowerCase();
 
     return pedidos.where((p) {
+      // ✅ Restricción por departamento del admin (superadmin ve todo)
+      if (deptoFilter != null && deptoFilter.isNotEmpty) {
+        if (p.departamento.trim().toLowerCase() != deptoFilter) return false;
+      }
       // ✅ p.estado viene crudo de Firestore (ej. "entregado"); hay que
       // normalizarlo al estado canónico (ej. "Entregado") antes de comparar.
       if (estado != 'Todos' && normalizeEstado(p.estado) != estado) return false;

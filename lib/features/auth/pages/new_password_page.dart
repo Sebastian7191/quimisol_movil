@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 import 'package:quimisol_movil/core/services/notifications/fcm_token_service.dart';
 import 'package:quimisol_movil/core/theme/palette.dart';
+import 'package:quimisol_movil/core/utils/form_validators.dart';
 import 'package:quimisol_movil/shared/buttons/app_button.dart';
 import 'package:quimisol_movil/shared/services/auth_service.dart';
 import 'package:quimisol_movil/shared/stores/guest_store.dart';
@@ -12,17 +13,14 @@ class NewPasswordPage extends StatefulWidget {
   final String email;
   final String code;
 
-  const NewPasswordPage({
-    super.key,
-    required this.email,
-    required this.code,
-  });
+  const NewPasswordPage({super.key, required this.email, required this.code});
 
   @override
   State<NewPasswordPage> createState() => _NewPasswordPageState();
 }
 
 class _NewPasswordPageState extends State<NewPasswordPage> {
+  final _formKey = GlobalKey<FormState>();
   final _passwordCtrl = TextEditingController();
   final _confirmCtrl = TextEditingController();
   bool _obscurePassword = true;
@@ -45,21 +43,17 @@ class _NewPasswordPageState extends State<NewPasswordPage> {
   }
 
   Future<void> _changePassword() async {
-    final password = _passwordCtrl.text;
-    final confirm = _confirmCtrl.text;
+    if (!_formKey.currentState!.validate()) return;
 
-    if (password.length < 6) {
-      _showError('La contraseña debe tener al menos 6 caracteres');
-      return;
-    }
-    if (password != confirm) {
-      _showError('Las contraseñas no coinciden');
-      return;
-    }
+    final password = _passwordCtrl.text;
 
     setState(() => _isLoading = true);
     try {
-      await _authService.resetPasswordWithCode(widget.email, widget.code, password);
+      await _authService.resetPasswordWithCode(
+        widget.email,
+        widget.code,
+        password,
+      );
       await FcmTokenService.upsertCurrentTokenForCurrentUser();
       FcmTokenService.listenTokenRefreshForCurrentUser();
       if (!mounted) return;
@@ -96,7 +90,9 @@ class _NewPasswordPageState extends State<NewPasswordPage> {
 
   String _friendlyError(String error) {
     final msg = error.toLowerCase();
-    if (msg.contains('expirado') || msg.contains('expired') || msg.contains('deadline')) {
+    if (msg.contains('expirado') ||
+        msg.contains('expired') ||
+        msg.contains('deadline')) {
       return 'El código ha expirado. Vuelve a iniciar el proceso.';
     }
     if (msg.contains('utilizado') || msg.contains('precondition')) {
@@ -105,8 +101,10 @@ class _NewPasswordPageState extends State<NewPasswordPage> {
     if (msg.contains('incorrecto') || msg.contains('invalid-argument')) {
       return 'Código incorrecto. Vuelve al paso anterior.';
     }
-    if (msg.contains('6 caracteres')) {
-      return 'La contraseña debe tener al menos 6 caracteres.';
+    if (msg.contains('caracteres') ||
+        msg.contains('mayúscula') ||
+        msg.contains('número')) {
+      return passwordRequirementsHint;
     }
     return 'No se pudo cambiar la contraseña. Intenta nuevamente.';
   }
@@ -167,89 +165,113 @@ class _NewPasswordPageState extends State<NewPasswordPage> {
               ),
               child: Center(
                 child: RoundedCard(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: IconButton(
-                          onPressed: () => Navigator.of(context).pop(),
-                          icon: const Icon(
-                            Icons.arrow_back_ios_new_rounded,
-                            color: Palette.primary,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      const Icon(
-                        Icons.lock_outlined,
-                        size: 56,
-                        color: Palette.primary,
-                      ),
-                      const SizedBox(height: 16),
-                      const Text(
-                        'Nueva contraseña',
-                        style: TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.w800,
-                          color: Palette.ink,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      const Text(
-                        'Ingresa y confirma tu nueva contraseña.',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(color: Colors.black54, fontSize: 14),
-                      ),
-                      const SizedBox(height: 28),
-                      TextFormField(
-                        controller: _passwordCtrl,
-                        obscureText: _obscurePassword,
-                        textInputAction: TextInputAction.next,
-                        decoration: _pillDecoration(
-                          hint: 'Nueva contraseña',
-                          icon: Icons.lock,
-                          suffixIcon: IconButton(
-                            onPressed: () => setState(
-                              () => _obscurePassword = !_obscurePassword,
-                            ),
-                            icon: Icon(
-                              _obscurePassword
-                                  ? Icons.visibility_rounded
-                                  : Icons.visibility_off_rounded,
+                  child: Form(
+                    key: _formKey,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: IconButton(
+                            onPressed: () => Navigator.of(context).pop(),
+                            icon: const Icon(
+                              Icons.arrow_back_ios_new_rounded,
+                              color: Palette.primary,
                             ),
                           ),
                         ),
-                      ),
-                      const SizedBox(height: 16),
-                      TextFormField(
-                        controller: _confirmCtrl,
-                        obscureText: _obscureConfirm,
-                        textInputAction: TextInputAction.done,
-                        onFieldSubmitted: (_) =>
-                            _isLoading ? null : _changePassword(),
-                        decoration: _pillDecoration(
-                          hint: 'Confirmar contraseña',
-                          icon: Icons.lock_outline,
-                          suffixIcon: IconButton(
-                            onPressed: () => setState(
-                              () => _obscureConfirm = !_obscureConfirm,
+                        const SizedBox(height: 8),
+                        const Icon(
+                          Icons.lock_outlined,
+                          size: 56,
+                          color: Palette.primary,
+                        ),
+                        const SizedBox(height: 16),
+                        const Text(
+                          'Nueva contraseña',
+                          style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w800,
+                            color: Palette.ink,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        const Text(
+                          'Ingresa y confirma tu nueva contraseña.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: Colors.black54, fontSize: 14),
+                        ),
+                        const SizedBox(height: 28),
+                        TextFormField(
+                          controller: _passwordCtrl,
+                          obscureText: _obscurePassword,
+                          textInputAction: TextInputAction.next,
+                          inputFormatters: passwordInputFormatters,
+                          decoration: _pillDecoration(
+                            hint: 'Nueva contraseña',
+                            icon: Icons.lock,
+                            suffixIcon: IconButton(
+                              onPressed: () => setState(
+                                () => _obscurePassword = !_obscurePassword,
+                              ),
+                              icon: Icon(
+                                _obscurePassword
+                                    ? Icons.visibility_rounded
+                                    : Icons.visibility_off_rounded,
+                              ),
                             ),
-                            icon: Icon(
-                              _obscureConfirm
-                                  ? Icons.visibility_rounded
-                                  : Icons.visibility_off_rounded,
+                          ),
+                          validator: validateNewPassword,
+                        ),
+                        const SizedBox(height: 6),
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: Padding(
+                            padding: const EdgeInsets.only(left: 18),
+                            child: Text(
+                              passwordRequirementsHint,
+                              style: TextStyle(
+                                color: Palette.ink.withValues(alpha: 0.55),
+                                fontSize: 12,
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                      const SizedBox(height: 28),
-                      AppButton(
-                        label: 'CAMBIAR CONTRASEÑA',
-                        isLoading: _isLoading,
-                        onPressed: _isLoading ? null : _changePassword,
-                      ),
-                    ],
+                        const SizedBox(height: 16),
+                        TextFormField(
+                          controller: _confirmCtrl,
+                          obscureText: _obscureConfirm,
+                          textInputAction: TextInputAction.done,
+                          inputFormatters: passwordInputFormatters,
+                          onFieldSubmitted: (_) =>
+                              _isLoading ? null : _changePassword(),
+                          decoration: _pillDecoration(
+                            hint: 'Confirmar contraseña',
+                            icon: Icons.lock_outline,
+                            suffixIcon: IconButton(
+                              onPressed: () => setState(
+                                () => _obscureConfirm = !_obscureConfirm,
+                              ),
+                              icon: Icon(
+                                _obscureConfirm
+                                    ? Icons.visibility_rounded
+                                    : Icons.visibility_off_rounded,
+                              ),
+                            ),
+                          ),
+                          validator: (value) => validatePasswordConfirmation(
+                            value,
+                            _passwordCtrl.text,
+                          ),
+                        ),
+                        const SizedBox(height: 28),
+                        AppButton(
+                          label: 'CAMBIAR CONTRASEÑA',
+                          isLoading: _isLoading,
+                          onPressed: _isLoading ? null : _changePassword,
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),

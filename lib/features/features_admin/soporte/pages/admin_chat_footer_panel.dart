@@ -173,15 +173,18 @@ class _AdminChatFooterPanelState extends State<AdminChatFooterPanel>
           child: AnimatedSize(
             duration: const Duration(milliseconds: 340),
             curve: Curves.easeInOutCubicEmphasized,
-            alignment: Alignment.bottomLeft,
+            alignment: Alignment.topRight,
             child: Column(
               mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              // ✅ Anclado arriba-derecha: el botón queda arriba y el panel
+              // de chat se despliega hacia abajo (invertimos el orden visual).
+              verticalDirection: VerticalDirection.up,
               children: [
                 AnimatedSize(
                   duration: const Duration(milliseconds: 340),
                   curve: Curves.easeInOutCubicEmphasized,
-                  alignment: Alignment.bottomLeft,
+                  alignment: Alignment.topRight,
                   child: _open
                       ? TweenAnimationBuilder<double>(
                           key: const ValueKey('chat_panel_tween'),
@@ -197,7 +200,7 @@ class _AdminChatFooterPanelState extends State<AdminChatFooterPanel>
                               child: Transform.translate(
                                 offset: Offset(0, translateY),
                                 child: Transform.scale(
-                                  alignment: Alignment.bottomLeft,
+                                  alignment: Alignment.topRight,
                                   scale: scale,
                                   child: child,
                                 ),
@@ -207,7 +210,7 @@ class _AdminChatFooterPanelState extends State<AdminChatFooterPanel>
                           child: Container(
                             width: panelWidth,
                             constraints: BoxConstraints(maxHeight: panelMaxHeight),
-                            margin: const EdgeInsets.only(bottom: 10),
+                            margin: const EdgeInsets.only(top: 10),
                             decoration: BoxDecoration(
                               color: Palette.white,
                               borderRadius: BorderRadius.circular(18),
@@ -362,7 +365,7 @@ class _AdminChatFooterPanelState extends State<AdminChatFooterPanel>
                             duration: const Duration(milliseconds: 220),
                             curve: Curves.easeInOut,
                             child: const Icon(
-                              Icons.keyboard_arrow_up_rounded,
+                              Icons.keyboard_arrow_down_rounded,
                               color: Colors.white,
                               size: 20,
                             ),

@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:quimisol_movil/core/constants/pedido_estado.dart';
 import 'package:quimisol_movil/core/theme/palette.dart';
+import 'package:quimisol_movil/shared/widgets/pagination_bar.dart';
 
 import '../controllers/pedidos_controller.dart';
 import 'detalle_pedido.dart';
@@ -12,7 +13,10 @@ import 'widgets/micro_widgets.dart';
 import 'widgets/stagger_in.dart';
 
 class PedidosEntregadosPage extends StatefulWidget {
-  const PedidosEntregadosPage({super.key});
+  const PedidosEntregadosPage({super.key, this.adminDepto});
+
+  // null = superadmin (ve todo); String = solo ese departamento
+  final String? adminDepto;
 
   @override
   State<PedidosEntregadosPage> createState() => _PedidosEntregadosPageState();
@@ -21,6 +25,10 @@ class PedidosEntregadosPage extends StatefulWidget {
 class _PedidosEntregadosPageState extends State<PedidosEntregadosPage> {
   final _searchCtrl = TextEditingController();
   String _q = '';
+
+  // Paginación para no deslizar infinitamente la lista de entregados.
+  static const int _pageSize = 8;
+  int _page = 0;
 
   final controller = PedidosController();
 
@@ -31,7 +39,10 @@ class _PedidosEntregadosPageState extends State<PedidosEntregadosPage> {
     _searchCtrl.addListener(() {
       final v = _searchCtrl.text.trim();
       if (v == _q) return;
-      setState(() => _q = v);
+      setState(() {
+        _q = v;
+        _page = 0;
+      });
     });
   }
 
@@ -88,6 +99,7 @@ class _PedidosEntregadosPageState extends State<PedidosEntregadosPage> {
                       pedidos: pedidos,
                       query: _q,
                       estado: kEstadoEntregado,
+                      adminDepto: widget.adminDepto,
                     );
 
                     if (filtered.isEmpty) {
@@ -97,7 +109,12 @@ class _PedidosEntregadosPageState extends State<PedidosEntregadosPage> {
                       );
                     }
 
-                    final sections = controller.groupByDepartamento(filtered);
+                    final totalPages = pageCountFor(filtered.length, _pageSize);
+                    final page = _page.clamp(0, totalPages - 1);
+                    final pageItems = paginate(filtered, page, _pageSize);
+                    final sections =
+                        controller.groupByDepartamento(pageItems);
+                    final showPager = filtered.length > _pageSize;
 
                     return SliverPadding(
                       padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
@@ -122,6 +139,21 @@ class _PedidosEntregadosPageState extends State<PedidosEntregadosPage> {
                                     if (!compact)
                                       const HintPill(text: 'Toca un pedido para ver detalle'),
                                   ],
+                                ),
+                              );
+                            }
+
+                            if (showPager && i == sections.length + 1) {
+                              return Padding(
+                                padding:
+                                    const EdgeInsets.only(top: 4, bottom: 8),
+                                child: PaginationBar(
+                                  currentPage: page,
+                                  totalItems: filtered.length,
+                                  pageSize: _pageSize,
+                                  itemLabel: 'pedidos',
+                                  onPageChanged: (p) =>
+                                      setState(() => _page = p),
                                 ),
                               );
                             }
@@ -157,7 +189,8 @@ class _PedidosEntregadosPageState extends State<PedidosEntregadosPage> {
                               ),
                             );
                           },
-                          childCount: sections.length + 1,
+                          childCount:
+                              sections.length + 1 + (showPager ? 1 : 0),
                         ),
                       ),
                     );

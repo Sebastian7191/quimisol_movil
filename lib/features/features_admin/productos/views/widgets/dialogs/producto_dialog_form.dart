@@ -119,8 +119,9 @@ class ProductoDialogForm extends StatelessWidget {
 
                         if (snap.connectionState == ConnectionState.waiting) {
                           return DropdownButtonFormField<String?>(
+                            key: const ValueKey('cat-loading'),
                             isExpanded: true,
-                            initialValue: controller.categoriaId,
+                            initialValue: null,
                             items: const [],
                             onChanged: null,
                             decoration: ProductoDialogUI.decor(
@@ -168,17 +169,52 @@ class ProductoDialogForm extends StatelessWidget {
                           );
                         }
 
-                        final existsSelected =
+                        // ✅ 1) intenta por id
+                        final existsById =
                             controller.categoriaId != null &&
                             categorias.any(
                               (c) => c['id'] == controller.categoriaId,
                             );
 
-                        final selectedId = existsSelected
-                            ? controller.categoriaId
-                            : null;
+                        String? selectedId =
+                            existsById ? controller.categoriaId : null;
+
+                        // ✅ 2) fallback por nombre (productos antiguos/migrados
+                        //    cuyo categoriaId quedó vacío o no coincide, pero
+                        //    sí tienen categoriaNombre).
+                        if (selectedId == null) {
+                          final nombreActual =
+                              (controller.categoriaNombre ?? '')
+                                  .trim()
+                                  .toLowerCase();
+
+                          if (nombreActual.isNotEmpty) {
+                            final match = categorias.firstWhere(
+                              (c) =>
+                                  (c['nombre'] as String).toLowerCase() ==
+                                  nombreActual,
+                              orElse: () => const <String, String>{},
+                            );
+
+                            if (match.isNotEmpty) {
+                              selectedId = match['id'] as String;
+
+                              // sincroniza el id correcto al controller para que
+                              // al guardar no se pierda la categoría.
+                              WidgetsBinding.instance.addPostFrameCallback((_) {
+                                if (controller.categoriaId != selectedId) {
+                                  controller.setCategoria(
+                                    selectedId,
+                                    match['nombre'] as String,
+                                  );
+                                }
+                              });
+                            }
+                          }
+                        }
 
                         return DropdownButtonFormField<String?>(
+                          key: ValueKey('cat-$selectedId'),
                           isExpanded: true,
                           initialValue: selectedId,
                           items: [

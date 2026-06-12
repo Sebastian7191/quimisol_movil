@@ -133,15 +133,14 @@ class _ConductorPerfilFormPageState extends State<ConductorPerfilFormPage> {
     try {
       final name = _nameCtrl.text.trim();
       final phone = _phoneCtrl.text.trim();
-      final email = _emailCtrl.text.trim();
       final finalPhotoUrl = await _uploadPhotoIfNeeded();
 
+      // ✅ El correo NO se actualiza aquí: es de solo lectura en el perfil.
       await _fire.collection('usuarios').doc(_uid).set({
         'name': name,
         'nombre': name,
         'telefono': phone,
         'phone': phone,
-        'email': email,
         'photo': finalPhotoUrl,
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
@@ -452,22 +451,13 @@ class _ConductorPerfilFormPageState extends State<ConductorPerfilFormPage> {
                                   const SizedBox(height: 16),
                                   const _LabelText(label: 'Correo'),
                                   const SizedBox(height: 8),
-                                  _InputField(
-                                    controller: _emailCtrl,
-                                    hint: 'Ej. correo@gmail.com',
+                                  // ✅ El correo se muestra pero no se puede
+                                  // editar (lo gestiona la cuenta, no el perfil).
+                                  _ReadOnlyField(
+                                    value: _emailCtrl.text.isEmpty
+                                        ? 'No registrado'
+                                        : _emailCtrl.text,
                                     prefixIcon: Icons.mail_outline_rounded,
-                                    keyboardType: TextInputType.emailAddress,
-                                    textInputAction: TextInputAction.done,
-                                    validator: (v) {
-                                      final value = (v ?? '').trim();
-                                      if (value.isEmpty) {
-                                        return 'Ingresa tu correo';
-                                      }
-                                      if (!value.contains('@')) {
-                                        return 'Correo no válido';
-                                      }
-                                      return null;
-                                    },
                                   ),
                                 ],
                               ),
@@ -575,6 +565,47 @@ class _LabelText extends StatelessWidget {
         color: Palette.ink.withOpacity(0.78),
         fontWeight: FontWeight.w800,
         fontSize: 13.5,
+      ),
+    );
+  }
+}
+
+class _ReadOnlyField extends StatelessWidget {
+  const _ReadOnlyField({required this.value, this.prefixIcon});
+  final String value;
+  final IconData? prefixIcon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 15),
+      decoration: BoxDecoration(
+        color: Palette.fieldBg,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: Palette.ink.withOpacity(0.06),
+        ),
+      ),
+      child: Row(
+        children: [
+          if (prefixIcon != null) ...[
+            Icon(prefixIcon, size: 20, color: Palette.ink.withOpacity(0.45)),
+            const SizedBox(width: 10),
+          ],
+          Expanded(
+            child: Text(
+              value,
+              style: TextStyle(
+                color: Palette.ink.withOpacity(0.7),
+                fontWeight: FontWeight.w800,
+                fontSize: 14.5,
+              ),
+            ),
+          ),
+          Icon(Icons.lock_outline_rounded,
+              size: 16, color: Palette.ink.withOpacity(0.3)),
+        ],
       ),
     );
   }

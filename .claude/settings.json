@@ -3,7 +3,11 @@
     "allow": [
       "Bash(dir /b)",
       "Bash(git stash *)",
-      "Bash(xargs grep -l \"Dio\\\\|HttpClient\\\\|http.Client\\\\|http.post\\\\|http.get\")"
+      "Bash(xargs grep -l \"Dio\\\\|HttpClient\\\\|http.Client\\\\|http.post\\\\|http.get\")",
+      "Bash(node -c index.js)",
+      "Bash(npx --no-install eslint index.js)",
+      "Bash(dart format *)",
+      "Bash(awk '{printf \"%6d KB  %s\\\\n\", $1/1024, $2}')"
     ]
   }
 }

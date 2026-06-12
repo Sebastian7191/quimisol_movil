@@ -15,7 +15,6 @@ import 'package:quimisol_movil/core/theme/palette.dart';
 import 'package:quimisol_movil/features/features_admin/almacenes/views/almacenes.dart';
 import 'package:quimisol_movil/features/features_admin/banners/views/banners.dart';
 import 'package:quimisol_movil/features/features_admin/categorias/views/categorias.dart';
-import 'package:quimisol_movil/features/features_admin/home/views/dashboard_page.dart';
 import 'package:quimisol_movil/features/features_admin/laboratorios/pages/lista_laboratorios.dart';
 import 'package:quimisol_movil/features/features_admin/pagos/pages/pagos.dart';
 import 'package:quimisol_movil/features/features_admin/pedidos/views/pedidos.dart';
@@ -48,11 +47,6 @@ class _SidebarShellPageState extends State<SidebarShellPage> {
 
   List<_SideItem> get _items {
     final baseItems = <_SideItem>[
-      const _SideItem(
-        icon: Icons.dashboard_rounded,
-        label: 'Dashboard',
-        route: '/admin/dashboard',
-      ),
       const _SideItem(
         icon: Icons.people_alt_rounded,
         label: 'Usuarios',
@@ -118,7 +112,6 @@ class _SidebarShellPageState extends State<SidebarShellPage> {
 
   List<Widget> get _pages {
     final basePages = <Widget>[
-      const DashboardPage(),
       const UsuariosPage(),
     ];
 
@@ -217,8 +210,8 @@ class _SidebarShellPageState extends State<SidebarShellPage> {
       final isAllowed = allowedRoutes.any((route) => currentPath.startsWith(route));
 
       if (!isAllowed) {
-        Modular.to.navigate('/admin/dashboard');
-        _syncIndexWithPath('/admin/dashboard');
+        Modular.to.navigate('/admin/usuarios');
+        _syncIndexWithPath('/admin/usuarios');
       }
     } catch (_) {
       if (!mounted) return;
@@ -294,8 +287,8 @@ class _SidebarShellPageState extends State<SidebarShellPage> {
       final p = Modular.to.path;
 
       if (p == '/' || p.isEmpty || p == '/admin' || p == '/admin/') {
-        Modular.to.navigate('/admin/dashboard');
-        _syncIndexWithPath('/admin/dashboard');
+        Modular.to.navigate('/admin/usuarios');
+        _syncIndexWithPath('/admin/usuarios');
       } else {
         _syncIndexWithPath(p);
       }
@@ -356,8 +349,8 @@ class _SidebarShellPageState extends State<SidebarShellPage> {
               ),
             ),
             Positioned(
-              left: isMobile ? 10 : 18,
-              bottom: isMobile ? 30 : 16,
+              right: isMobile ? 10 : 18,
+              top: isMobile ? 10 : 16,
               child: const AdminChatFooterPanel(),
             ),
           ],

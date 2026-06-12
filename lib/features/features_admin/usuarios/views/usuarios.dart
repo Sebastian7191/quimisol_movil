@@ -5,6 +5,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:quimisol_movil/core/theme/palette.dart';
 import 'package:quimisol_movil/features/features_admin/usuarios/views/widgets/dialog/users_dialog.dart';
+import 'package:quimisol_movil/shared/widgets/pagination_bar.dart';
 
 import '../controllers/usuarios_controller.dart';
 import '../data/almacen_row.dart';
@@ -24,6 +25,10 @@ class _UsuariosPageState extends State<UsuariosPage>
   final controller = UsuariosController();
   late final AnimationController _bgCtrl;
 
+  // Paginación: evita el scroll infinito mostrando los usuarios por páginas.
+  static const int _pageSize = 8;
+  int _page = 0;
+
   @override
   void initState() {
     super.initState();
@@ -33,7 +38,8 @@ class _UsuariosPageState extends State<UsuariosPage>
       duration: const Duration(milliseconds: 2600),
     )..repeat(reverse: true);
 
-    controller.searchCtrl.addListener(() => setState(() {}));
+    // Al buscar, volvemos a la primera página para no quedar en una vacía.
+    controller.searchCtrl.addListener(() => setState(() => _page = 0));
   }
 
   @override
@@ -58,7 +64,10 @@ class _UsuariosPageState extends State<UsuariosPage>
             bgCtrl: _bgCtrl,
             searchCtrl: controller.searchCtrl,
             roleFilter: controller.roleFilter,
-            onRoleFilter: (v) => setState(() => controller.roleFilter = v),
+            onRoleFilter: (v) => setState(() {
+              controller.roleFilter = v;
+              _page = 0;
+            }),
           ),
           Expanded(
             child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
@@ -82,6 +91,10 @@ class _UsuariosPageState extends State<UsuariosPage>
                   controller.searchCtrl.text.trim(),
                   controller.roleFilter,
                 );
+
+                final totalPages = pageCountFor(users.length, _pageSize);
+                final page = _page.clamp(0, totalPages - 1);
+                final pageUsers = paginate(users, page, _pageSize);
 
                 return Column(
                   children: [
@@ -141,9 +154,9 @@ class _UsuariosPageState extends State<UsuariosPage>
                             )
                           : ListView.builder(
                               padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                              itemCount: users.length,
+                              itemCount: pageUsers.length,
                               itemBuilder: (_, i) {
-                                final u = users[i];
+                                final u = pageUsers[i];
                                 final delay = math.min(380, i * 22);
 
                                 return _StaggerIn(
@@ -164,6 +177,17 @@ class _UsuariosPageState extends State<UsuariosPage>
                               },
                             ),
                     ),
+                    if (users.length > _pageSize)
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                        child: PaginationBar(
+                          currentPage: page,
+                          totalItems: users.length,
+                          pageSize: _pageSize,
+                          itemLabel: 'usuarios',
+                          onPageChanged: (p) => setState(() => _page = p),
+                        ),
+                      ),
                   ],
                 );
               },
@@ -391,7 +415,6 @@ class _RoleFilterMini extends StatelessWidget {
           onChanged: (v) => onChanged(v ?? 'Todos'),
           selectedItemBuilder: (_) => const [
             Center(child: Text('Todos')),
-            Center(child: Text('Superadmin')),
             Center(child: Text('Admin')),
             Center(child: Text('Cliente')),
             Center(child: Text('Cliente Mayorista')),
@@ -402,13 +425,6 @@ class _RoleFilterMini extends StatelessWidget {
               value: 'Todos',
               child: Text(
                 'Todos',
-                style: TextStyle(color: ink, fontWeight: FontWeight.w900),
-              ),
-            ),
-            DropdownMenuItem(
-              value: 'superadmin',
-              child: Text(
-                'Superadmin',
                 style: TextStyle(color: ink, fontWeight: FontWeight.w900),
               ),
             ),

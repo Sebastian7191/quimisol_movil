@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:quimisol_movil/core/theme/palette.dart';
 import 'package:quimisol_movil/features/features_admin/laboratorios/pages/laboratorios_forms_switch_page.dart';
+import 'package:quimisol_movil/shared/widgets/pagination_bar.dart';
 
 class LaboratoriosPage extends StatefulWidget {
   const LaboratoriosPage({super.key});
@@ -12,6 +13,10 @@ class LaboratoriosPage extends StatefulWidget {
 
 class _LaboratoriosPageState extends State<LaboratoriosPage> {
   final TextEditingController _searchCtrl = TextEditingController();
+
+  // Paginación para no deslizar infinitamente la lista de laboratorios.
+  static const int _pageSize = 8;
+  int _page = 0;
 
   final CollectionReference<Map<String, dynamic>> _laboratoriosRef =
       FirebaseFirestore.instance.collection('laboratorios');
@@ -220,7 +225,7 @@ class _LaboratoriosPageState extends State<LaboratoriosPage> {
                     ),
                     child: TextField(
                       controller: _searchCtrl,
-                      onChanged: (_) => setState(() {}),
+                      onChanged: (_) => setState(() => _page = 0),
                       decoration: InputDecoration(
                         isDense: true,
                         hintText: 'Buscar por ID...',
@@ -301,9 +306,33 @@ class _LaboratoriosPageState extends State<LaboratoriosPage> {
                             );
                           }
 
-                          return isMobile
-                              ? _buildMobileList(data)
-                              : _buildDesktopTable(data);
+                          final totalPages =
+                              pageCountFor(data.length, _pageSize);
+                          final page = _page.clamp(0, totalPages - 1);
+                          final pageItems = paginate(data, page, _pageSize);
+
+                          return Column(
+                            children: [
+                              Expanded(
+                                child: isMobile
+                                    ? _buildMobileList(pageItems)
+                                    : _buildDesktopTable(pageItems),
+                              ),
+                              if (data.length > _pageSize)
+                                Padding(
+                                  padding: const EdgeInsets.fromLTRB(
+                                      12, 4, 12, 10),
+                                  child: PaginationBar(
+                                    currentPage: page,
+                                    totalItems: data.length,
+                                    pageSize: _pageSize,
+                                    itemLabel: 'laboratorios',
+                                    onPageChanged: (p) =>
+                                        setState(() => _page = p),
+                                  ),
+                                ),
+                            ],
+                          );
                         },
                       ),
                     ),

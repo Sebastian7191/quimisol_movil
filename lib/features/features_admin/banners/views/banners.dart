@@ -5,6 +5,7 @@ import 'package:quimisol_movil/core/theme/palette.dart';
 import 'package:quimisol_movil/features/features_admin/banners/widgets/dialog/banner_dialog.dart';
 import 'package:quimisol_movil/features/features_admin/banners/widgets/dialog/form_result.dart';
 import 'package:quimisol_movil/shared/dialogs/delete_dialog.dart';
+import 'package:quimisol_movil/shared/widgets/pagination_bar.dart';
 
 
 
@@ -25,10 +26,14 @@ class BannersPage extends StatefulWidget {
 class _BannersPageState extends State<BannersPage> {
   final controller = BannersController();
 
+  // Paginación para no deslizar infinitamente la grilla de banners.
+  static const int _pageSize = 8;
+  int _page = 0;
+
   @override
   void initState() {
     super.initState();
-    controller.searchCtrl.addListener(() => setState(() {}));
+    controller.searchCtrl.addListener(() => setState(() => _page = 0));
   }
 
   @override
@@ -369,7 +374,14 @@ class _BannersPageState extends State<BannersPage> {
                       );
                     }
 
-                    return Container(
+                    final totalPages = pageCountFor(items.length, _pageSize);
+                    final page = _page.clamp(0, totalPages - 1);
+                    final pageItems = paginate(items, page, _pageSize);
+
+                    return Column(
+                      children: [
+                        Expanded(
+                          child: Container(
                       decoration: BoxDecoration(
                         color: Palette.white,
                         borderRadius: BorderRadius.circular(18),
@@ -398,9 +410,9 @@ class _BannersPageState extends State<BannersPage> {
                                       mainAxisSpacing: 14,
                                       childAspectRatio: 2.65,
                                     ),
-                              itemCount: items.length,
+                              itemCount: pageItems.length,
                               itemBuilder: (_, i) {
-                                final r = items[i];
+                                final r = pageItems[i];
                                 final docId = r['docId'] as String;
                                 final titulo = (r['titulo'] ?? '').toString();
 
@@ -420,6 +432,20 @@ class _BannersPageState extends State<BannersPage> {
                           },
                         ),
                       ),
+                          ),
+                        ),
+                        if (items.length > _pageSize)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 10, bottom: 4),
+                            child: PaginationBar(
+                              currentPage: page,
+                              totalItems: items.length,
+                              pageSize: _pageSize,
+                              itemLabel: 'banners',
+                              onPageChanged: (p) => setState(() => _page = p),
+                            ),
+                          ),
+                      ],
                     );
                   },
                 ),

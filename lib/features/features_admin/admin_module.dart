@@ -6,7 +6,6 @@ class AdminModule extends Module {
   @override
   void routes(RouteManager r) {
     r.child('/', child: (_) => const SidebarShellPage());
-    r.child('/dashboard', child: (_) => const SidebarShellPage());
     r.child('/usuarios', child: (_) => const SidebarShellPage());
     r.child('/almacenes', child: (_) => const SidebarShellPage());
     r.child('/almacenes/:id', child: (_) => const SidebarShellPage());

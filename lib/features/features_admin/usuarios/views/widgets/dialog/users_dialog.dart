@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'package:quimisol_movil/core/theme/palette.dart';
 import 'package:quimisol_movil/features/features_admin/usuarios/controllers/usuarios_controller.dart';
@@ -134,10 +135,25 @@ class _UsersDetailsSheetState extends State<_UsersDetailsSheet> {
   Future<void> _saveNit() async {
     if (_savingNit) return;
 
+    final nit = _nitCtrl.text.trim();
+    if (nit.length < 15 || nit.length > 20) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('El NIT debe tener entre 15 y 20 números.'),
+          backgroundColor: Colors.redAccent,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      );
+      return;
+    }
+
     setState(() => _savingNit = true);
 
     try {
-      await widget.controller.setNit(uid: widget.uid, nit: _nitCtrl.text);
+      await widget.controller.setNit(uid: widget.uid, nit: nit);
 
       if (!mounted) return;
 
@@ -356,9 +372,13 @@ class _NitEditorCard extends StatelessWidget {
           const SizedBox(height: 10),
           TextField(
             controller: controller,
-            keyboardType: TextInputType.text,
+            keyboardType: TextInputType.number,
+            inputFormatters: [
+              FilteringTextInputFormatter.digitsOnly,
+              LengthLimitingTextInputFormatter(20),
+            ],
             decoration: InputDecoration(
-              hintText: 'Ingresa el NIT',
+              hintText: 'Ingresa el NIT (solo números)',
               filled: true,
               fillColor: Palette.white,
               contentPadding: const EdgeInsets.symmetric(

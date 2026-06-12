@@ -5,6 +5,8 @@ import 'package:flutter_modular/flutter_modular.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'package:quimisol_movil/core/theme/palette.dart';
+import 'package:quimisol_movil/shared/widgets/header_add_button.dart';
+import 'package:quimisol_movil/shared/widgets/pagination_bar.dart';
 
 import '../controllers/almacenes_controller.dart';
 
@@ -27,6 +29,10 @@ class AlmacenesPage extends StatefulWidget {
 
 class _AlmacenesPageState extends State<AlmacenesPage> {
   final controller = AlmacenesController();
+
+  // Paginación para no deslizar infinitamente la grilla de almacenes.
+  static const int _pageSize = 9;
+  int _page = 0;
 
   void _printFirestoreIndexLink(Object error) {
     controller.printFirestoreIndexLink(error);
@@ -326,18 +332,8 @@ class _AlmacenesPageState extends State<AlmacenesPage> {
 
     return Scaffold(
       backgroundColor: Palette.card,
-      floatingActionButton: w < 720
-          ? FloatingActionButton.extended(
-              onPressed: _openAddAlmacenDialog,
-              backgroundColor: Palette.primary,
-              foregroundColor: Palette.white,
-              icon: const Icon(Icons.add_rounded),
-              label: const Text(
-                'Agregar',
-                style: TextStyle(fontWeight: FontWeight.w900),
-              ),
-            )
-          : null,
+      // El botón "Agregar" vive en el encabezado (también en móvil),
+      // así no tapa la barra de paginación.
       body: SafeArea(
         child: Padding(
           padding: EdgeInsets.all(w < 420 ? 14 : 20),
@@ -375,8 +371,10 @@ class _AlmacenesPageState extends State<AlmacenesPage> {
                         color: Palette.ink.withValues(alpha: selected ? 1 : 0.9),
                         fontWeight: FontWeight.w900,
                       ),
-                      onSelected: (_) =>
-                          setState(() => controller.selectedDepto = d),
+                      onSelected: (_) => setState(() {
+                        controller.selectedDepto = d;
+                        _page = 0;
+                      }),
                     );
                   },
                 ),
@@ -436,27 +434,52 @@ class _AlmacenesPageState extends State<AlmacenesPage> {
                             .map((e) => (e['stock'] ?? 0) as int)
                             .fold<int>(0, (p, c) => math.max(p, c));
 
-                        return GridView.builder(
-                          padding: const EdgeInsets.only(bottom: 96),
-                          gridDelegate:
-                              SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: cols,
-                            crossAxisSpacing: 14,
-                            mainAxisSpacing: 14,
-                            childAspectRatio: aspect,
-                          ),
-                          itemCount: filtered.length,
-                          itemBuilder: (_, i) {
-                            final a = filtered[i];
+                        final totalPages =
+                            pageCountFor(filtered.length, _pageSize);
+                        final page = _page.clamp(0, totalPages - 1);
+                        final pageItems =
+                            paginate(filtered, page, _pageSize);
 
-                            return _AlmacenCard(
-                              data: a,
-                              maxStock: maxStock,
-                              onOpen: () =>
-                                  Modular.to.pushNamed('/almacenes/${a['id']}'),
-                              onActions: () => _openActionsSheet(a),
-                            );
-                          },
+                        return Column(
+                          children: [
+                            Expanded(
+                              child: GridView.builder(
+                                padding: const EdgeInsets.only(bottom: 16),
+                                gridDelegate:
+                                    SliverGridDelegateWithFixedCrossAxisCount(
+                                  crossAxisCount: cols,
+                                  crossAxisSpacing: 14,
+                                  mainAxisSpacing: 14,
+                                  childAspectRatio: aspect,
+                                ),
+                                itemCount: pageItems.length,
+                                itemBuilder: (_, i) {
+                                  final a = pageItems[i];
+
+                                  return _AlmacenCard(
+                                    data: a,
+                                    maxStock: maxStock,
+                                    onOpen: () => Modular.to
+                                        .pushNamed('/almacenes/${a['id']}'),
+                                    onActions: () => _openActionsSheet(a),
+                                  );
+                                },
+                              ),
+                            ),
+                            if (filtered.length > _pageSize)
+                              Padding(
+                                padding:
+                                    const EdgeInsets.only(top: 10, bottom: 4),
+                                child: PaginationBar(
+                                  currentPage: page,
+                                  totalItems: filtered.length,
+                                  pageSize: _pageSize,
+                                  itemLabel: 'almacenes',
+                                  onPageChanged: (p) =>
+                                      setState(() => _page = p),
+                                ),
+                              ),
+                          ],
                         );
                       },
                     );
@@ -507,23 +530,6 @@ class _HeaderAlmacenes extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Container(
-            width: 54,
-            height: 54,
-            decoration: BoxDecoration(
-              color: Palette.white.withValues(alpha: 0.18),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: Palette.white.withValues(alpha: 0.35),
-              ),
-            ),
-            child: const Icon(
-              Icons.warehouse_rounded,
-              color: Palette.white,
-              size: 28,
-            ),
-          ),
-          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -549,24 +555,11 @@ class _HeaderAlmacenes extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 12),
-          if (!compact)
-            ElevatedButton.icon(
-              onPressed: onAdd,
-              icon: const Icon(Icons.add_rounded),
-              label: const Text('Agregar almacén'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Palette.white.withValues(alpha: 0.18),
-                foregroundColor: Palette.white,
-                elevation: 0,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                  side: const BorderSide(color: Palette.white, width: 2),
-                ),
-                textStyle: const TextStyle(fontWeight: FontWeight.w900),
-              ),
-            ),
+          HeaderAddButton(
+            label: compact ? 'Agregar' : 'Agregar almacén',
+            compact: compact,
+            onTap: onAdd,
+          ),
         ],
       ),
     );

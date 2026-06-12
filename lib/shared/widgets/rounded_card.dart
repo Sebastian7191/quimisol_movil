@@ -8,12 +8,17 @@ class RoundedCard extends StatelessWidget {
     this.padding = const EdgeInsets.all(22),
     this.margin = const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
     this.borderRadius = 24,
+    this.color,
   });
 
   final Widget child;
   final EdgeInsetsGeometry padding;
   final EdgeInsetsGeometry margin;
   final double borderRadius;
+
+  /// Color de fondo de la card. Si es `null` usa [Palette.card] (opaco).
+  /// Se puede pasar un color semitransparente para dejar ver el fondo.
+  final Color? color;
 
   @override
   Widget build(BuildContext context) {
@@ -23,7 +28,7 @@ class RoundedCard extends StatelessWidget {
         duration: const Duration(milliseconds: 220),
         curve: Curves.easeOutCubic,
         decoration: BoxDecoration(
-          color: Palette.card,
+          color: color ?? Palette.card,
           borderRadius: BorderRadius.circular(borderRadius),
           boxShadow: [
             BoxShadow(

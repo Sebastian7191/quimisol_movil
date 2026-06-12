@@ -27,7 +27,7 @@ class PedidoEnCursoPage extends StatefulWidget {
 class _PedidoEnCursoPageState extends State<PedidoEnCursoPage> {
   // ✅ Token SOLO para Directions HTTP (el SDK del mapa ya está en main.dart)
   static const String _mapboxToken =
-      'TOEKN_MAPBOX_AQUI';
+      'TOKEN_MAPBOX';
 
   final http.Client _http = http.Client();
 

@@ -1,9 +1,11 @@
 import 'dart:math' as math;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:quimisol_movil/core/constants/pedido_estado.dart';
 import 'package:quimisol_movil/core/theme/palette.dart';
+import 'package:quimisol_movil/shared/widgets/pagination_bar.dart';
 
 import '../controllers/pedidos_controller.dart';
 import 'detalle_pedido.dart';
@@ -29,11 +31,19 @@ class _PedidosPageState extends State<PedidosPage> with TickerProviderStateMixin
   String _q = '';
   String _estado = 'Todos';
 
+  // Paginación para no deslizar infinitamente la lista de pedidos.
+  static const int _pageSize = 8;
+  int _page = 0;
+
   final controller = PedidosController();
   late final AnimationController _bgCtrl;
 
   // ✅ para abrir el pedido de la notificación solo una vez
   bool _openedInitialPedido = false;
+
+  // null = superadmin (ve todo); String = depto del admin (solo su depto)
+  String? _adminDepto;
+  bool _loadingAdmin = true;
 
   @override
   void initState() {
@@ -47,8 +57,43 @@ class _PedidosPageState extends State<PedidosPage> with TickerProviderStateMixin
     _searchCtrl.addListener(() {
       final v = _searchCtrl.text.trim();
       if (v == _q) return;
-      setState(() => _q = v);
+      setState(() {
+        _q = v;
+        _page = 0;
+      });
     });
+
+    _loadAdminDepto();
+  }
+
+  Future<void> _loadAdminDepto() async {
+    try {
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      if (uid == null) {
+        setState(() => _loadingAdmin = false);
+        return;
+      }
+      final doc = await FirebaseFirestore.instance
+          .collection('usuarios')
+          .doc(uid)
+          .get();
+      final data = doc.data() ?? {};
+      final rol = (data['rol'] ?? data['role'] ?? '').toString().trim().toLowerCase();
+      if (rol == 'superadmin') {
+        // superadmin ve todos los pedidos
+        if (mounted) setState(() => _loadingAdmin = false);
+        return;
+      }
+      final depto = (data['departamento'] ?? '').toString().trim();
+      if (mounted) {
+        setState(() {
+          _adminDepto = depto.isNotEmpty ? depto : null;
+          _loadingAdmin = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _loadingAdmin = false);
+    }
   }
 
   @override
@@ -196,12 +241,17 @@ class _PedidosPageState extends State<PedidosPage> with TickerProviderStateMixin
     );
 
     if (res == null) return;
-    setState(() => _estado = res);
+    setState(() {
+      _estado = res;
+      _page = 0;
+    });
   }
 
   void _openEntregados() {
     Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const PedidosEntregadosPage()),
+      MaterialPageRoute(
+        builder: (_) => PedidosEntregadosPage(adminDepto: _adminDepto),
+      ),
     );
   }
 
@@ -248,7 +298,10 @@ class _PedidosPageState extends State<PedidosPage> with TickerProviderStateMixin
                 bgCtrl: _bgCtrl,
                 searchCtrl: _searchCtrl,
                 estado: _estado,
-                onEstado: (v) => setState(() => _estado = v),
+                onEstado: (v) => setState(() {
+                  _estado = v;
+                  _page = 0;
+                }),
                 onOpenEstadoSheet: _openEstadoSheet,
                 onOpenEntregados: _openEntregados,
               ),
@@ -267,7 +320,7 @@ class _PedidosPageState extends State<PedidosPage> with TickerProviderStateMixin
                     ),
                   );
                 }
-                if (snap.connectionState == ConnectionState.waiting) {
+                if (_loadingAdmin || snap.connectionState == ConnectionState.waiting) {
                   return const SliverFillRemaining(
                     hasScrollBody: false,
                     child: LoadingFancy(text: 'Cargando pedidos…'),
@@ -305,6 +358,7 @@ class _PedidosPageState extends State<PedidosPage> with TickerProviderStateMixin
                   pedidos: pedidos,
                   query: _q,
                   estado: _estado,
+                  adminDepto: _adminDepto,
                 );
 
                 if (filtered.isEmpty) {
@@ -314,7 +368,13 @@ class _PedidosPageState extends State<PedidosPage> with TickerProviderStateMixin
                   );
                 }
 
-                final sections = controller.groupByDepartamento(filtered);
+                final totalPages = pageCountFor(filtered.length, _pageSize);
+                final page = _page.clamp(0, totalPages - 1);
+                final pageItems = paginate(filtered, page, _pageSize);
+                final sections = controller.groupByDepartamento(pageItems);
+
+                // childCount: cabecera (0) + secciones + barra de paginación.
+                final showPager = filtered.length > _pageSize;
 
                 return SliverPadding(
                   padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
@@ -339,6 +399,20 @@ class _PedidosPageState extends State<PedidosPage> with TickerProviderStateMixin
                                 if (!compact)
                                   const HintPill(text: 'Toca un pedido para ver detalle'),
                               ],
+                            ),
+                          );
+                        }
+
+                        // Último ítem: barra de paginación.
+                        if (showPager && i == sections.length + 1) {
+                          return Padding(
+                            padding: const EdgeInsets.only(top: 4, bottom: 8),
+                            child: PaginationBar(
+                              currentPage: page,
+                              totalItems: filtered.length,
+                              pageSize: _pageSize,
+                              itemLabel: 'pedidos',
+                              onPageChanged: (p) => setState(() => _page = p),
                             ),
                           );
                         }
@@ -374,7 +448,7 @@ class _PedidosPageState extends State<PedidosPage> with TickerProviderStateMixin
                           ),
                         );
                       },
-                      childCount: sections.length + 1,
+                      childCount: sections.length + 1 + (showPager ? 1 : 0),
                     ),
                   ),
                 );

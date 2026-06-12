@@ -3,6 +3,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'package:quimisol_movil/core/theme/palette.dart';
 import 'package:quimisol_movil/shared/dialogs/delete_dialog.dart';
+import 'package:quimisol_movil/shared/widgets/header_add_button.dart';
+import 'package:quimisol_movil/shared/widgets/pagination_bar.dart';
 
 import '../controllers/unidades_controller.dart';
 
@@ -22,10 +24,38 @@ class UnidadesPage extends StatefulWidget {
 class _UnidadesPageState extends State<UnidadesPage> {
   final controller = UnidadesController();
 
+  // Paginación para no deslizar infinitamente la lista de unidades.
+  static const int _pageSize = 8;
+  int _page = 0;
+
   @override
   void initState() {
     super.initState();
-    controller.searchCtrl.addListener(() => setState(() {}));
+    controller.searchCtrl.addListener(() => setState(() => _page = 0));
+  }
+
+  /// Envuelve la lista/tabla con la barra de paginación inferior.
+  Widget _withPager({
+    required Widget content,
+    required int total,
+    required int page,
+  }) {
+    return Column(
+      children: [
+        Expanded(child: content),
+        if (total > _pageSize)
+          Padding(
+            padding: const EdgeInsets.only(top: 10, bottom: 4),
+            child: PaginationBar(
+              currentPage: page,
+              totalItems: total,
+              pageSize: _pageSize,
+              itemLabel: 'unidades',
+              onPageChanged: (p) => setState(() => _page = p),
+            ),
+          ),
+      ],
+    );
   }
 
   @override
@@ -155,14 +185,8 @@ class _UnidadesPageState extends State<UnidadesPage> {
         return Scaffold(
           backgroundColor: Palette.card,
 
-          // ✅ FAB pill en móvil (mejor UX)
-          floatingActionButton: compact
-              ? _FloatingAddPill(
-                  enabled: true,
-                  onTap: _openAddDialog,
-                )
-              : null,
-
+          // El botón "Agregar" vive en el encabezado (también en móvil),
+          // así no tapa la barra de paginación.
           body: SafeArea(
             child: Padding(
               padding: EdgeInsets.all(w < 420 ? 14 : 20),
@@ -200,14 +224,23 @@ class _UnidadesPageState extends State<UnidadesPage> {
                           );
                         }
 
+                        final totalPages =
+                            pageCountFor(filtered.length, _pageSize);
+                        final page = _page.clamp(0, totalPages - 1);
+                        final pageItems =
+                            paginate(filtered, page, _pageSize);
+
                         // ✅ MOBILE: cards (mejor UX)
                         if (isMobile) {
-                          return ListView.separated(
+                          return _withPager(
+                            total: filtered.length,
+                            page: page,
+                            content: ListView.separated(
                             padding: const EdgeInsets.only(bottom: 96),
-                            itemCount: filtered.length,
+                            itemCount: pageItems.length,
                             separatorBuilder: (_, __) => const SizedBox(height: 10),
                             itemBuilder: (_, i) {
-                              final r = filtered[i];
+                              final r = pageItems[i];
                               final id = (r['id'] ?? '').toString();
                               final nombre = (r['nombre'] ?? '').toString();
                               final abrev = (r['abreviatura'] ?? '').toString();
@@ -228,11 +261,15 @@ class _UnidadesPageState extends State<UnidadesPage> {
                                 onDelete: () => _deleteUnidad(id, nombre),
                               );
                             },
+                          ),
                           );
                         }
 
                         // ✅ DESKTOP: DataTable
-                        return Container(
+                        return _withPager(
+                          total: filtered.length,
+                          page: page,
+                          content: Container(
                           decoration: BoxDecoration(
                             color: Palette.white,
                             borderRadius: BorderRadius.circular(18),
@@ -260,7 +297,7 @@ class _UnidadesPageState extends State<UnidadesPage> {
                                     DataColumn(label: Text('Descripción')),
                                     DataColumn(label: Text('Acciones')),
                                   ],
-                                  rows: filtered.map((r) {
+                                  rows: pageItems.map((r) {
                                     final id = (r['id'] ?? '').toString();
                                     final nombre = (r['nombre'] ?? '').toString();
                                     final abrev = (r['abreviatura'] ?? '').toString();
@@ -326,6 +363,7 @@ class _UnidadesPageState extends State<UnidadesPage> {
                               ),
                             ),
                           ),
+                          ),
                         );
                       },
                     ),
@@ -382,23 +420,6 @@ class _HeaderUnidades extends StatelessWidget {
         children: [
           Row(
             children: [
-              Container(
-                width: 54,
-                height: 54,
-                decoration: BoxDecoration(
-                  color: Palette.white.withValues(alpha: 0.18),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: Palette.white.withValues(alpha: 0.35),
-                  ),
-                ),
-                child: const Icon(
-                  Icons.straighten_rounded,
-                  color: Palette.white,
-                  size: 28,
-                ),
-              ),
-              const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -428,26 +449,12 @@ class _HeaderUnidades extends StatelessWidget {
                 ),
               ),
 
-              // ✅ En móvil no saturamos: el botón va flotante
-              if (!compact) ...[
-                const SizedBox(width: 12),
-                InkWell(
-                  onTap: onAdd,
-                  borderRadius: BorderRadius.circular(999),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    decoration: BoxDecoration(
-                      color: Palette.white.withValues(alpha: 0.22),
-                      borderRadius: BorderRadius.circular(999),
-                      border: Border.all(
-                        color: Palette.button.withValues(alpha: 0.95),
-                        width: 2.6,
-                      ),
-                    ),
-                    child: const _GradientIconText(compact: false, enabled: true),
-                  ),
-                ),
-              ],
+              const SizedBox(width: 12),
+              HeaderAddButton(
+                label: compact ? 'Agregar' : 'Agregar unidad',
+                compact: compact,
+                onTap: onAdd,
+              ),
             ],
           ),
           const SizedBox(height: 12),
@@ -515,84 +522,6 @@ class _HeaderUnidades extends StatelessWidget {
                 ),
               ],
             ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ===================== BOTÓN PILL (FAB) =====================
-
-class _FloatingAddPill extends StatelessWidget {
-  final bool enabled;
-  final VoidCallback? onTap;
-
-  const _FloatingAddPill({required this.enabled, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: enabled ? onTap : null,
-        borderRadius: BorderRadius.circular(999),
-        child: AnimatedOpacity(
-          duration: const Duration(milliseconds: 160),
-          opacity: enabled ? 1 : 0.55,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(
-              color: Palette.white.withValues(alpha: 0.92),
-              borderRadius: BorderRadius.circular(999),
-              border: Border.all(
-                color: Palette.button.withValues(alpha: 0.95),
-                width: 3,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.12),
-                  blurRadius: 18,
-                  offset: const Offset(0, 10),
-                ),
-              ],
-            ),
-            child: const _GradientIconText(compact: true, enabled: true),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _GradientIconText extends StatelessWidget {
-  final bool compact;
-  final bool enabled;
-
-  const _GradientIconText({required this.compact, required this.enabled});
-
-  @override
-  Widget build(BuildContext context) {
-    final gradient = LinearGradient(
-      begin: Alignment.centerLeft,
-      end: Alignment.centerRight,
-      colors: [
-        Palette.gradientStart.withValues(alpha: enabled ? 1 : 0.55),
-        Palette.secondary.withValues(alpha: enabled ? 1 : 0.55),
-      ],
-    );
-
-    return ShaderMask(
-      shaderCallback: (rect) => gradient.createShader(rect),
-      blendMode: BlendMode.srcIn,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.add_rounded, size: 20),
-          const SizedBox(width: 8),
-          Text(
-            compact ? 'Agregar' : 'Agregar unidad',
-            style: const TextStyle(fontWeight: FontWeight.w900),
           ),
         ],
       ),

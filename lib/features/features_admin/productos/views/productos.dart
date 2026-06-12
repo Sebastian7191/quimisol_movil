@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 
 import 'package:quimisol_movil/core/theme/palette.dart';
 import 'package:quimisol_movil/features/features_admin/productos/data/producto_dialog_result.dart';
+import 'package:quimisol_movil/shared/widgets/header_add_button.dart';
+import 'package:quimisol_movil/shared/widgets/pagination_bar.dart';
 
 import '../controllers/products_controller.dart';
 import '../data/producto_row.dart';
@@ -29,13 +31,20 @@ class _ProductosPageState extends State<ProductosPage> {
 
   String _tipo = 'Todos'; // Todos | PRODUCTO | INSUMO
 
+  // Paginación para evitar scroll infinito en la lista/tabla de productos.
+  static const int _pageSize = 8;
+  int _page = 0;
+
   final controller = ProductosController();
 
   @override
   void initState() {
     super.initState();
     _searchCtrl.addListener(
-      () => setState(() => _search = _searchCtrl.text.trim().toLowerCase()),
+      () => setState(() {
+        _search = _searchCtrl.text.trim().toLowerCase();
+        _page = 0;
+      }),
     );
   }
 
@@ -322,97 +331,116 @@ class _ProductosPageState extends State<ProductosPage> {
                 return Scaffold(
                   backgroundColor: Palette.card,
 
-                  floatingActionButton: compact
-                      ? _FloatingAddPill(
-                          enabled: canAdd,
-                          onTap: canAdd
-                              ? () => _openAddDialog(
+                  // El botón "Agregar" vive en el encabezado (también en móvil),
+                  // así no tapa la barra de paginación.
+                  body: SafeArea(
+                    child: CustomScrollView(
+                      slivers: [
+                        SliverPadding(
+                          padding: EdgeInsets.fromLTRB(
+                            w < 420 ? 14 : 20,
+                            w < 420 ? 14 : 20,
+                            w < 420 ? 14 : 20,
+                            0,
+                          ),
+                          sliver: SliverToBoxAdapter(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                _HeaderProductos(
+                                  compact: compact,
+                                  canAdd: canAdd,
+                                  onAdd: () => _openAddDialog(
                                     unidades: unidades,
                                     almacenes: almacenes,
-                                  )
-                              : null,
-                        )
-                      : null,
-
-                  body: SafeArea(
-                    child: Padding(
-                      padding: EdgeInsets.all(w < 420 ? 14 : 20),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _HeaderProductos(
-                            compact: compact,
-                            canAdd: canAdd,
-                            onAdd: () => _openAddDialog(
-                              unidades: unidades,
-                              almacenes: almacenes,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          _SearchBarProductos(controller: _searchCtrl),
-                          const SizedBox(height: 12),
-                          SizedBox(
-                            height: 44,
-                            child: ListView.separated(
-                              scrollDirection: Axis.horizontal,
-                              itemCount: const [
-                                'Todos',
-                                'PRODUCTO',
-                                'INSUMO',
-                              ].length,
-                              separatorBuilder: (_, __) =>
-                                  const SizedBox(width: 10),
-                              itemBuilder: (_, i) {
-                                final t = const [
-                                  'Todos',
-                                  'PRODUCTO',
-                                  'INSUMO',
-                                ][i];
-                                final selected = _tipo == t;
-
-                                return ChoiceChip(
-                                  label: Text(t == 'Todos' ? 'Todos' : t),
-                                  selected: selected,
-                                  selectedColor: Palette.primary.withValues(
-                                    alpha: 0.18,
                                   ),
-                                  backgroundColor: Palette.white,
-                                  side: BorderSide(
-                                    color: selected
-                                        ? Palette.primary.withValues(
-                                            alpha: 0.55,
-                                          )
-                                        : Palette.button.withValues(
-                                            alpha: 0.35,
+                                ),
+                                const SizedBox(height: 12),
+                                _SearchBarProductos(controller: _searchCtrl),
+                                const SizedBox(height: 12),
+                                SizedBox(
+                                  height: 44,
+                                  child: ListView.separated(
+                                    scrollDirection: Axis.horizontal,
+                                    itemCount: const [
+                                      'Todos',
+                                      'PRODUCTO',
+                                      'INSUMO',
+                                    ].length,
+                                    separatorBuilder: (_, __) =>
+                                        const SizedBox(width: 10),
+                                    itemBuilder: (_, i) {
+                                      final t = const [
+                                        'Todos',
+                                        'PRODUCTO',
+                                        'INSUMO',
+                                      ][i];
+                                      final selected = _tipo == t;
+
+                                      return ChoiceChip(
+                                        label: Text(t == 'Todos' ? 'Todos' : t),
+                                        selected: selected,
+                                        selectedColor:
+                                            Palette.primary.withValues(
+                                          alpha: 0.18,
+                                        ),
+                                        backgroundColor: Palette.white,
+                                        side: BorderSide(
+                                          color: selected
+                                              ? Palette.primary.withValues(
+                                                  alpha: 0.55,
+                                                )
+                                              : Palette.button.withValues(
+                                                  alpha: 0.35,
+                                                ),
+                                        ),
+                                        labelStyle: TextStyle(
+                                          color: Palette.ink.withValues(
+                                            alpha: selected ? 1 : 0.9,
                                           ),
+                                          fontWeight: FontWeight.w900,
+                                        ),
+                                        onSelected: (_) => setState(() {
+                                          _tipo = t;
+                                          _page = 0;
+                                        }),
+                                      );
+                                    },
                                   ),
-                                  labelStyle: TextStyle(
-                                    color: Palette.ink.withValues(
-                                      alpha: selected ? 1 : 0.9,
-                                    ),
-                                    fontWeight: FontWeight.w900,
-                                  ),
-                                  onSelected: (_) => setState(() => _tipo = t),
-                                );
-                              },
+                                ),
+                                const SizedBox(height: 16),
+                              ],
                             ),
                           ),
-                          const SizedBox(height: 16),
-                          Expanded(
+                        ),
+                        SliverPadding(
+                          padding: EdgeInsets.fromLTRB(
+                            w < 420 ? 14 : 20,
+                            0,
+                            w < 420 ? 14 : 20,
+                            w < 420 ? 14 : 20,
+                          ),
+                          sliver: SliverToBoxAdapter(
                             child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
                               stream: _productosStream(),
                               builder: (context, snapshot) {
                                 if (snapshot.hasError) {
-                                  return ErrorBox(
-                                    message:
-                                        'Error al cargar productos: ${snapshot.error}',
+                                  return SizedBox(
+                                    height: 320,
+                                    child: ErrorBox(
+                                      message:
+                                          'Error al cargar productos: ${snapshot.error}',
+                                    ),
                                   );
                                 }
 
                                 if (snapshot.connectionState ==
                                     ConnectionState.waiting) {
-                                  return const LoadingTable(
-                                    icon: Icons.inventory_2_rounded,
+                                  return const SizedBox(
+                                    height: 320,
+                                    child: LoadingTable(
+                                      icon: Icons.inventory_2_rounded,
+                                    ),
                                   );
                                 }
 
@@ -437,22 +465,36 @@ class _ProductosPageState extends State<ProductosPage> {
                                 );
 
                                 if (filtered.isEmpty) {
-                                  return const EmptyBox(
-                                    title: 'No hay productos',
-                                    subtitle:
-                                        'Agrega un producto o ajusta tus filtros.',
-                                    icon: Icons.inventory_2_rounded,
+                                  return const SizedBox(
+                                    height: 320,
+                                    child: EmptyBox(
+                                      title: 'No hay productos',
+                                      subtitle:
+                                          'Agrega un producto o ajusta tus filtros.',
+                                      icon: Icons.inventory_2_rounded,
+                                    ),
                                   );
                                 }
 
+                                final totalPages =
+                                    pageCountFor(filtered.length, _pageSize);
+                                final page = _page.clamp(0, totalPages - 1);
+                                final pageItems =
+                                    paginate(filtered, page, _pageSize);
+
                                 if (isMobile) {
-                                  return ListView.separated(
-                                    padding: const EdgeInsets.only(bottom: 96),
-                                    itemCount: filtered.length,
+                                  return Column(
+                                    children: [
+                                      ListView.separated(
+                                    shrinkWrap: true,
+                                    physics:
+                                        const NeverScrollableScrollPhysics(),
+                                    padding: EdgeInsets.zero,
+                                    itemCount: pageItems.length,
                                     separatorBuilder: (_, __) =>
                                         const SizedBox(height: 10),
                                     itemBuilder: (_, i) {
-                                      final p = filtered[i];
+                                      final p = pageItems[i];
 
                                       final id = p.id;
                                       final nombre = p.nombre;
@@ -490,10 +532,27 @@ class _ProductosPageState extends State<ProductosPage> {
                                         ),
                                       );
                                     },
+                                  ),
+                                      if (filtered.length > _pageSize)
+                                        Padding(
+                                          padding:
+                                              const EdgeInsets.only(top: 10),
+                                          child: PaginationBar(
+                                            currentPage: page,
+                                            totalItems: filtered.length,
+                                            pageSize: _pageSize,
+                                            itemLabel: 'productos',
+                                            onPageChanged: (p) =>
+                                                setState(() => _page = p),
+                                          ),
+                                        ),
+                                    ],
                                   );
                                 }
 
-                                return Container(
+                                return Column(
+                                  children: [
+                                    Container(
                                   decoration: BoxDecoration(
                                     color: Palette.white,
                                     borderRadius: BorderRadius.circular(18),
@@ -506,7 +565,8 @@ class _ProductosPageState extends State<ProductosPage> {
                                   child: ClipRRect(
                                     borderRadius: BorderRadius.circular(18),
                                     child: SingleChildScrollView(
-                                      child: DataTable(
+                                        scrollDirection: Axis.horizontal,
+                                        child: DataTable(
                                         headingRowHeight: 52,
                                         dataRowMinHeight: 64,
                                         dataRowMaxHeight: 84,
@@ -528,7 +588,7 @@ class _ProductosPageState extends State<ProductosPage> {
                                           DataColumn(label: Text('Precio')),
                                           DataColumn(label: Text('Acciones')),
                                         ],
-                                        rows: filtered.map((p) {
+                                        rows: pageItems.map((p) {
                                           final id = p.id;
                                           final nombre = p.nombre;
                                           final tipoItem = p.tipoItem;
@@ -670,12 +730,27 @@ class _ProductosPageState extends State<ProductosPage> {
                                       ),
                                     ),
                                   ),
+                                    ),
+                                    if (filtered.length > _pageSize)
+                                      Padding(
+                                        padding:
+                                            const EdgeInsets.only(top: 10),
+                                        child: PaginationBar(
+                                          currentPage: page,
+                                          totalItems: filtered.length,
+                                          pageSize: _pageSize,
+                                          itemLabel: 'productos',
+                                          onPageChanged: (p) =>
+                                              setState(() => _page = p),
+                                        ),
+                                      ),
+                                  ],
                                 );
                               },
                             ),
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   ),
                 );
@@ -688,87 +763,6 @@ class _ProductosPageState extends State<ProductosPage> {
   }
 }
 
-// ===================== BOTÓN PILL (FAB) =====================
-
-class _FloatingAddPill extends StatelessWidget {
-  final bool enabled;
-  final VoidCallback? onTap;
-
-  const _FloatingAddPill({required this.enabled, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: enabled ? onTap : null,
-        borderRadius: BorderRadius.circular(999),
-        child: AnimatedOpacity(
-          duration: const Duration(milliseconds: 160),
-          opacity: enabled ? 1 : 0.55,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(
-              color: Palette.white.withValues(alpha: 0.92),
-              borderRadius: BorderRadius.circular(999),
-              border: Border.all(
-                color: Palette.button.withValues(alpha: 0.95),
-                width: 3,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.12),
-                  blurRadius: 18,
-                  offset: const Offset(0, 10),
-                ),
-              ],
-            ),
-            child: _GradientIconText(compact: true, enabled: enabled),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _GradientIconText extends StatelessWidget {
-  final bool compact;
-  final bool enabled;
-
-  const _GradientIconText({required this.compact, required this.enabled});
-
-  @override
-  Widget build(BuildContext context) {
-    final gradient = LinearGradient(
-      begin: Alignment.centerLeft,
-      end: Alignment.centerRight,
-      colors: [
-        Palette.gradientStart.withValues(alpha: enabled ? 1 : 0.55),
-        Palette.secondary.withValues(alpha: enabled ? 1 : 0.55),
-      ],
-    );
-
-    return ShaderMask(
-      shaderCallback: (rect) => gradient.createShader(rect),
-      blendMode: BlendMode.srcIn,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.add_rounded, size: 20),
-          const SizedBox(width: 8),
-          Text(
-            compact ? 'Agregar' : 'Agregar producto',
-            style: const TextStyle(
-              fontWeight: FontWeight.w900,
-              fontSize: 14,
-              letterSpacing: 0.2,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
 
 // ===================== HEADER =====================
 
@@ -808,23 +802,6 @@ class _HeaderProductos extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Container(
-            width: 54,
-            height: 54,
-            decoration: BoxDecoration(
-              color: Palette.white.withValues(alpha: 0.18),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: Palette.white.withValues(alpha: 0.35),
-              ),
-            ),
-            child: const Icon(
-              Icons.inventory_2_rounded,
-              color: Palette.white,
-              size: 28,
-            ),
-          ),
-          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -854,48 +831,12 @@ class _HeaderProductos extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 12),
-
-          if (!compact)
-            InkWell(
-              onTap: canAdd ? onAdd : null,
-              borderRadius: BorderRadius.circular(999),
-              child: AnimatedOpacity(
-                duration: const Duration(milliseconds: 160),
-                opacity: canAdd ? 1 : 0.55,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 12,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Palette.white.withValues(alpha: 0.22),
-                    borderRadius: BorderRadius.circular(999),
-                    border: Border.all(
-                      color: Palette.button.withValues(alpha: 0.90),
-                      width: 2.4,
-                    ),
-                  ),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 10,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Palette.white.withValues(alpha: 0.80),
-                      borderRadius: BorderRadius.circular(999),
-                      border: Border.all(
-                        color: Palette.button.withValues(alpha: 0.22),
-                        width: 1.4,
-                      ),
-                    ),
-                    child: _GradientIconText(
-                      compact: false,
-                      enabled: canAdd,
-                    ),
-                  ),
-                ),
-              ),
-            ),
+          HeaderAddButton(
+            label: compact ? 'Agregar' : 'Agregar producto',
+            compact: compact,
+            enabled: canAdd,
+            onTap: onAdd,
+          ),
         ],
       ),
     );

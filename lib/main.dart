@@ -31,6 +31,55 @@ const AndroidNotificationChannel _channel = AndroidNotificationChannel(
   playSound: true,
 );
 
+// ✅ Debe coincidir con `androidChannelId: "support_chat_channel"` que usa
+// la Cloud Function `notificarMensajeSoporte`. Si este canal no existe en
+// el dispositivo, Android descarta la notificación en silencio cuando la
+// app está en segundo plano o cerrada.
+const AndroidNotificationChannel _supportChatChannel = AndroidNotificationChannel(
+  'support_chat_channel',
+  'Chat de soporte',
+  description: 'Mensajes nuevos del chat de soporte',
+  importance: Importance.high,
+  playSound: true,
+);
+
+// ✅ Debe coincidir con `androidChannelId: "orders_channel"` que usan
+// notificarNuevoPedido, notificarPedidoEntregado, notificarCambioEstadoPago
+// y notificarConductorAsignado. Igual que arriba: si no se crea aquí,
+// Android descarta esas notificaciones en segundo plano (faltaba este canal).
+const AndroidNotificationChannel _ordersChannel = AndroidNotificationChannel(
+  'orders_channel',
+  'Pedidos',
+  description: 'Pedidos nuevos, entregas, pagos y asignaciones',
+  importance: Importance.high,
+  playSound: true,
+);
+
+// ✅ Debe coincidir con `androidChannelId: "reminders_channel"` que usan
+// recordatorioPedidosPendientes y recordatorioStockBajo (Cloud Functions
+// programadas con onSchedule).
+const AndroidNotificationChannel _remindersChannel = AndroidNotificationChannel(
+  'reminders_channel',
+  'Recordatorios',
+  description: 'Recordatorios automáticos de gestión (pedidos, inventario)',
+  importance: Importance.high,
+  playSound: true,
+);
+
+// ✅ Elige el canal según el `type` que mandan las Cloud Functions, para
+// que cada notificación caiga en el canal correcto tanto en primer plano
+// (aquí) como en segundo plano (lo decide el `androidChannelId` del push).
+AndroidNotificationChannel _channelForType(String type) {
+  if (type == 'support_chat') return _supportChatChannel;
+  if (type.startsWith('recordatorio_') || type.startsWith('alerta_')) {
+    return _remindersChannel;
+  }
+  if (type == 'nuevo_pedido_pendiente' || type.startsWith('pedido_')) {
+    return _ordersChannel;
+  }
+  return _channel;
+}
+
 final FlutterLocalNotificationsPlugin _localNotifs =
     FlutterLocalNotificationsPlugin();
 
@@ -57,11 +106,14 @@ Future<void> _setupNotifications() async {
     sound: true,
   );
 
-  // Android: crear canal de notificaciones (requerido Android 8+)
-  await _localNotifs
+  // Android: crear canales de notificaciones (requerido Android 8+)
+  final androidNotifs = _localNotifs
       .resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin>()
-      ?.createNotificationChannel(_channel);
+          AndroidFlutterLocalNotificationsPlugin>();
+  await androidNotifs?.createNotificationChannel(_channel);
+  await androidNotifs?.createNotificationChannel(_supportChatChannel);
+  await androidNotifs?.createNotificationChannel(_ordersChannel);
+  await androidNotifs?.createNotificationChannel(_remindersChannel);
 
   // Inicializar flutter_local_notifications
   await _localNotifs.initialize(
@@ -76,15 +128,20 @@ Future<void> _setupNotifications() async {
     final notification = message.notification;
     if (notification == null) return;
 
+    // ✅ Elegir canal según el tipo (mismo criterio que `androidChannelId`
+    // en las Cloud Functions), para que coincida con lo que se ve en
+    // segundo plano.
+    final channel = _channelForType((message.data['type'] ?? '').toString());
+
     _localNotifs.show(
       notification.hashCode,
       notification.title,
       notification.body,
       NotificationDetails(
         android: AndroidNotificationDetails(
-          _channel.id,
-          _channel.name,
-          channelDescription: _channel.description,
+          channel.id,
+          channel.name,
+          channelDescription: channel.description,
           importance: Importance.high,
           priority: Priority.high,
           icon: '@mipmap/ic_launcher',
@@ -127,6 +184,13 @@ Future<void> main() async {
     await SystemChrome.setEnabledSystemUIMode(
       SystemUiMode.immersiveSticky,
     );
+
+    // ✅ Bloqueamos la app en vertical (evita desbordes de layout en
+    // horizontal). Solo móvil/desktop nativo, en web no aplica.
+    await SystemChrome.setPreferredOrientations(const [
+      DeviceOrientation.portraitUp,
+      DeviceOrientation.portraitDown,
+    ]);
   }
 
   runApp(

@@ -1107,11 +1107,6 @@ class _PinkPedidosHeaderState extends State<_PinkPedidosHeader> {
                 padding: const EdgeInsets.only(left: 14, right: 6),
                 child: Row(
                   children: [
-                    Icon(
-                      Icons.search_rounded,
-                      color: Palette.ink.withOpacity(0.50),
-                    ),
-                    const SizedBox(width: 10),
                     Expanded(
                       child: TextField(
                         controller: widget.searchCtrl,

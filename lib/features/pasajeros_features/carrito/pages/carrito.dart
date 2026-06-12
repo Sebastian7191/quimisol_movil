@@ -1075,7 +1075,7 @@ class _CartCard extends StatelessWidget {
 
 /* ---------------- QTY PILL (EDITABLE) ---------------- */
 
-class _QtyPill extends StatefulWidget {
+class _QtyPill extends StatelessWidget {
   const _QtyPill({
     required this.qty,
     required this.primary,
@@ -1091,91 +1091,41 @@ class _QtyPill extends StatefulWidget {
   final ValueChanged<int> onSetQty;
 
   @override
-  State<_QtyPill> createState() => _QtyPillState();
-}
-
-class _QtyPillState extends State<_QtyPill> {
-  late final TextEditingController _c;
-
-  @override
-  void initState() {
-    super.initState();
-    _c = TextEditingController(text: widget.qty.toString());
-  }
-
-  @override
-  void didUpdateWidget(covariant _QtyPill oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.qty != widget.qty && _c.text != widget.qty.toString()) {
-      _c.text = widget.qty.toString();
-    }
-  }
-
-  void _commit() {
-    final raw = _c.text.trim();
-    final v = int.tryParse(raw) ?? widget.qty;
-    final fixed = v <= 1 ? 1 : v;
-    if (fixed.toString() != _c.text) _c.text = fixed.toString();
-    widget.onSetQty(fixed);
-  }
-
-  @override
-  void dispose() {
-    _c.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final ink = Palette.ink;
-
-    return ConstrainedBox(
-      constraints: const BoxConstraints(minWidth: 118, maxWidth: 138),
-      child: Container(
-        height: 40,
-        padding: const EdgeInsets.symmetric(horizontal: 6),
-        decoration: BoxDecoration(
-          color: widget.primary.withOpacity(0.10),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: widget.primary.withOpacity(0.16)),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            _QtyBtn(
-              icon: Icons.remove_rounded,
-              onTap: widget.onMinus,
-              color: widget.primary,
-            ),
-            SizedBox(
-              width: 34,
-              child: TextField(
-                controller: _c,
-                keyboardType: TextInputType.number,
-                textAlign: TextAlign.center,
-                maxLength: 3,
-                decoration: const InputDecoration(
-                  counterText: '',
-                  isDense: true,
-                  border: InputBorder.none,
-                ),
-                style: TextStyle(
-                  color: ink,
-                  fontWeight: FontWeight.w900,
-                  fontSize: 14.5,
-                ),
-                onSubmitted: (_) => _commit(),
-                onEditingComplete: _commit,
-                onTapOutside: (_) => _commit(),
+    return Container(
+      height: 40,
+      padding: const EdgeInsets.symmetric(horizontal: 6),
+      decoration: BoxDecoration(
+        color: primary.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: primary.withValues(alpha: 0.16)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _QtyBtn(
+            icon: Icons.remove_rounded,
+            onTap: onMinus,
+            color: primary,
+          ),
+          SizedBox(
+            width: 36,
+            child: Text(
+              '$qty',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Palette.ink,
+                fontWeight: FontWeight.w900,
+                fontSize: 15,
               ),
             ),
-            _QtyBtn(
-              icon: Icons.add_rounded,
-              onTap: widget.onPlus,
-              color: widget.primary,
-            ),
-          ],
-        ),
+          ),
+          _QtyBtn(
+            icon: Icons.add_rounded,
+            onTap: onPlus,
+            color: primary,
+          ),
+        ],
       ),
     );
   }
