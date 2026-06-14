@@ -20,8 +20,6 @@ import 'package:quimisol_movil/features/features_admin/laboratorios/pages/lista_
 import 'package:quimisol_movil/features/features_admin/pagos/pages/pagos.dart';
 import 'package:quimisol_movil/features/features_admin/pedidos/views/pedidos.dart';
 import 'package:quimisol_movil/features/features_admin/productos/views/productos.dart';
-import 'package:quimisol_movil/features/features_admin/resenas/views/resenas_pedidos_page.dart';
-import 'package:quimisol_movil/features/features_admin/resenas/views/resenas_productos_page.dart';
 import 'package:quimisol_movil/features/features_admin/soporte/pages/admin_chat_footer_panel.dart';
 import 'package:quimisol_movil/features/features_admin/unidades/views/unidades.dart';
 import 'package:quimisol_movil/features/features_admin/usuarios/views/usuarios.dart';
@@ -105,16 +103,6 @@ class _SidebarShellPageState extends State<SidebarShellPage> {
         label: 'Pedidos',
         route: '/pedidos',
       ),
-      const _SideItem(
-        icon: Icons.star_rounded,
-        label: 'Reseñas Productos',
-        route: '/resenas-productos',
-      ),
-      const _SideItem(
-        icon: Icons.rate_review_rounded,
-        label: 'Reseñas Pedidos',
-        route: '/resenas-pedidos',
-      ),
     ]);
 
     if (_isSuperAdmin) {
@@ -147,8 +135,6 @@ class _SidebarShellPageState extends State<SidebarShellPage> {
       const BannersPage(),
       const LaboratoriosPage(),
       const PedidosPage(),
-      const ResenasProductosPage(),
-      const ResenasPedidosPage(),
     ]);
 
     if (_isSuperAdmin) {

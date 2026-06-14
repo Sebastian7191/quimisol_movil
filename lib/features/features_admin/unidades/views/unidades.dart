@@ -281,7 +281,7 @@ class _UnidadesPageState extends State<UnidadesPage> {
                                         ),
                                         columns: const [
                                           DataColumn(label: Text('Nombre')),
-                                          DataColumn(label: Text('Abrev.')),
+                                          DataColumn(label: Text('Abreviatura')),
                                           DataColumn(label: Text('Descripción')),
                                           DataColumn(label: Text('Acciones')),
                                         ],

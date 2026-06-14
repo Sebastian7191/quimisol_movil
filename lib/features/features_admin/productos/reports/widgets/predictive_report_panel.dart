@@ -356,7 +356,7 @@ class _PredictiveReportPanelState extends State<PredictiveReportPanel>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     //borrar o comentar luego luego
-                    _kv('Report ID', _reportId!),
+                    //_kv('Report ID', _reportId!),
                     _kv('Creado', formatDateNice(createdAt)),
 
                     const Divider(height: 22),

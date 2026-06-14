@@ -50,12 +50,38 @@ class Formulario3Parte3 extends StatelessWidget {
             _Field(
               controller: fechaMuestreoCtrl,
               label: 'Fecha de muestreo',
+              readOnly: true,
+              suffixIcon: const Icon(Icons.calendar_today_rounded, size: 18),
+              onTap: () async {
+                final picked = await showDatePicker(
+                  context: context,
+                  initialDate: DateTime.now(),
+                  firstDate: DateTime.now(),
+                  lastDate: DateTime(2100),
+                );
+                if (picked != null) {
+                  fechaMuestreoCtrl.text =
+                      '${picked.day.toString().padLeft(2, '0')}/${picked.month.toString().padLeft(2, '0')}/${picked.year}';
+                }
+              },
               validator: validarFecha,
             ),
             const SizedBox(height: 12),
             _Field(
               controller: horaMuestreoCtrl,
               label: 'Hora de muestreo',
+              readOnly: true,
+              suffixIcon: const Icon(Icons.access_time_rounded, size: 18),
+              onTap: () async {
+                final picked = await showTimePicker(
+                  context: context,
+                  initialTime: TimeOfDay.now(),
+                );
+                if (picked != null) {
+                  horaMuestreoCtrl.text =
+                      '${picked.hour.toString().padLeft(2, '0')}:${picked.minute.toString().padLeft(2, '0')}';
+                }
+              },
               validator: validarHora,
             ),
             const SizedBox(height: 12),
@@ -116,6 +142,21 @@ class Formulario3Parte3 extends StatelessWidget {
                   child: _Field(
                     controller: fechaMuestreoCtrl,
                     label: 'Fecha de muestreo',
+                    readOnly: true,
+                    suffixIcon:
+                        const Icon(Icons.calendar_today_rounded, size: 18),
+                    onTap: () async {
+                      final picked = await showDatePicker(
+                        context: context,
+                        initialDate: DateTime.now(),
+                        firstDate: DateTime.now(),
+                        lastDate: DateTime(2100),
+                      );
+                      if (picked != null) {
+                        fechaMuestreoCtrl.text =
+                            '${picked.day.toString().padLeft(2, '0')}/${picked.month.toString().padLeft(2, '0')}/${picked.year}';
+                      }
+                    },
                     validator: validarFecha,
                   ),
                 ),
@@ -128,6 +169,19 @@ class Formulario3Parte3 extends StatelessWidget {
                   child: _Field(
                     controller: horaMuestreoCtrl,
                     label: 'Hora de muestreo',
+                    readOnly: true,
+                    suffixIcon:
+                        const Icon(Icons.access_time_rounded, size: 18),
+                    onTap: () async {
+                      final picked = await showTimePicker(
+                        context: context,
+                        initialTime: TimeOfDay.now(),
+                      );
+                      if (picked != null) {
+                        horaMuestreoCtrl.text =
+                            '${picked.hour.toString().padLeft(2, '0')}:${picked.minute.toString().padLeft(2, '0')}';
+                      }
+                    },
                     validator: validarHora,
                   ),
                 ),
@@ -247,6 +301,9 @@ class _Field extends StatelessWidget {
   final String? Function(String?)? validator;
   final int maxLines;
   final TextInputType? keyboardType;
+  final VoidCallback? onTap;
+  final bool readOnly;
+  final Widget? suffixIcon;
 
   const _Field({
     required this.controller,
@@ -254,6 +311,9 @@ class _Field extends StatelessWidget {
     this.validator,
     this.maxLines = 1,
     this.keyboardType,
+    this.onTap,
+    this.readOnly = false,
+    this.suffixIcon,
   });
 
   @override
@@ -263,8 +323,11 @@ class _Field extends StatelessWidget {
       validator: validator,
       maxLines: maxLines,
       keyboardType: keyboardType,
+      readOnly: readOnly,
+      onTap: onTap,
       decoration: InputDecoration(
         labelText: label,
+        suffixIcon: suffixIcon,
         filled: true,
         fillColor: Palette.fieldBg,
         border: OutlineInputBorder(

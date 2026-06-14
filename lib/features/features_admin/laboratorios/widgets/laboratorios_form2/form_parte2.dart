@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:quimisol_movil/features/features_admin/laboratorios/widgets/laboratorios_form2/laboratorio_input_formatters.dart';
 import 'form_ui_helpers.dart';
 
 class FormParte2DatosGenerales extends StatelessWidget {
@@ -42,6 +40,12 @@ class FormParte2DatosGenerales extends StatelessWidget {
     required this.validarHora,
   });
 
+  String _formatDate(DateTime d) =>
+      '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
+
+  String _formatTime(TimeOfDay t) =>
+      '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+
   @override
   Widget build(BuildContext context) {
     return FormUiHelpers.sectionCard(
@@ -56,11 +60,19 @@ class FormParte2DatosGenerales extends StatelessWidget {
                 fechaMuestreoCtrl,
                 'Fecha de muestreo',
                 width: 220,
-                inputFormatters: [
-                  FilteringTextInputFormatter.digitsOnly,
-                  DateTextInputFormatter(),
-                ],
-                keyboardType: TextInputType.number,
+                readOnly: true,
+                suffixIcon: const Icon(Icons.calendar_today_rounded, size: 18),
+                onTap: () async {
+                  final picked = await showDatePicker(
+                    context: context,
+                    initialDate: DateTime.now(),
+                    firstDate: DateTime.now(),
+                    lastDate: DateTime(2100),
+                  );
+                  if (picked != null) {
+                    fechaMuestreoCtrl.text = _formatDate(picked);
+                  }
+                },
                 validator: validarFecha,
               ),
               FormUiHelpers.field(
@@ -68,11 +80,19 @@ class FormParte2DatosGenerales extends StatelessWidget {
                 'Fecha de recepción de muestra',
                 width: 260,
                 requiredField: true,
-                inputFormatters: [
-                  FilteringTextInputFormatter.digitsOnly,
-                  DateTextInputFormatter(),
-                ],
-                keyboardType: TextInputType.number,
+                readOnly: true,
+                suffixIcon: const Icon(Icons.calendar_today_rounded, size: 18),
+                onTap: () async {
+                  final picked = await showDatePicker(
+                    context: context,
+                    initialDate: DateTime.now(),
+                    firstDate: DateTime.now(),
+                    lastDate: DateTime(2100),
+                  );
+                  if (picked != null) {
+                    fechaRecepcionCtrl.text = _formatDate(picked);
+                  }
+                },
                 validator: (v) {
                   if (v == null || v.trim().isEmpty) {
                     return 'Requerido';
@@ -85,11 +105,17 @@ class FormParte2DatosGenerales extends StatelessWidget {
                 'Hora de recepción de muestra',
                 width: 220,
                 requiredField: true,
-                inputFormatters: [
-                  FilteringTextInputFormatter.digitsOnly,
-                  TimeTextInputFormatter(),
-                ],
-                keyboardType: TextInputType.number,
+                readOnly: true,
+                suffixIcon: const Icon(Icons.access_time_rounded, size: 18),
+                onTap: () async {
+                  final picked = await showTimePicker(
+                    context: context,
+                    initialTime: TimeOfDay.now(),
+                  );
+                  if (picked != null) {
+                    horaRecepcionCtrl.text = _formatTime(picked);
+                  }
+                },
                 validator: (v) {
                   if (v == null || v.trim().isEmpty) {
                     return 'Requerido';

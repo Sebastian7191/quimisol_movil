@@ -2,6 +2,7 @@ import 'package:flutter_modular/flutter_modular.dart';
 
 // === SERVICES ===
 import 'package:quimisol_movil/core/firebase/firebase_auth_service.dart';
+import 'package:quimisol_movil/core/services/session/session_service.dart';
 import 'package:quimisol_movil/features/features_admin/sidebar/pages/sidebar.dart';
 import 'package:quimisol_movil/shared/services/auth_service.dart';
 
@@ -17,18 +18,21 @@ import 'package:quimisol_movil/features/auth/pages/completar_perfil.dart';
 import 'package:quimisol_movil/features/pasajeros_features/navbar/pages/nav_bar_pasajeros.dart';
 import 'package:quimisol_movil/features/conductores_features/navbar/pages/nav_bar_repartidores.dart';
 
-// === ADMIN SHELL (SIDEBAR) ===
-// ✅ Ajusta este import a tu estructura real.
-// Si lo tienes en otro path, cámbialo.
-
 class AppModule extends Module {
   @override
   void binds(Injector i) {
-    // 🔐 Auth
-    i.addSingleton<AuthService>(FirebaseAuthService.new);
+    // 🔐 Session
+    i.addSingleton<SessionService>(SessionService.new);
 
-    // 👤 User global
-    i.addSingleton<UserStore>(UserStore.new);
+    // 🔐 Auth (depende de SessionService)
+    i.addSingleton<AuthService>(
+      () => FirebaseAuthService(i.get<SessionService>()),
+    );
+
+    // 👤 User global (depende de SessionService)
+    i.addSingleton<UserStore>(
+      () => UserStore(i.get<SessionService>()),
+    );
   }
 
   @override
@@ -51,7 +55,6 @@ class AppModule extends Module {
     // ==========================
     // ✅ ADMIN (Shell Sidebar)
     // ==========================
-    // Todas estas rutas cargan el MISMO Shell (sidebar)
     r.child('/admin', child: (_) => const SidebarShellPage());
     r.child('/dashboard', child: (_) => const SidebarShellPage());
     r.child('/usuarios', child: (_) => const SidebarShellPage());
@@ -59,7 +62,6 @@ class AppModule extends Module {
     r.child('/productos', child: (_) => const SidebarShellPage());
     r.child('/unidades', child: (_) => const SidebarShellPage());
 
-    // futuras rutas hijas (también deben ir al shell)
     r.child('/almacenes/:id', child: (_) => const SidebarShellPage());
   }
 }

@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:quimisol_movil/features/features_admin/laboratorios/widgets/laboratorios_form2/laboratorio_input_formatters.dart';
 import 'form_ui_helpers.dart';
 
 class FormParte5Recepcion extends StatelessWidget {
@@ -27,6 +25,9 @@ class FormParte5Recepcion extends StatelessWidget {
     required this.observacionesAdicionalesCtrl,
     required this.validarFecha,
   });
+
+  String _formatDate(DateTime d) =>
+      '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
 
   @override
   Widget build(BuildContext context) {
@@ -57,11 +58,20 @@ class FormParte5Recepcion extends StatelessWidget {
                     'Fecha',
                     width: double.infinity,
                     requiredField: true,
-                    inputFormatters: [
-                      FilteringTextInputFormatter.digitsOnly,
-                      DateTextInputFormatter(),
-                    ],
-                    keyboardType: TextInputType.number,
+                    readOnly: true,
+                    suffixIcon:
+                        const Icon(Icons.calendar_today_rounded, size: 18),
+                    onTap: () async {
+                      final picked = await showDatePicker(
+                        context: context,
+                        initialDate: DateTime.now(),
+                        firstDate: DateTime.now(),
+                        lastDate: DateTime(2100),
+                      );
+                      if (picked != null) {
+                        entregadoFechaCtrl.text = _formatDate(picked);
+                      }
+                    },
                     validator: (v) {
                       if (v == null || v.trim().isEmpty) {
                         return 'Requerido';
@@ -90,11 +100,20 @@ class FormParte5Recepcion extends StatelessWidget {
                     'Fecha',
                     width: double.infinity,
                     requiredField: true,
-                    inputFormatters: [
-                      FilteringTextInputFormatter.digitsOnly,
-                      DateTextInputFormatter(),
-                    ],
-                    keyboardType: TextInputType.number,
+                    readOnly: true,
+                    suffixIcon:
+                        const Icon(Icons.calendar_today_rounded, size: 18),
+                    onTap: () async {
+                      final picked = await showDatePicker(
+                        context: context,
+                        initialDate: DateTime.now(),
+                        firstDate: DateTime.now(),
+                        lastDate: DateTime(2100),
+                      );
+                      if (picked != null) {
+                        recibidoFechaCtrl.text = _formatDate(picked);
+                      }
+                    },
                     validator: (v) {
                       if (v == null || v.trim().isEmpty) {
                         return 'Requerido';

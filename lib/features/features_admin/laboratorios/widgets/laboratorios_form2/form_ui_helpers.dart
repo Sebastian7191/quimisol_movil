@@ -96,6 +96,9 @@ class FormUiHelpers {
     TextInputType? keyboardType,
     List<TextInputFormatter>? inputFormatters,
     String? Function(String?)? validator,
+    VoidCallback? onTap,
+    bool readOnly = false,
+    Widget? suffixIcon,
   }) {
     return SizedBox(
       width: width == double.infinity ? null : width,
@@ -104,6 +107,8 @@ class FormUiHelpers {
         maxLines: maxLines,
         keyboardType: keyboardType,
         inputFormatters: inputFormatters,
+        readOnly: readOnly,
+        onTap: onTap,
         validator: validator ??
             (requiredField
                 ? (v) {
@@ -117,6 +122,7 @@ class FormUiHelpers {
           labelText: label,
           filled: true,
           fillColor: Colors.white,
+          suffixIcon: suffixIcon,
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(14),
           ),

@@ -1,9 +1,58 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_modular/flutter_modular.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:flutter_modular/flutter_modular.dart';
 
-class AppWidget extends StatelessWidget {
+import 'package:quimisol_movil/core/services/session/session_service.dart';
+
+class AppWidget extends StatefulWidget {
   const AppWidget({super.key});
+
+  @override
+  State<AppWidget> createState() => _AppWidgetState();
+}
+
+class _AppWidgetState extends State<AppWidget> {
+  final _messengerKey = GlobalKey<ScaffoldMessengerState>();
+
+  late final SessionService _sessionService;
+
+  @override
+  void initState() {
+    super.initState();
+    _sessionService = Modular.get<SessionService>();
+    _sessionService.sessionRevoked.addListener(_onSessionRevoked);
+  }
+
+  @override
+  void dispose() {
+    _sessionService.sessionRevoked.removeListener(_onSessionRevoked);
+    super.dispose();
+  }
+
+  Future<void> _onSessionRevoked() async {
+    if (!_sessionService.sessionRevoked.value) return;
+
+    _sessionService.resetRevoked();
+
+    _messengerKey.currentState?.showSnackBar(
+      const SnackBar(
+        content: Text(
+          'Tu sesión fue cerrada porque se inició sesión en otro dispositivo.',
+        ),
+        backgroundColor: Colors.redAccent,
+        behavior: SnackBarBehavior.floating,
+        duration: Duration(seconds: 3),
+      ),
+    );
+
+    await Future.delayed(const Duration(seconds: 2));
+
+    await _sessionService.stopSession();
+    await FirebaseAuth.instance.signOut();
+
+    Modular.to.navigate('/login');
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -21,10 +70,10 @@ class AppWidget extends StatelessWidget {
     );
 
     return MaterialApp.router(
-      title: 'quimisol_movil',
+      title: 'Quimisol SRL',
       debugShowCheckedModeBanner: false,
+      scaffoldMessengerKey: _messengerKey,
 
-      // ✅ Calendario / DatePicker / TimePicker en Español
       locale: const Locale('es', 'BO'),
       supportedLocales: const [
         Locale('es', 'BO'),

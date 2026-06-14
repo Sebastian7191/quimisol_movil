@@ -9,6 +9,7 @@ import 'widgets/dashboard_header.dart';
 import 'widgets/dashboard_filters.dart';
 import 'widgets/dashboard_stat_cards.dart';
 import 'widgets/dashboard_sections.dart';
+import 'widgets/resenas_dashboard_section.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -111,6 +112,8 @@ class _DashboardPageState extends State<DashboardPage> {
                                           DashboardStatCards(width: w, stats: stats),
                                           const SizedBox(height: 14),
                                           DashboardSections(width: w, stats: stats, range: c.range),
+                                          const SizedBox(height: 14),
+                                          ResenasDashboardSection(width: w),
                                           const SizedBox(height: 22),
                                         ],
                                       );

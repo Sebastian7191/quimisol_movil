@@ -1,6 +1,6 @@
 {
-    "name": "quimisol_movil",
-    "short_name": "quimisol_movil",
+    "name": "Quimisol SRL",
+    "short_name": "Quimisol",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

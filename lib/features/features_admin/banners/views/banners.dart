@@ -1,9 +1,10 @@
 // lib/features/banners/pages/banners.dart
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:quimisol_movil/core/theme/palette.dart';
 import 'package:quimisol_movil/features/features_admin/banners/widgets/dialog/banner_dialog.dart';
-import 'package:quimisol_movil/features/features_admin/banners/widgets/dialog/form_result.dart';
 import 'package:quimisol_movil/shared/dialogs/delete_dialog.dart';
 
 
@@ -40,15 +41,23 @@ class _BannersPageState extends State<BannersPage> {
   Stream<QuerySnapshot<Map<String, dynamic>>> _bannersStream() =>
       controller.bannersStream();
 
-  Future<BannerFormResult?> _showBannerDialog(Widget dialog) {
+  Future<BannerDialogResult?> _showBannerDialog(Widget dialog) {
     FocusManager.instance.primaryFocus?.unfocus();
 
-    return showDialog<BannerFormResult>(
+    return showDialog<BannerDialogResult>(
       context: context,
-      useRootNavigator: true, // ✅ CLAVE en Modular / navigators anidados
+      useRootNavigator: true,
       barrierDismissible: false,
       builder: (_) => dialog,
     );
+  }
+
+  Future<String> _uploadBannerImage(Uint8List bytes, String docId) async {
+    final ts = DateTime.now().millisecondsSinceEpoch;
+    final path = 'banners/$docId/$ts.jpg';
+    final ref = FirebaseStorage.instance.ref().child(path);
+    final task = await ref.putData(bytes, SettableMetadata(contentType: 'image/jpeg'));
+    return task.ref.getDownloadURL();
   }
 
   Future<void> _openAddDialog() async {
@@ -59,12 +68,19 @@ class _BannersPageState extends State<BannersPage> {
     if (res == null) return;
 
     try {
+      String imageUrl = '';
+      if (res.pickedImageBytes != null) {
+        imageUrl = await _uploadBannerImage(
+          res.pickedImageBytes!,
+          'new_${DateTime.now().millisecondsSinceEpoch}',
+        );
+      }
       await controller.crearBanner(
         titulo: res.titulo,
         subtitulo: res.subtitulo,
-        imagen: res.imagen,
-        estado: res.estado,
-        idproducto: res.idproducto,
+        imagen: imageUrl,
+        estado: res.activo ? 'ACTIVO' : 'INACTIVO',
+        idproducto: '',
       );
 
       if (mounted) {
@@ -88,30 +104,33 @@ class _BannersPageState extends State<BannersPage> {
     required String docId,
     required Map<String, dynamic> data,
   }) async {
-    // ✅ IMPORTANTE:
-    // Quité initialImagen/initialEstado/initialIdProducto porque tu BannerDialog
-    // no los tiene con ese nombre (por eso el error).
-    // Si quieres precarga completa, pásame el constructor real de BannerDialog
-    // y lo dejo exacto.
+    final existingImage = (data['imagen'] ?? '').toString();
+    final isActivo = (data['estado'] ?? '').toString().toUpperCase() == 'ACTIVO';
+
     final res = await _showBannerDialog(
       BannerDialog(
         title: 'Editar banner',
         initialTitulo: (data['titulo'] ?? '').toString(),
         initialSubtitulo: (data['subtitulo'] ?? '').toString(),
-        // ❌ NO PASAR: initialImagen / initialEstado / initialIdProducto
+        initialActivo: isActivo,
+        initialImageUrl: existingImage.isNotEmpty ? existingImage : null,
       ),
     );
 
     if (res == null) return;
 
     try {
+      String imageUrl = existingImage;
+      if (res.pickedImageBytes != null) {
+        imageUrl = await _uploadBannerImage(res.pickedImageBytes!, docId);
+      }
       await controller.actualizarBanner(
         docId: docId,
         titulo: res.titulo,
         subtitulo: res.subtitulo,
-        imagen: res.imagen,
-        estado: res.estado,
-        idproducto: res.idproducto,
+        imagen: imageUrl,
+        estado: res.activo ? 'ACTIVO' : 'INACTIVO',
+        idproducto: (data['idproducto'] ?? '').toString(),
       );
 
       if (mounted) {

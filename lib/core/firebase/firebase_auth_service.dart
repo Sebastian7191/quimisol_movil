@@ -1,17 +1,20 @@
-import 'package:flutter/foundation.dart' show kIsWeb; //agregue esto no me preguntes por que, es para detectar si esta en web o no...jaja la app se respondio sola
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
 import 'package:quimisol_movil/shared/services/auth_service.dart';
+import 'package:quimisol_movil/core/services/session/session_service.dart';
 
 class FirebaseAuthService implements AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _db = FirebaseFirestore.instance;
+  final SessionService _sessionService;
 
-  // Una sola instancia en móvil
   final GoogleSignIn _googleSignIn = GoogleSignIn(scopes: ['email']);
+
+  FirebaseAuthService(this._sessionService);
 
   // ──────────────────────────────────────────────
   //  ESTADO DE LOGIN
@@ -48,12 +51,16 @@ class FirebaseAuthService implements AuthService {
     final cleanPass = password.trim();
 
     try {
-      await _auth.signInWithEmailAndPassword(
+      final cred = await _auth.signInWithEmailAndPassword(
         email: cleanEmail,
         password: cleanPass,
       );
+
+      final uid = cred.user?.uid;
+      if (uid != null) {
+        await _sessionService.registerNewSession(uid);
+      }
     } on FirebaseAuthException catch (e) {
-      // Caso típico en web: intentan entrar con password pero la cuenta es Google-only
       if (_looksLikeGoogleOnlyAccount(e)) {
         throw Exception(
           'Este correo parece estar registrado con Google. '
@@ -90,6 +97,9 @@ class FirebaseAuthService implements AuthService {
         'created_at': FieldValue.serverTimestamp(),
         'updated_at': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
+
+      // Registrar sesión tras el registro
+      await _sessionService.registerNewSession(cred.user!.uid);
     } on FirebaseAuthException catch (e) {
       if (e.code == 'email-already-in-use') {
         throw Exception(
@@ -103,9 +113,6 @@ class FirebaseAuthService implements AuthService {
 
   // ──────────────────────────────────────────────
   //  LOGIN GOOGLE (WEB + MÓVIL)
-  //  ✅ WEB: signInWithPopup
-  //  ✅ MÓVIL: _googleSignIn (una sola instancia)
-  //  ✅ Valida que exista en Firestore (usuarios/{uid})
   // ──────────────────────────────────────────────
   @override
   Future<GoogleLoginResult> signInWithGoogle() async {
@@ -128,7 +135,6 @@ class FirebaseAuthService implements AuthService {
           rethrow;
         }
       } else {
-        // ✅ Forzar chooser (como tu compa)
         try {
           await _googleSignIn.signOut();
         } catch (_) {}
@@ -153,7 +159,6 @@ class FirebaseAuthService implements AuthService {
       final ref = _db.collection('usuarios').doc(uid);
       final doc = await ref.get();
 
-      // ✅ Solo deja entrar si existe en tu sistema
       if (!doc.exists) {
         await _auth.signOut();
         if (!kIsWeb) {
@@ -171,11 +176,9 @@ class FirebaseAuthService implements AuthService {
       final data = doc.data();
       final bool isProfileCompleted = data?['profile_completed'] == true;
 
-      // ✅ Respeta role existente
       final String? existingRole = data?['role'] as String?;
       final bool hasRole = (existingRole != null && existingRole.isNotEmpty);
 
-      // ✅ Actualiza básicos (y role solo si no existe)
       final payload = <String, dynamic>{
         'email': userCred.user!.email,
         if (!hasRole) 'role': 'cliente',
@@ -186,6 +189,9 @@ class FirebaseAuthService implements AuthService {
       };
 
       await ref.set(payload, SetOptions(merge: true));
+
+      // Registrar sesión única
+      await _sessionService.registerNewSession(uid);
 
       return GoogleLoginResult(
         isNewUser: !isProfileCompleted,
@@ -216,10 +222,10 @@ class FirebaseAuthService implements AuthService {
   // ──────────────────────────────────────────────
   @override
   Future<void> logout() async {
-    // ✅ Primero Firebase
+    await _sessionService.stopSession();
+
     await _auth.signOut();
 
-    // ✅ Luego Google (en móvil) para que vuelva a preguntar cuenta
     if (!kIsWeb) {
       try {
         await _googleSignIn.disconnect();

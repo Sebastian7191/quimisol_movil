@@ -1044,6 +1044,15 @@ class _QrActionBox extends StatelessWidget {
   }
 }
 
+String _normEstadoPago(dynamic v) {
+  final s = (v ?? '').toString().trim().toLowerCase();
+  if (s.isEmpty || s.contains('pend')) return 'pendiente';
+  if (s.contains('pag')) return 'pagado';
+  if (s.contains('rech')) return 'rechazado';
+  if (s.contains('verif')) return 'verificando';
+  return s;
+}
+
 class _CobroEstadosPanel extends StatelessWidget {
   const _CobroEstadosPanel({super.key});
 
@@ -1065,43 +1074,75 @@ class _CobroEstadosPanel extends StatelessWidget {
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: const [
-          _PanelTitle(
-            icon: Icons.receipt_long_rounded,
-            title: 'Estados de cobro',
-            subtitle: 'Aquí irá el seguimiento de pagos por pedido.',
-          ),
-          SizedBox(height: 18),
-          _StateCard(
-            title: 'Pendiente de pago',
-            count: '0',
-            description: 'Pedidos aún no pagados o en espera de confirmación.',
-            icon: Icons.schedule_rounded,
-          ),
-          SizedBox(height: 12),
-          _StateCard(
-            title: 'Pagado por QR',
-            count: '0',
-            description: 'Pedidos cuyo pago se realizó mediante escaneo QR.',
-            icon: Icons.qr_code_rounded,
-          ),
-          SizedBox(height: 12),
-          _StateCard(
-            title: 'Pagado en efectivo',
-            count: '0',
-            description: 'Pedidos marcados con pago presencial o contra entrega.',
-            icon: Icons.payments_rounded,
-          ),
-          SizedBox(height: 12),
-          _StateCard(
-            title: 'Verificación manual',
-            count: '0',
-            description: 'Pagos que luego podrás revisar y validar manualmente.',
-            icon: Icons.fact_check_rounded,
-          ),
-        ],
+      child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+        stream: FirebaseFirestore.instance.collection('pedidos').snapshots(),
+        builder: (context, snap) {
+          int pendiente = 0;
+          int pagoQr = 0;
+          int pagoEfectivo = 0;
+          int verificacionManual = 0;
+
+          if (snap.hasData) {
+            for (final doc in snap.data!.docs) {
+              final d = doc.data();
+              // el admin guarda 'estado_pago', el cliente crea con 'estadoPago'
+              final estado = _normEstadoPago(d['estado_pago'] ?? d['estadoPago']);
+              // ídem para tipoPago
+              final tipo = (d['tipo_pago'] ?? d['tipoPago'] ?? '')
+                  .toString().toLowerCase().trim();
+
+              if (estado == 'pendiente') pendiente++;
+              if (tipo == 'qr' && estado == 'pagado') pagoQr++;
+              if (tipo == 'efectivo' && estado == 'pagado') pagoEfectivo++;
+              if (estado == 'verificando') verificacionManual++;
+            }
+          }
+
+          final loading = snap.connectionState == ConnectionState.waiting;
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const _PanelTitle(
+                icon: Icons.receipt_long_rounded,
+                title: 'Estados de cobro',
+                subtitle: 'Seguimiento de pagos por pedido.',
+              ),
+              const SizedBox(height: 18),
+              _StateCard(
+                title: 'Pendiente de pago',
+                count: loading ? '…' : pendiente.toString(),
+                description: 'Pedidos aún no pagados o en espera de confirmación.',
+                icon: Icons.schedule_rounded,
+                color: Colors.orange,
+              ),
+              const SizedBox(height: 12),
+              _StateCard(
+                title: 'Pagado por QR',
+                count: loading ? '…' : pagoQr.toString(),
+                description: 'Pedidos cuyo pago se realizó mediante escaneo QR.',
+                icon: Icons.qr_code_rounded,
+                color: Palette.primary,
+              ),
+              const SizedBox(height: 12),
+              _StateCard(
+                title: 'Pagado en efectivo',
+                count: loading ? '…' : pagoEfectivo.toString(),
+                description: 'Pedidos marcados con pago presencial o contra entrega.',
+                icon: Icons.payments_rounded,
+                color: Colors.green,
+              ),
+              const SizedBox(height: 12),
+              _StateCard(
+                title: 'Verificación manual',
+                count: loading ? '…' : verificacionManual.toString(),
+                description: 'Pagos que luego podrás revisar y validar manualmente.',
+                icon: Icons.fact_check_rounded,
+                color: Colors.purple,
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -1112,12 +1153,14 @@ class _StateCard extends StatelessWidget {
   final String count;
   final String description;
   final IconData icon;
+  final Color color;
 
   const _StateCard({
     required this.title,
     required this.count,
     required this.description,
     required this.icon,
+    this.color = Palette.primary,
   });
 
   @override
@@ -1128,7 +1171,7 @@ class _StateCard extends StatelessWidget {
         color: Palette.fieldBg,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
-          color: Palette.primary.withValues(alpha: 0.07),
+          color: color.withValues(alpha: 0.12),
         ),
       ),
       child: Row(
@@ -1138,10 +1181,10 @@ class _StateCard extends StatelessWidget {
             width: 46,
             height: 46,
             decoration: BoxDecoration(
-              color: Palette.button.withValues(alpha: 0.10),
+              color: color.withValues(alpha: 0.10),
               borderRadius: BorderRadius.circular(14),
             ),
-            child: Icon(icon, color: Palette.primary),
+            child: Icon(icon, color: color),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -1176,13 +1219,13 @@ class _StateCard extends StatelessWidget {
               color: Colors.white,
               borderRadius: BorderRadius.circular(13),
               border: Border.all(
-                color: Palette.primary.withValues(alpha: 0.08),
+                color: color.withValues(alpha: 0.18),
               ),
             ),
             child: Text(
               count,
-              style: const TextStyle(
-                color: Palette.primary,
+              style: TextStyle(
+                color: color,
                 fontWeight: FontWeight.w900,
                 fontSize: 16,
               ),
