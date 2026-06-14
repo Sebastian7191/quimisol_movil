@@ -1,5 +1,6 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import 'package:quimisol_movil/core/constants/pedido_estado.dart';
 import 'package:quimisol_movil/core/theme/palette.dart';
 import '../../../data/dashboard_models.dart';
 
@@ -9,8 +10,9 @@ class PedidosEstadoBarChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final labels = ['pendiente', 'aceptado', 'en camino', 'entregado', 'cancelado'];
-    final values = labels.map((k) => stats.pedidosPorEstado[k] ?? 0).toList();
+    final keys = [kEstadoPendiente, kEstadoAceptado, kEstadoEnCamino, kEstadoEntregado, kEstadoCancelado];
+    final labels = ['pendiente', 'aceptado', 'en_camino', 'entregado', 'cancelado'];
+    final values = keys.map((k) => stats.pedidosPorEstado[k] ?? 0).toList();
 
     final maxY = values.isEmpty ? 1 : values.reduce((a, b) => a > b ? a : b);
 
@@ -44,7 +46,7 @@ class PedidosEstadoBarChart extends StatelessWidget {
                   return Padding(
                     padding: const EdgeInsets.only(top: 6),
                     child: Text(
-                      t == 'en camino' ? 'en_camino' : t,
+                      t,
                       style: TextStyle(color: Palette.ink.withValues(alpha: 0.65), fontWeight: FontWeight.w700, fontSize: 10),
                     ),
                   );
@@ -52,13 +54,13 @@ class PedidosEstadoBarChart extends StatelessWidget {
               ),
             ),
           ),
-          barGroups: List.generate(labels.length, (i) {
+          barGroups: List.generate(keys.length, (i) {
             final v = values[i].toDouble();
-            final color = switch (labels[i]) {
-              'pendiente' => Palette.statsWarning,
-              'aceptado' => Palette.statsNeutral,
-              'en camino' => Palette.secondary,
-              'entregado' => Palette.statsSuccess,
+            final color = switch (keys[i]) {
+              kEstadoPendiente => Palette.statsWarning,
+              kEstadoAceptado => Palette.statsNeutral,
+              kEstadoEnCamino => Palette.secondary,
+              kEstadoEntregado => Palette.statsSuccess,
               _ => Palette.statsDanger,
             };
 

@@ -142,17 +142,17 @@ class _FormsSwitchBar extends StatelessWidget {
       child: Row(
         children: [
           _SwitchItem(
-            label: 'Formulario \n Solicitud',
+            label: 'Formulario Solicitud',
             isSelected: currentIndex == 0,
             onTap: () => onChanged(0),
           ),
           _SwitchItem(
-            label: 'Formulario \n Recepción',
+            label: 'Formulario Recepción',
             isSelected: currentIndex == 1,
             onTap: () => onChanged(1),
           ),
           _SwitchItem(
-            label: 'Formulario \n Ensayo',
+            label: 'Formulario Ensayo',
             isSelected: currentIndex == 2,
             onTap: () => onChanged(2),
           ),

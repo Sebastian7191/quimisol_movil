@@ -74,16 +74,9 @@ class _TopHeaderMock extends StatelessWidget {
       height: height,
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
+        color: Palette.white,
         borderRadius: BorderRadius.circular(22),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Palette.button.withValues(alpha: 0.22),
-            Palette.card.withValues(alpha: 0.95),
-          ],
-        ),
-        border: Border.all(color: Palette.button.withValues(alpha: 0.18)),
+        border: Border.all(color: Colors.black.withValues(alpha: 0.06)),
       ),
       child: Row(
         children: [

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:quimisol_movil/core/theme/palette.dart';
+import 'package:quimisol_movil/shared/widgets/admin_action_button.dart';
 
 class BannerCard extends StatelessWidget {
   final String titulo;
@@ -40,7 +41,7 @@ class BannerCard extends StatelessWidget {
                 padding: const EdgeInsets.fromLTRB(16, 14, 14, 10),
                 child: LayoutBuilder(
                   builder: (context, c) {
-                    final isMobileCard = c.maxWidth < 420;
+                    final isMobileCard = c.maxWidth < 320;
 
                     if (isMobileCard) {
                       return _MobileBody(
@@ -54,6 +55,7 @@ class BannerCard extends StatelessWidget {
                     final imageW = (c.maxWidth * 0.34).clamp(130.0, 200.0);
 
                     return Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         Expanded(
                           child: Column(
@@ -115,17 +117,17 @@ class BannerCard extends StatelessWidget {
                         children: [
                           _EstadoChip(isActivo: isActivo),
                           const Spacer(),
-                          _IconAction(
+                          AdminActionButton(
                             tooltip: 'Editar',
                             icon: Icons.edit_rounded,
                             color: Palette.primary,
                             onTap: onEdit,
                           ),
                           const SizedBox(width: 10),
-                          _IconAction(
+                          AdminActionButton(
                             tooltip: 'Eliminar',
                             icon: Icons.delete_outline_rounded,
-                            color: Palette.statsDanger.withValues(alpha: 0.95),
+                            color: Palette.statsDanger,
                             onTap: onDelete,
                           ),
                         ],
@@ -313,39 +315,3 @@ class _EstadoChip extends StatelessWidget {
   }
 }
 
-class _IconAction extends StatelessWidget {
-  final String tooltip;
-  final IconData icon;
-  final Color color;
-  final VoidCallback onTap;
-
-  const _IconAction({
-    required this.tooltip,
-    required this.icon,
-    required this.color,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: Tooltip(
-        message: tooltip,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(12),
-          child: Container(
-            padding: const EdgeInsets.all(9),
-            decoration: BoxDecoration(
-              color: Palette.white,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Palette.button.withValues(alpha: 0.16)),
-            ),
-            child: Icon(icon, size: 18, color: color),
-          ),
-        ),
-      ),
-    );
-  }
-}

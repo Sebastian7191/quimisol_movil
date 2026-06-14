@@ -619,7 +619,10 @@ class _BannerDialogState extends State<BannerDialog> {
                             const SizedBox(width: 14),
                             SizedBox(
                               width: 360,
-                              child: _previewBox(),
+                              height: box.maxHeight,
+                              child: SingleChildScrollView(
+                                child: _previewBox(),
+                              ),
                             ),
                           ],
                         );

@@ -262,7 +262,8 @@ class ProductoDialogForm extends StatelessWidget {
                         if (text.isEmpty) {
                           return 'Ingresa ${controller.contenidoLabel.toLowerCase()}';
                         }
-                        if (text.length < 2) return 'Valor inválido';
+                        final num = double.tryParse(text.replaceAll(',', '.'));
+                        if (num == null || num <= 0) return 'Ingresa un valor válido (ej: 1, 0.5, 500)';
                         return null;
                       },
                     ),

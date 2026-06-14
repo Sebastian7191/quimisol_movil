@@ -263,7 +263,7 @@ class _BannersPageState extends State<BannersPage> {
                                   color: Palette.white, width: 2,
                                 ),
                               ),
-                              textStyle: const TextStyle(fontWeight: FontWeight.w800),
+                              textStyle: const TextStyle(fontWeight: FontWeight.w900),
                             ),
                           ),
                         ),
@@ -298,7 +298,7 @@ class _BannersPageState extends State<BannersPage> {
                             child: TextField(
                               controller: controller.searchCtrl,
                               decoration: InputDecoration(
-                                hintText: 'Buscar por título, subtítulo o idproducto…',
+                                hintText: 'Buscar por título o subtítulo',
                                 border: InputBorder.none,
                                 hintStyle: TextStyle(
                                   color: Palette.ink.withValues(alpha: 0.35),
@@ -396,7 +396,7 @@ class _BannersPageState extends State<BannersPage> {
                                       maxCrossAxisExtent: 520,
                                       crossAxisSpacing: 14,
                                       mainAxisSpacing: 14,
-                                      childAspectRatio: 2.65,
+                                      mainAxisExtent: 220,
                                     ),
                               itemCount: items.length,
                               itemBuilder: (_, i) {

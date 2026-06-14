@@ -4,9 +4,11 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:quimisol_movil/core/constants/pedido_estado.dart';
 import 'package:quimisol_movil/core/theme/palette.dart';
+import 'package:quimisol_movil/shared/widgets/pagination_bar.dart';
 
 import '../controllers/pedidos_controller.dart';
 import 'detalle_pedido.dart';
+import 'pedidos_entregados.dart';
 import 'widgets/micro_widgets.dart';
 import 'widgets/stagger_in.dart';
 
@@ -26,6 +28,8 @@ class _PedidosPageState extends State<PedidosPage> with TickerProviderStateMixin
   final _searchCtrl = TextEditingController();
   String _q = '';
   String _estado = 'Todos';
+  int _currentPage = 0;
+  static const int _pageSize = 10;
 
   final controller = PedidosController();
   late final AnimationController _bgCtrl;
@@ -45,7 +49,7 @@ class _PedidosPageState extends State<PedidosPage> with TickerProviderStateMixin
     _searchCtrl.addListener(() {
       final v = _searchCtrl.text.trim();
       if (v == _q) return;
-      setState(() => _q = v);
+      setState(() { _q = v; _currentPage = 0; });
     });
   }
 
@@ -64,7 +68,6 @@ class _PedidosPageState extends State<PedidosPage> with TickerProviderStateMixin
       kEstadoPendiente,
       kEstadoAceptado,
       kEstadoEnCamino,
-      kEstadoEntregado,
       kEstadoCancelado,
     ];
 
@@ -195,7 +198,7 @@ class _PedidosPageState extends State<PedidosPage> with TickerProviderStateMixin
     );
 
     if (res == null) return;
-    setState(() => _estado = res);
+    setState(() { _estado = res; _currentPage = 0; });
   }
 
   String _estadoLabel(String v) {
@@ -238,8 +241,14 @@ class _PedidosPageState extends State<PedidosPage> with TickerProviderStateMixin
               bgCtrl: _bgCtrl,
               searchCtrl: _searchCtrl,
               estado: _estado,
-              onEstado: (v) => setState(() => _estado = v),
+              onEstado: (v) => setState(() { _estado = v; _currentPage = 0; }),
               onOpenEstadoSheet: _openEstadoSheet,
+              onEntregados: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const PedidosEntregadosPage(),
+                ),
+              ),
             ),
             Expanded(
               child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
@@ -277,7 +286,10 @@ class _PedidosPageState extends State<PedidosPage> with TickerProviderStateMixin
                     });
                   }
 
-                  final pedidos = docs.map((d) => controller.parsePedidoRow(d)).toList();
+                  final pedidos = docs
+                      .map((d) => controller.parsePedidoRow(d))
+                      .where((p) => p.estado.toLowerCase() != 'entregado')
+                      .toList();
 
                   final filtered = controller.filterPedidos(
                     pedidos: pedidos,
@@ -289,65 +301,81 @@ class _PedidosPageState extends State<PedidosPage> with TickerProviderStateMixin
                     return EmptyState(query: _q, estado: _estado);
                   }
 
-                  final sections = controller.groupByDepartamento(filtered);
+                  final totalPages = (filtered.length / _pageSize).ceil().clamp(1, 99999);
+                  final page = _currentPage.clamp(0, totalPages - 1);
+                  final pageFiltered = filtered.skip(page * _pageSize).take(_pageSize).toList();
+                  final sections = controller.groupByDepartamento(pageFiltered);
 
-                  return ListView.builder(
-                    padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
-                    itemCount: sections.length + 1,
-                    itemBuilder: (_, i) {
-                      if (i == 0) {
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 12),
-                          child: Row(
-                            children: [
-                              Text(
-                                'Resultados',
-                                style: TextStyle(
-                                  color: ink.withValues(alpha: 0.55),
-                                  fontWeight: FontWeight.w800,
+                  return Column(
+                    children: [
+                      Expanded(
+                        child: ListView.builder(
+                          padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
+                          itemCount: sections.length + 1,
+                          itemBuilder: (_, i) {
+                            if (i == 0) {
+                              return Padding(
+                                padding: const EdgeInsets.only(bottom: 12),
+                                child: Row(
+                                  children: [
+                                    Text(
+                                      'Resultados',
+                                      style: TextStyle(
+                                        color: ink.withValues(alpha: 0.55),
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    CountPill(count: filtered.length),
+                                    const Spacer(),
+                                    if (!compact)
+                                      const HintPill(text: 'Toca un pedido para ver detalle'),
+                                  ],
                                 ),
-                              ),
-                              const SizedBox(width: 8),
-                              CountPill(count: filtered.length),
-                              const Spacer(),
-                              if (!compact)
-                                const HintPill(text: 'Toca un pedido para ver detalle'),
-                            ],
-                          ),
-                        );
-                      }
+                              );
+                            }
 
-                      final s = sections[i - 1];
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 14),
-                        child: _DeptoBlock(
-                          title: s.departamento,
-                          count: s.pedidos.length,
-                          children: List.generate(s.pedidos.length, (idx) {
-                            final p = s.pedidos[idx];
-                            final delay = math.min(420, (idx + i) * 18);
+                            final s = sections[i - 1];
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 14),
+                              child: _DeptoBlock(
+                                title: s.departamento,
+                                count: s.pedidos.length,
+                                children: List.generate(s.pedidos.length, (idx) {
+                                  final p = s.pedidos[idx];
+                                  final delay = math.min(420, (idx + i) * 18);
 
-                            return StaggerIn(
-                              delayMs: delay,
-                              child: Padding(
-                                padding: EdgeInsets.only(
-                                  bottom: idx == s.pedidos.length - 1 ? 0 : 10,
-                                ),
-                                child: PedidoCard(
-                                  pedido: p,
-                                  onTap: () async {
-                                    final doc = idToDoc[p.id];
-                                    if (doc == null) return;
-                                    await showPedidoDetalleDialog(context, doc.id);
-                                    if (mounted) setState(() {});
-                                  },
-                                ),
+                                  return StaggerIn(
+                                    delayMs: delay,
+                                    child: Padding(
+                                      padding: EdgeInsets.only(
+                                        bottom: idx == s.pedidos.length - 1 ? 0 : 10,
+                                      ),
+                                      child: PedidoCard(
+                                        pedido: p,
+                                        onTap: () async {
+                                          final doc = idToDoc[p.id];
+                                          if (doc == null) return;
+                                          await showPedidoDetalleDialog(context, doc.id);
+                                          if (mounted) setState(() {});
+                                        },
+                                      ),
+                                    ),
+                                  );
+                                }),
                               ),
                             );
-                          }),
+                          },
                         ),
-                      );
-                    },
+                      ),
+                      AdminPaginationBar(
+                        currentPage: page,
+                        totalItems: filtered.length,
+                        pageSize: _pageSize,
+                        onPrev: page > 0 ? () => setState(() => _currentPage = page - 1) : null,
+                        onNext: (page + 1) * _pageSize < filtered.length ? () => setState(() => _currentPage = page + 1) : null,
+                      ),
+                    ],
                   );
                 },
               ),
@@ -422,6 +450,7 @@ class _PedidosHeader extends StatelessWidget {
     required this.estado,
     required this.onEstado,
     required this.onOpenEstadoSheet,
+    required this.onEntregados,
   });
 
   final bool compact;
@@ -430,6 +459,7 @@ class _PedidosHeader extends StatelessWidget {
   final String estado;
   final ValueChanged<String> onEstado;
   final VoidCallback onOpenEstadoSheet;
+  final VoidCallback onEntregados;
 
   @override
   Widget build(BuildContext context) {
@@ -524,6 +554,37 @@ class _PedidosHeader extends StatelessWidget {
                       ),
                     ),
 
+                    // Botón Entregados
+                    InkWell(
+                      onTap: onEntregados,
+                      borderRadius: BorderRadius.circular(14),
+                      child: Container(
+                        height: 42,
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.18),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: Colors.white, width: 2),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.done_all_rounded, color: Colors.white, size: 18),
+                            SizedBox(width: 6),
+                            Text(
+                              'Entregados',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w900,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+
                     // ✅ En móvil: mejor botón (abre bottom sheet)
                     if (compact)
                       InkWell(
@@ -577,7 +638,7 @@ class _PedidosHeader extends StatelessWidget {
                           decoration: InputDecoration(
                             hintText: compact
                                 ? 'Buscar por código, dirección…'
-                                : 'Buscar por código, dirección, uid o depto…',
+                                : 'Buscar por código, dirección o depto…',
                             border: InputBorder.none,
                             hintStyle: TextStyle(
                               color: ink.withValues(alpha: 0.35),
@@ -640,7 +701,6 @@ class _EstadoFilterMini extends StatelessWidget {
       kEstadoPendiente,
       kEstadoAceptado,
       kEstadoEnCamino,
-      kEstadoEntregado,
       kEstadoCancelado,
     ];
 
@@ -652,8 +712,6 @@ class _EstadoFilterMini extends StatelessWidget {
           return 'Aceptado';
         case kEstadoEnCamino:
           return 'En camino';
-        case kEstadoEntregado:
-          return 'Entregado';
         case kEstadoCancelado:
           return 'Cancelado';
         default:

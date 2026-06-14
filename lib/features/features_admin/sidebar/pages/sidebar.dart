@@ -20,6 +20,8 @@ import 'package:quimisol_movil/features/features_admin/laboratorios/pages/lista_
 import 'package:quimisol_movil/features/features_admin/pagos/pages/pagos.dart';
 import 'package:quimisol_movil/features/features_admin/pedidos/views/pedidos.dart';
 import 'package:quimisol_movil/features/features_admin/productos/views/productos.dart';
+import 'package:quimisol_movil/features/features_admin/resenas/views/resenas_pedidos_page.dart';
+import 'package:quimisol_movil/features/features_admin/resenas/views/resenas_productos_page.dart';
 import 'package:quimisol_movil/features/features_admin/soporte/pages/admin_chat_footer_panel.dart';
 import 'package:quimisol_movil/features/features_admin/unidades/views/unidades.dart';
 import 'package:quimisol_movil/features/features_admin/usuarios/views/usuarios.dart';
@@ -40,6 +42,8 @@ class _SidebarShellPageState extends State<SidebarShellPage> {
   bool _hoveringTrigger = false;
   bool _isSuperAdmin = false;
   bool _loadingRole = true;
+
+  List<Widget> _cachedPages = const [];
 
   Timer? _closeTimer;
 
@@ -101,6 +105,16 @@ class _SidebarShellPageState extends State<SidebarShellPage> {
         label: 'Pedidos',
         route: '/pedidos',
       ),
+      const _SideItem(
+        icon: Icons.star_rounded,
+        label: 'Reseñas Productos',
+        route: '/resenas-productos',
+      ),
+      const _SideItem(
+        icon: Icons.rate_review_rounded,
+        label: 'Reseñas Pedidos',
+        route: '/resenas-pedidos',
+      ),
     ]);
 
     if (_isSuperAdmin) {
@@ -116,30 +130,32 @@ class _SidebarShellPageState extends State<SidebarShellPage> {
     return baseItems;
   }
 
-  List<Widget> get _pages {
-    final basePages = <Widget>[
+  List<Widget> _buildPages() {
+    final pages = <Widget>[
       const DashboardPage(),
       const UsuariosPage(),
     ];
 
     if (_isSuperAdmin) {
-      basePages.add(const AlmacenesPage());
+      pages.add(const AlmacenesPage());
     }
 
-    basePages.addAll([
+    pages.addAll([
       const ProductosPage(),
       const UnidadesPage(),
       const CategoriasPage(),
       const BannersPage(),
       const LaboratoriosPage(),
       const PedidosPage(),
+      const ResenasProductosPage(),
+      const ResenasPedidosPage(),
     ]);
 
     if (_isSuperAdmin) {
-      basePages.add(const PagosPage());
+      pages.add(const PagosPage());
     }
 
-    return basePages;
+    return pages;
   }
 
   void _cancelCloseTimer() {
@@ -191,11 +207,8 @@ class _SidebarShellPageState extends State<SidebarShellPage> {
   }
 
   void _goTo(int index) {
-    final items = _items;
-    if (index < 0 || index >= items.length) return;
-
+    if (index < 0 || index >= _cachedPages.length) return;
     setState(() => _currentIndex = index);
-    Modular.to.navigate(items[index].route);
   }
 
   Future<void> _loadRole() async {
@@ -207,6 +220,7 @@ class _SidebarShellPageState extends State<SidebarShellPage> {
 
       setState(() {
         _isSuperAdmin = role == 'superadmin';
+        _cachedPages = _buildPages();
         _loadingRole = false;
       });
 
@@ -324,8 +338,7 @@ class _SidebarShellPageState extends State<SidebarShellPage> {
       );
     }
 
-    final pages = _pages;
-    if (_currentIndex >= pages.length) {
+    if (_currentIndex >= _cachedPages.length) {
       _currentIndex = 0;
     }
 
@@ -346,7 +359,10 @@ class _SidebarShellPageState extends State<SidebarShellPage> {
                   borderRadius: BorderRadius.circular(18),
                   child: Container(
                     color: Palette.white,
-                    child: pages[_currentIndex],
+                    child: IndexedStack(
+                      index: _currentIndex,
+                      children: _cachedPages,
+                    ),
                   ),
                 ),
               ),
@@ -665,8 +681,7 @@ class _SidebarItemTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bg =
-        selected ? mainColor.withValues(alpha: 0.22) : Colors.transparent;
+    final bg = selected ? mainColor.withValues(alpha: 0.22) : Colors.transparent;
     final iconColor = selected ? Palette.primary : Palette.ink;
     final textColor = selected ? Palette.primary : Palette.ink;
 
@@ -676,16 +691,12 @@ class _SidebarItemTile extends StatelessWidget {
         color: bg,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: selected
-              ? mainColor.withValues(alpha: 0.5)
-              : Colors.transparent,
+          color: selected ? mainColor.withValues(alpha: 0.5) : Colors.transparent,
         ),
       ),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(14),
-        splashColor: Colors.transparent,
-        highlightColor: Colors.transparent,
         child: Padding(
           padding: EdgeInsets.symmetric(
             horizontal: open ? 14 : 10,
@@ -703,8 +714,7 @@ class _SidebarItemTile extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       color: textColor,
-                      fontWeight:
-                          selected ? FontWeight.w800 : FontWeight.w600,
+                      fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
                       fontSize: 13.5,
                     ),
                   ),

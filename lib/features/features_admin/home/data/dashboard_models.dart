@@ -113,11 +113,11 @@ class DashboardStats {
       ventas += _numToDouble(totalRaw);
       envio += _numToDouble(envioRaw);
 
-      if (estado == 'pendiente') {pend++;}
-      else if (estado == 'aceptado') {acept++;}
-      else if (estado == 'en camino') {enc++;}
-      else if (estado == 'entregado') {entr++;}
-      else if (estado == 'cancelado') {canc++;}
+      if (estado == kEstadoPendiente) {pend++;}
+      else if (estado == kEstadoAceptado) {acept++;}
+      else if (estado == kEstadoEnCamino) {enc++;}
+      else if (estado == kEstadoEntregado) {entr++;}
+      else if (estado == kEstadoCancelado) {canc++;}
 
       recent.add(PedidoMini(
         id: d.id,

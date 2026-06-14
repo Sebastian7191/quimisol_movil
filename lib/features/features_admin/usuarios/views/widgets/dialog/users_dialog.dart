@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show FilteringTextInputFormatter;
 
 import 'package:quimisol_movil/core/theme/palette.dart';
 import 'package:quimisol_movil/features/features_admin/usuarios/controllers/usuarios_controller.dart';
@@ -356,8 +357,11 @@ class _NitEditorCard extends StatelessWidget {
           const SizedBox(height: 10),
           TextField(
             controller: controller,
-            keyboardType: TextInputType.text,
+            keyboardType: TextInputType.number,
+            maxLength: 18,
+            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
             decoration: InputDecoration(
+              counterText: '',
               hintText: 'Ingresa el NIT',
               filled: true,
               fillColor: Palette.white,

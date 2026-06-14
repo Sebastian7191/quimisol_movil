@@ -1,10 +1,11 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:flutter_modular/flutter_modular.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'package:quimisol_movil/core/theme/palette.dart';
+import 'package:quimisol_movil/shared/widgets/admin_action_button.dart';
+import 'package:quimisol_movil/shared/widgets/pagination_bar.dart';
 
 import '../controllers/almacenes_controller.dart';
 
@@ -12,9 +13,9 @@ import 'widgets/al_empty.dart';
 import 'widgets/al_error.dart';
 import 'widgets/al_loading.dart';
 
-// ✅ Nuevo dialog (reemplazo)
 import 'widgets/dialogs/add_dialog.dart';
 import 'widgets/dialogs/new_almacen_form.dart';
+import 'widgets/dialogs/almacen_detail_dialog.dart';
 
 const String kAlmacenesCollection = 'almacenes';
 
@@ -27,17 +28,22 @@ class AlmacenesPage extends StatefulWidget {
 
 class _AlmacenesPageState extends State<AlmacenesPage> {
   final controller = AlmacenesController();
+  int _currentPage = 0;
+  static const int _pageSize = 12;
+
+  late final Stream<QuerySnapshot<Map<String, dynamic>>> _cachedAlmacenesStream;
+  late final Stream<QuerySnapshot<Map<String, dynamic>>> _cachedProductosStream;
+
+  @override
+  void initState() {
+    super.initState();
+    _cachedAlmacenesStream = controller.almacenesStream();
+    _cachedProductosStream = controller.productosStream();
+  }
 
   void _printFirestoreIndexLink(Object error) {
     controller.printFirestoreIndexLink(error);
   }
-
-  // Streams delegados al controller (como ya lo tenías)
-  Stream<QuerySnapshot<Map<String, dynamic>>> _almacenesStream() =>
-      controller.almacenesStream();
-
-  Stream<QuerySnapshot<Map<String, dynamic>>> _productosStream() =>
-      controller.productosStream();
 
   // Firestore ref (solo para UPDATE/DELETE)
   CollectionReference<Map<String, dynamic>> get _almRef =>
@@ -88,6 +94,17 @@ class _AlmacenesPageState extends State<AlmacenesPage> {
   // ---------------------------
   // Dialogs
   // ---------------------------
+  void _openDetailDialog(Map<String, dynamic> a) {
+    showDialog(
+      context: context,
+      builder: (_) => AlmacenDetailDialog(
+        almacenId: (a['id'] ?? '').toString(),
+        nombre: (a['nombre'] ?? '').toString(),
+        departamento: (a['departamento'] ?? '').toString(),
+      ),
+    );
+  }
+
   Future<void> _openAddAlmacenDialog() async {
     final res = await showDialog<NewAlmacenFormResult>(
       context: context,
@@ -287,7 +304,7 @@ class _AlmacenesPageState extends State<AlmacenesPage> {
                   label: 'Ver detalle',
                   onTap: () {
                     Navigator.pop(context);
-                    Modular.to.pushNamed('/almacenes/${a['id']}');
+                    _openDetailDialog(a);
                   },
                 ),
                 const SizedBox(height: 10),
@@ -375,8 +392,10 @@ class _AlmacenesPageState extends State<AlmacenesPage> {
                         color: Palette.ink.withValues(alpha: selected ? 1 : 0.9),
                         fontWeight: FontWeight.w900,
                       ),
-                      onSelected: (_) =>
-                          setState(() => controller.selectedDepto = d),
+                      onSelected: (_) => setState(() {
+                        controller.selectedDepto = d;
+                        _currentPage = 0;
+                      }),
                     );
                   },
                 ),
@@ -386,7 +405,7 @@ class _AlmacenesPageState extends State<AlmacenesPage> {
 
               Expanded(
                 child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                  stream: _almacenesStream(),
+                  stream: _cachedAlmacenesStream,
                   builder: (context, almacenesSnap) {
                     if (almacenesSnap.hasError) {
                       _printFirestoreIndexLink(almacenesSnap.error!);
@@ -403,7 +422,7 @@ class _AlmacenesPageState extends State<AlmacenesPage> {
                     final almacenesDocs = almacenesSnap.data?.docs ?? [];
 
                     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                      stream: _productosStream(),
+                      stream: _cachedProductosStream,
                       builder: (context, productosSnap) {
                         if (productosSnap.hasError) {
                           return AlmacenesErrorBox(
@@ -436,27 +455,41 @@ class _AlmacenesPageState extends State<AlmacenesPage> {
                             .map((e) => (e['stock'] ?? 0) as int)
                             .fold<int>(0, (p, c) => math.max(p, c));
 
-                        return GridView.builder(
-                          padding: const EdgeInsets.only(bottom: 96),
-                          gridDelegate:
-                              SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: cols,
-                            crossAxisSpacing: 14,
-                            mainAxisSpacing: 14,
-                            childAspectRatio: aspect,
-                          ),
-                          itemCount: filtered.length,
-                          itemBuilder: (_, i) {
-                            final a = filtered[i];
+                        final totalPages = (filtered.length / _pageSize).ceil().clamp(1, 99999);
+                        final page = _currentPage.clamp(0, totalPages - 1);
+                        final pageItems = filtered.skip(page * _pageSize).take(_pageSize).toList();
 
-                            return _AlmacenCard(
-                              data: a,
-                              maxStock: maxStock,
-                              onOpen: () =>
-                                  Modular.to.pushNamed('/almacenes/${a['id']}'),
-                              onActions: () => _openActionsSheet(a),
-                            );
-                          },
+                        return Column(
+                          children: [
+                            Expanded(
+                              child: GridView.builder(
+                                padding: const EdgeInsets.only(bottom: 8),
+                                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                                  crossAxisCount: cols,
+                                  crossAxisSpacing: 14,
+                                  mainAxisSpacing: 14,
+                                  childAspectRatio: aspect,
+                                ),
+                                itemCount: pageItems.length,
+                                itemBuilder: (_, i) {
+                                  final a = pageItems[i];
+                                  return _AlmacenCard(
+                                    data: a,
+                                    maxStock: maxStock,
+                                    onOpen: () => _openDetailDialog(a),
+                                    onActions: () => _openActionsSheet(a),
+                                  );
+                                },
+                              ),
+                            ),
+                            AdminPaginationBar(
+                              currentPage: page,
+                              totalItems: filtered.length,
+                              pageSize: _pageSize,
+                              onPrev: page > 0 ? () => setState(() => _currentPage = page - 1) : null,
+                              onNext: (page + 1) * _pageSize < filtered.length ? () => setState(() => _currentPage = page + 1) : null,
+                            ),
+                          ],
                         );
                       },
                     );
@@ -677,53 +710,21 @@ class _AlmacenCard extends StatelessWidget {
             Column(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                _MiniIconButton(
+                AdminActionButton(
                   icon: Icons.more_horiz_rounded,
+                  color: Palette.ink,
                   tooltip: 'Acciones',
                   onTap: onActions,
                 ),
-                _MiniIconButton(
+                AdminActionButton(
                   icon: Icons.chevron_right_rounded,
+                  color: Palette.primary,
                   tooltip: 'Ver',
                   onTap: onOpen,
                 ),
               ],
             ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-class _MiniIconButton extends StatelessWidget {
-  final IconData icon;
-  final String tooltip;
-  final VoidCallback onTap;
-
-  const _MiniIconButton({
-    required this.icon,
-    required this.tooltip,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(14),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(8),
-          child: Tooltip(
-            message: tooltip,
-            child: Icon(
-              icon,
-              size: 22,
-              color: Palette.ink.withValues(alpha: 0.75),
-            ),
-          ),
         ),
       ),
     );

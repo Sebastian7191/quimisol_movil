@@ -27,7 +27,6 @@ class _LoginScreenState extends State<LoginScreen> {
   final _emailCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
 
-  bool _isRegisterMode = false;
   bool _isLoading = false;
   bool _obscurePassword = true;
 
@@ -46,6 +45,14 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
+  Future<bool> _checkAdminRole() async {
+    final role = await _authService.getUserRole();
+    if (role == 'admin' || role == 'superadmin') return true;
+    await _authService.logout();
+    _showErrorSnack('Acceso denegado. Solo administradores pueden ingresar.');
+    return false;
+  }
+
   Future<void> _handleEmailSubmit() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -55,11 +62,10 @@ class _LoginScreenState extends State<LoginScreen> {
       final email = _emailCtrl.text.trim();
       final password = _passwordCtrl.text.trim();
 
-      if (_isRegisterMode) {
-        await _authService.registerWithEmail(email, password);
-      } else {
-        await _authService.signInWithEmail(email, password);
-      }
+      await _authService.signInWithEmail(email, password);
+
+      if (!mounted) return;
+      if (!await _checkAdminRole()) return;
 
       await FcmTokenService.ensureTokenIfMissingForCurrentUser();
       await _redirectByRole();
@@ -76,10 +82,10 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       final res = await _authService.signInWithGoogle();
 
-      // ✅ Usuario canceló Google
-      if (res == null) {
-        return;
-      }
+      if (res == null) return;
+
+      if (!mounted) return;
+      if (!await _checkAdminRole()) return;
 
       await FcmTokenService.ensureTokenIfMissingForCurrentUser();
 
@@ -252,6 +258,7 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               child: Center(
                 child: RoundedCard(
+                  color: Colors.white.withValues(alpha: 0.55),
                   child: Form(
                     key: _formKey,
                     child: Column(
@@ -307,29 +314,10 @@ class _LoginScreenState extends State<LoginScreen> {
                           },
                         ),
 
-                        const SizedBox(height: 10),
-
-                        if (!_isRegisterMode)
-                          Align(
-                            alignment: Alignment.centerLeft,
-                            child: TextButton(
-                              onPressed: () {
-                                if (_isLoading) return;
-                                // TODO: implementar recuperación de contraseña
-                              },
-                              child: const Text(
-                                '¿Olvidaste tu contraseña?',
-                                style: TextStyle(color: Palette.primary),
-                              ),
-                            ),
-                          ),
-
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 16),
 
                         AppButton(
-                          label: _isRegisterMode
-                              ? 'REGISTRARSE'
-                              : 'INICIAR SESIÓN',
+                          label: 'INICIAR SESIÓN',
                           isLoading: _isLoading,
                           onPressed: () async {
                             if (_isLoading) return;
@@ -340,21 +328,6 @@ class _LoginScreenState extends State<LoginScreen> {
                         const SizedBox(height: 18),
 
                         _googleFullButton(),
-
-                        const SizedBox(height: 10),
-
-                        TextButton(
-                          onPressed: () {
-                            if (_isLoading) return;
-                            setState(() => _isRegisterMode = !_isRegisterMode);
-                          },
-                          child: Text(
-                            _isRegisterMode
-                                ? '¿Ya tienes una cuenta? Logueate'
-                                : '¿No tienes una cuenta? Registrate',
-                            style: const TextStyle(color: Palette.primary),
-                          ),
-                        ),
                       ],
                     ),
                   ),

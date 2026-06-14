@@ -3,6 +3,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'package:quimisol_movil/core/theme/palette.dart';
 import 'package:quimisol_movil/shared/dialogs/delete_dialog.dart';
+import 'package:quimisol_movil/shared/widgets/admin_action_button.dart';
+import 'package:quimisol_movil/shared/widgets/pagination_bar.dart';
 
 import '../controllers/unidades_controller.dart';
 
@@ -21,11 +23,15 @@ class UnidadesPage extends StatefulWidget {
 
 class _UnidadesPageState extends State<UnidadesPage> {
   final controller = UnidadesController();
+  late final Stream<QuerySnapshot<Map<String, dynamic>>> _cachedUnidadesStream;
+  int _currentPage = 0;
+  static const int _pageSize = 10;
 
   @override
   void initState() {
     super.initState();
-    controller.searchCtrl.addListener(() => setState(() {}));
+    _cachedUnidadesStream = controller.unidadesStream();
+    controller.searchCtrl.addListener(() => setState(() => _currentPage = 0));
   }
 
   @override
@@ -33,9 +39,6 @@ class _UnidadesPageState extends State<UnidadesPage> {
     controller.dispose();
     super.dispose();
   }
-
-  Stream<QuerySnapshot<Map<String, dynamic>>> _unidadesStream() =>
-      controller.unidadesStream();
 
   Future<void> _openAddDialog() async {
     final res = await showDialog<UnidadFormResult>(
@@ -178,7 +181,7 @@ class _UnidadesPageState extends State<UnidadesPage> {
 
                   Expanded(
                     child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                      stream: _unidadesStream(),
+                      stream: _cachedUnidadesStream,
                       builder: (context, snapshot) {
                         if (snapshot.hasError) {
                           return UnidadesErrorBox(
@@ -200,132 +203,156 @@ class _UnidadesPageState extends State<UnidadesPage> {
                           );
                         }
 
-                        // ✅ MOBILE: cards (mejor UX)
+                        final totalPages = (filtered.length / _pageSize).ceil().clamp(1, 99999);
+                        final page = _currentPage.clamp(0, totalPages - 1);
+                        final pageItems = filtered.skip(page * _pageSize).take(_pageSize).toList();
+
+                        final paginationBar = AdminPaginationBar(
+                          currentPage: page,
+                          totalItems: filtered.length,
+                          pageSize: _pageSize,
+                          onPrev: page > 0 ? () => setState(() => _currentPage = page - 1) : null,
+                          onNext: (page + 1) * _pageSize < filtered.length ? () => setState(() => _currentPage = page + 1) : null,
+                        );
+
+                        // ✅ MOBILE: cards
                         if (isMobile) {
-                          return ListView.separated(
-                            padding: const EdgeInsets.only(bottom: 96),
-                            itemCount: filtered.length,
-                            separatorBuilder: (_, __) => const SizedBox(height: 10),
-                            itemBuilder: (_, i) {
-                              final r = filtered[i];
-                              final id = (r['id'] ?? '').toString();
-                              final nombre = (r['nombre'] ?? '').toString();
-                              final abrev = (r['abreviatura'] ?? '').toString();
-                              final desc = (r['descripcion'] ?? '').toString();
-
-                              return _UnidadCardMobile(
-                                nombre: nombre,
-                                abreviatura: abrev,
-                                descripcion: desc,
-                                onEdit: () => _openEditDialog(
-                                  id: id,
-                                  data: {
-                                    'nombre': nombre,
-                                    'abreviatura': abrev,
-                                    'descripcion': desc,
-                                  },
-                                ),
-                                onDelete: () => _deleteUnidad(id, nombre),
-                              );
-                            },
-                          );
-                        }
-
-                        // ✅ DESKTOP: DataTable
-                        return Container(
-                          decoration: BoxDecoration(
-                            color: Palette.white,
-                            borderRadius: BorderRadius.circular(18),
-                            border: Border.all(
-                              color: Palette.button.withValues(alpha: 0.35),
-                            ),
-                          ),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(18),
-                            child: SingleChildScrollView(
-                              child: SingleChildScrollView(
-                                scrollDirection: Axis.horizontal,
-                                child: DataTable(
-                                  headingRowHeight: 52,
-                                  dataRowMinHeight: 56,
-                                  dataRowMaxHeight: 72,
-                                  columnSpacing: 18,
-                                  headingTextStyle: const TextStyle(
-                                    fontWeight: FontWeight.w900,
-                                    color: Palette.ink,
-                                  ),
-                                  columns: const [
-                                    DataColumn(label: Text('Nombre')),
-                                    DataColumn(label: Text('Abrev.')),
-                                    DataColumn(label: Text('Descripción')),
-                                    DataColumn(label: Text('Acciones')),
-                                  ],
-                                  rows: filtered.map((r) {
+                          return Column(
+                            children: [
+                              Expanded(
+                                child: ListView.separated(
+                                  padding: const EdgeInsets.only(bottom: 8),
+                                  itemCount: pageItems.length,
+                                  separatorBuilder: (_, __) => const SizedBox(height: 10),
+                                  itemBuilder: (_, i) {
+                                    final r = pageItems[i];
                                     final id = (r['id'] ?? '').toString();
                                     final nombre = (r['nombre'] ?? '').toString();
                                     final abrev = (r['abreviatura'] ?? '').toString();
                                     final desc = (r['descripcion'] ?? '').toString();
 
-                                    return DataRow(
-                                      cells: [
-                                        DataCell(
-                                          Text(
-                                            nombre.isEmpty ? '-' : nombre,
-                                            style: const TextStyle(
-                                              fontWeight: FontWeight.w700,
-                                            ),
-                                          ),
+                                    return _UnidadCardMobile(
+                                      nombre: nombre,
+                                      abreviatura: abrev,
+                                      descripcion: desc,
+                                      onEdit: () => _openEditDialog(
+                                        id: id,
+                                        data: {
+                                          'nombre': nombre,
+                                          'abreviatura': abrev,
+                                          'descripcion': desc,
+                                        },
+                                      ),
+                                      onDelete: () => _deleteUnidad(id, nombre),
+                                    );
+                                  },
+                                ),
+                              ),
+                              paginationBar,
+                            ],
+                          );
+                        }
+
+                        // ✅ DESKTOP: DataTable
+                        return Column(
+                          children: [
+                            Expanded(
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: Palette.white,
+                                  borderRadius: BorderRadius.circular(18),
+                                  border: Border.all(
+                                    color: Palette.button.withValues(alpha: 0.35),
+                                  ),
+                                ),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(18),
+                                  child: SingleChildScrollView(
+                                    child: SingleChildScrollView(
+                                      scrollDirection: Axis.horizontal,
+                                      child: DataTable(
+                                        headingRowHeight: 52,
+                                        dataRowMinHeight: 56,
+                                        dataRowMaxHeight: 72,
+                                        columnSpacing: 18,
+                                        headingTextStyle: const TextStyle(
+                                          fontWeight: FontWeight.w900,
+                                          color: Palette.ink,
                                         ),
-                                        DataCell(Text(abrev.isEmpty ? '-' : abrev)),
-                                        DataCell(
-                                          SizedBox(
-                                            width: 420,
-                                            child: Text(
-                                              desc.isEmpty ? '-' : desc,
-                                              maxLines: 2,
-                                              overflow: TextOverflow.ellipsis,
-                                              style: TextStyle(
-                                                color: Palette.ink.withValues(alpha: 0.85),
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                        DataCell(
-                                          Row(
-                                            children: [
-                                              IconButton(
-                                                tooltip: 'Editar',
-                                                onPressed: () => _openEditDialog(
-                                                  id: id,
-                                                  data: {
-                                                    'nombre': nombre,
-                                                    'abreviatura': abrev,
-                                                    'descripcion': desc,
-                                                  },
-                                                ),
-                                                icon: const Icon(
-                                                  Icons.edit_rounded,
-                                                  color: Palette.primary,
+                                        columns: const [
+                                          DataColumn(label: Text('Nombre')),
+                                          DataColumn(label: Text('Abrev.')),
+                                          DataColumn(label: Text('Descripción')),
+                                          DataColumn(label: Text('Acciones')),
+                                        ],
+                                        rows: pageItems.map((r) {
+                                          final id = (r['id'] ?? '').toString();
+                                          final nombre = (r['nombre'] ?? '').toString();
+                                          final abrev = (r['abreviatura'] ?? '').toString();
+                                          final desc = (r['descripcion'] ?? '').toString();
+
+                                          return DataRow(
+                                            cells: [
+                                              DataCell(
+                                                Text(
+                                                  nombre.isEmpty ? '-' : nombre,
+                                                  style: const TextStyle(
+                                                    fontWeight: FontWeight.w700,
+                                                  ),
                                                 ),
                                               ),
-                                              IconButton(
-                                                tooltip: 'Eliminar',
-                                                onPressed: () => _deleteUnidad(id, nombre),
-                                                icon: Icon(
-                                                  Icons.delete_outline_rounded,
-                                                  color: Palette.statsDanger.withValues(alpha: 0.95),
+                                              DataCell(Text(abrev.isEmpty ? '-' : abrev)),
+                                              DataCell(
+                                                SizedBox(
+                                                  width: 420,
+                                                  child: Text(
+                                                    desc.isEmpty ? '-' : desc,
+                                                    maxLines: 2,
+                                                    overflow: TextOverflow.ellipsis,
+                                                    style: TextStyle(
+                                                      color: Palette.ink.withValues(alpha: 0.85),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                              DataCell(
+                                                Row(
+                                                  mainAxisSize: MainAxisSize.min,
+                                                  children: [
+                                                    AdminActionButton(
+                                                      icon: Icons.edit_rounded,
+                                                      color: Palette.primary,
+                                                      tooltip: 'Editar',
+                                                      onTap: () => _openEditDialog(
+                                                        id: id,
+                                                        data: {
+                                                          'nombre': nombre,
+                                                          'abreviatura': abrev,
+                                                          'descripcion': desc,
+                                                        },
+                                                      ),
+                                                    ),
+                                                    const SizedBox(width: 6),
+                                                    AdminActionButton(
+                                                      icon: Icons.delete_outline_rounded,
+                                                      color: Palette.statsDanger,
+                                                      tooltip: 'Eliminar',
+                                                      onTap: () => _deleteUnidad(id, nombre),
+                                                    ),
+                                                  ],
                                                 ),
                                               ),
                                             ],
-                                          ),
-                                        ),
-                                      ],
-                                    );
-                                  }).toList(),
+                                          );
+                                        }).toList(),
+                                      ),
+                                    ),
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
+                            paginationBar,
+                          ],
                         );
                       },
                     ),
@@ -428,23 +455,22 @@ class _HeaderUnidades extends StatelessWidget {
                 ),
               ),
 
-              // ✅ En móvil no saturamos: el botón va flotante
               if (!compact) ...[
                 const SizedBox(width: 12),
-                InkWell(
-                  onTap: onAdd,
-                  borderRadius: BorderRadius.circular(999),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    decoration: BoxDecoration(
-                      color: Palette.white.withValues(alpha: 0.22),
-                      borderRadius: BorderRadius.circular(999),
-                      border: Border.all(
-                        color: Palette.button.withValues(alpha: 0.95),
-                        width: 2.6,
-                      ),
+                ElevatedButton.icon(
+                  onPressed: onAdd,
+                  icon: const Icon(Icons.add_rounded),
+                  label: const Text('Agregar unidad'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Palette.white.withValues(alpha: 0.18),
+                    foregroundColor: Palette.white,
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      side: const BorderSide(color: Palette.white, width: 2),
                     ),
-                    child: const _GradientIconText(compact: false, enabled: true),
+                    textStyle: const TextStyle(fontWeight: FontWeight.w900),
                   ),
                 ),
               ],
@@ -671,7 +697,7 @@ class _UnidadCardMobile extends StatelessWidget {
                       const SizedBox(height: 4),
                       Row(
                         children: [
-                          _MiniInfoChip(label: 'Abrev.', value: abreviatura.trim().isEmpty ? '-' : abreviatura.trim()),
+                          _MiniInfoChip(label: 'Abreviatura', value: abreviatura.trim().isEmpty ? '-' : abreviatura.trim()),
                         ],
                       ),
                     ],
@@ -708,32 +734,20 @@ class _UnidadCardMobile extends StatelessWidget {
             Row(
               children: [
                 Expanded(
-                  child: OutlinedButton.icon(
+                  child: AdminActionButtonMobile(
+                    icon: Icons.edit_rounded,
+                    color: Palette.primary,
+                    label: 'Editar',
                     onPressed: onEdit,
-                    icon: const Icon(Icons.edit_rounded, size: 18),
-                    label: const Text('Editar'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Palette.primary,
-                      side: BorderSide(color: Palette.primary.withValues(alpha: 0.35)),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                      textStyle: const TextStyle(fontWeight: FontWeight.w900),
-                    ),
                   ),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
-                  child: OutlinedButton.icon(
+                  child: AdminActionButtonMobile(
+                    icon: Icons.delete_outline_rounded,
+                    color: Palette.statsDanger,
+                    label: 'Eliminar',
                     onPressed: onDelete,
-                    icon: const Icon(Icons.delete_outline_rounded, size: 18),
-                    label: const Text('Eliminar'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Palette.statsDanger.withValues(alpha: 0.95),
-                      side: BorderSide(color: Palette.statsDanger.withValues(alpha: 0.35)),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                      textStyle: const TextStyle(fontWeight: FontWeight.w900),
-                    ),
                   ),
                 ),
               ],

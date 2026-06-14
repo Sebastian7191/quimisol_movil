@@ -5,6 +5,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:quimisol_movil/core/theme/palette.dart';
 import 'package:quimisol_movil/features/features_admin/usuarios/views/widgets/dialog/users_dialog.dart';
+import 'package:quimisol_movil/shared/widgets/pagination_bar.dart';
 
 import '../controllers/usuarios_controller.dart';
 import '../data/almacen_row.dart';
@@ -23,6 +24,9 @@ class _UsuariosPageState extends State<UsuariosPage>
     with TickerProviderStateMixin {
   final controller = UsuariosController();
   late final AnimationController _bgCtrl;
+  late final Stream<QuerySnapshot<Map<String, dynamic>>> _cachedUsersStream;
+  int _currentPage = 0;
+  static const int _pageSize = 10;
 
   @override
   void initState() {
@@ -33,7 +37,8 @@ class _UsuariosPageState extends State<UsuariosPage>
       duration: const Duration(milliseconds: 2600),
     )..repeat(reverse: true);
 
-    controller.searchCtrl.addListener(() => setState(() {}));
+    _cachedUsersStream = controller.usersStream();
+    controller.searchCtrl.addListener(() => setState(() => _currentPage = 0));
   }
 
   @override
@@ -42,9 +47,6 @@ class _UsuariosPageState extends State<UsuariosPage>
     controller.dispose();
     super.dispose();
   }
-
-  Stream<QuerySnapshot<Map<String, dynamic>>> _usersStream() =>
-      controller.usersStream();
 
   @override
   Widget build(BuildContext context) {
@@ -58,11 +60,11 @@ class _UsuariosPageState extends State<UsuariosPage>
             bgCtrl: _bgCtrl,
             searchCtrl: controller.searchCtrl,
             roleFilter: controller.roleFilter,
-            onRoleFilter: (v) => setState(() => controller.roleFilter = v),
+            onRoleFilter: (v) => setState(() { controller.roleFilter = v; _currentPage = 0; }),
           ),
           Expanded(
             child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-              stream: _usersStream(),
+              stream: _cachedUsersStream,
               builder: (context, snap) {
                 if (snap.hasError) {
                   return Center(
@@ -82,6 +84,10 @@ class _UsuariosPageState extends State<UsuariosPage>
                   controller.searchCtrl.text.trim(),
                   controller.roleFilter,
                 );
+
+                final totalPages = users.isEmpty ? 1 : (users.length / _pageSize).ceil().clamp(1, 99999);
+                final page = _currentPage.clamp(0, totalPages - 1);
+                final pageUsers = users.skip(page * _pageSize).take(_pageSize).toList();
 
                 return Column(
                   children: [
@@ -140,10 +146,10 @@ class _UsuariosPageState extends State<UsuariosPage>
                               role: controller.roleFilter,
                             )
                           : ListView.builder(
-                              padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                              itemCount: users.length,
+                              padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                              itemCount: pageUsers.length,
                               itemBuilder: (_, i) {
-                                final u = users[i];
+                                final u = pageUsers[i];
                                 final delay = math.min(380, i * 22);
 
                                 return _StaggerIn(
@@ -164,6 +170,14 @@ class _UsuariosPageState extends State<UsuariosPage>
                               },
                             ),
                     ),
+                    if (users.isNotEmpty)
+                      AdminPaginationBar(
+                        currentPage: page,
+                        totalItems: users.length,
+                        pageSize: _pageSize,
+                        onPrev: page > 0 ? () => setState(() => _currentPage = page - 1) : null,
+                        onNext: (page + 1) * _pageSize < users.length ? () => setState(() => _currentPage = page + 1) : null,
+                      ),
                   ],
                 );
               },

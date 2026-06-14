@@ -2,6 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:quimisol_movil/core/theme/palette.dart';
 import 'package:quimisol_movil/features/features_admin/laboratorios/pages/laboratorios_forms_switch_page.dart';
+import 'package:quimisol_movil/shared/widgets/admin_action_button.dart';
+import 'package:quimisol_movil/shared/widgets/pagination_bar.dart';
 
 class LaboratoriosPage extends StatefulWidget {
   const LaboratoriosPage({super.key});
@@ -12,6 +14,8 @@ class LaboratoriosPage extends StatefulWidget {
 
 class _LaboratoriosPageState extends State<LaboratoriosPage> {
   final TextEditingController _searchCtrl = TextEditingController();
+  int _currentPage = 0;
+  static const int _pageSize = 10;
 
   final CollectionReference<Map<String, dynamic>> _laboratoriosRef =
       FirebaseFirestore.instance.collection('laboratorios');
@@ -156,57 +160,108 @@ class _LaboratoriosPageState extends State<LaboratoriosPage> {
 
         return Scaffold(
           backgroundColor: Colors.transparent,
+          floatingActionButton: isMobile
+              ? FloatingActionButton.extended(
+                  onPressed: _crearNuevo,
+                  icon: const Icon(Icons.add_rounded),
+                  label: const Text('Nuevo'),
+                  backgroundColor: Palette.button,
+                  foregroundColor: Colors.white,
+                )
+              : null,
           body: SafeArea(
             child: Padding(
               padding: EdgeInsets.all(isMobile ? 12 : 18),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Wrap(
-                    spacing: 12,
-                    runSpacing: 12,
-                    alignment: WrapAlignment.spaceBetween,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Laboratorios',
-                            style: TextStyle(
-                              fontSize: isMobile ? 22 : 28,
-                              fontWeight: FontWeight.w900,
-                              color: Palette.primary,
+                  Container(
+                    padding: EdgeInsets.all(isMobile ? 16 : 20),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(24),
+                      gradient: LinearGradient(
+                        colors: [
+                          Palette.button.withValues(alpha: 0.95),
+                          Palette.secondary.withValues(alpha: 0.92),
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.08),
+                          blurRadius: 20,
+                          offset: const Offset(0, 10),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: isMobile ? 48 : 56,
+                          height: isMobile ? 48 : 56,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.14),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.14),
                             ),
                           ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Gestión de formularios 1, 2 y 3',
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: Colors.black.withValues(alpha: 0.62),
-                              fontWeight: FontWeight.w500,
+                          child: const Icon(
+                            Icons.science_rounded,
+                            color: Colors.white,
+                            size: 26,
+                          ),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Laboratorios',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: isMobile ? 20 : 24,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Gestión de formularios 1, 2 y 3',
+                                style: TextStyle(
+                                  color: Colors.white.withValues(alpha: 0.85),
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        if (!isMobile) ...[
+                          const SizedBox(width: 12),
+                          ElevatedButton.icon(
+                            onPressed: _crearNuevo,
+                            icon: const Icon(Icons.add_rounded),
+                            label: const Text('Nuevo laboratorio'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Palette.white.withValues(alpha: 0.18),
+                              foregroundColor: Palette.white,
+                              elevation: 0,
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 16, vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14),
+                                side: const BorderSide(
+                                    color: Palette.white, width: 2),
+                              ),
+                              textStyle:
+                                  const TextStyle(fontWeight: FontWeight.w900),
                             ),
                           ),
                         ],
-                      ),
-                      ElevatedButton.icon(
-                        onPressed: _crearNuevo,
-                        icon: const Icon(Icons.add_rounded),
-                        label: const Text('Nuevo laboratorio'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Palette.button,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 18,
-                            vertical: 14,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                        ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                   const SizedBox(height: 16),
                   Container(
@@ -220,10 +275,10 @@ class _LaboratoriosPageState extends State<LaboratoriosPage> {
                     ),
                     child: TextField(
                       controller: _searchCtrl,
-                      onChanged: (_) => setState(() {}),
+                      onChanged: (_) => setState(() => _currentPage = 0),
                       decoration: InputDecoration(
                         isDense: true,
-                        hintText: 'Buscar por ID...',
+                        hintText: 'Buscar',
                         prefixIcon: const Icon(Icons.search_rounded),
                         filled: true,
                         fillColor: Palette.fieldBg,
@@ -301,9 +356,31 @@ class _LaboratoriosPageState extends State<LaboratoriosPage> {
                             );
                           }
 
-                          return isMobile
-                              ? _buildMobileList(data)
-                              : _buildDesktopTable(data);
+                          final totalPages = (data.length / _pageSize).ceil().clamp(1, 99999);
+                          final page = _currentPage.clamp(0, totalPages - 1);
+                          final start = page * _pageSize;
+                          final pageItems = data.skip(start).take(_pageSize).toList();
+
+                          return Column(
+                            children: [
+                              Expanded(
+                                child: isMobile
+                                    ? _buildMobileList(pageItems)
+                                    : _buildDesktopTable(pageItems),
+                              ),
+                              AdminPaginationBar(
+                                currentPage: page,
+                                totalItems: data.length,
+                                pageSize: _pageSize,
+                                onPrev: page > 0
+                                    ? () => setState(() => _currentPage = page - 1)
+                                    : null,
+                                onNext: (page + 1) * _pageSize < data.length
+                                    ? () => setState(() => _currentPage = page + 1)
+                                    : null,
+                              ),
+                            ],
+                          );
                         },
                       ),
                     ),
@@ -333,92 +410,89 @@ class _LaboratoriosPageState extends State<LaboratoriosPage> {
               final resumen = snapshot.data ?? _LaboratorioResumen.empty();
 
               return Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: Palette.fieldBg,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: Palette.primary.withValues(alpha: 0.08),
-                  ),
-                ),
-                child: Column(
-                  children: [
-                    Row(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: Palette.fieldBg,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: Palette.primary.withValues(alpha: 0.08),
+                      ),
+                    ),
+                    child: Column(
                       children: [
-                        Expanded(
-                          flex: 2,
-                          child: _desktopCell(
-                            'ID',
-                            '${item['id'] ?? parentId}',
-                          ),
-                        ),
-                        Expanded(
-                          flex: 2,
-                          child: _desktopCell(
-                            'Cliente / Empresa',
-                            resumen.cliente,
-                          ),
-                        ),
-                        Expanded(
-                          flex: 2,
-                          child: _desktopCell(
-                            'Solicitante / Att.',
-                            resumen.solicitante,
-                          ),
-                        ),
-                        Expanded(
-                          child: _desktopCell(
-                            'Form. 1',
-                            resumen.hasForm1 ? 'Sí' : 'No',
-                          ),
-                        ),
-                        Expanded(
-                          child: _desktopCell(
-                            'Form. 2',
-                            resumen.hasForm2 ? 'Sí' : 'No',
-                          ),
-                        ),
-                        Expanded(
-                          child: _desktopCell(
-                            'Form. 3',
-                            resumen.hasForm3 ? 'Sí' : 'No',
-                          ),
-                        ),
-                        Expanded(
-                          child: _desktopCell(
-                            'Estado',
-                            '${item['estado'] ?? 'Activo'}',
-                          ),
-                        ),
-                        SizedBox(
-                          width: 150,
-                          child: Wrap(
-                            spacing: 8,
-                            children: [
-                              IconButton(
-                                tooltip: 'Abrir',
-                                onPressed: () => _abrirSwitch(item),
-                                icon: const Icon(Icons.open_in_new_rounded),
+                        Row(
+                          children: [
+                            Expanded(
+                              flex: 2,
+                              child: _desktopCell(
+                                'ID',
+                                '${item['id'] ?? parentId}',
                               ),
-                              IconButton(
-                                tooltip: 'Eliminar',
-                                onPressed: () => _eliminar(item),
-                                icon: Icon(
-                                  Icons.delete_rounded,
-                                  color: Colors.red.shade600,
+                            ),
+                            Expanded(
+                              flex: 2,
+                              child: _desktopCell(
+                                'Cliente / Empresa',
+                                resumen.cliente,
+                              ),
+                            ),
+                            Expanded(
+                              flex: 2,
+                              child: _desktopCell(
+                                'Solicitante / Att.',
+                                resumen.solicitante,
+                              ),
+                            ),
+                            Expanded(
+                              child: _desktopCell(
+                                'Form. Solicitud',
+                                resumen.hasForm1 ? 'Sí' : 'No',
+                              ),
+                            ),
+                            Expanded(
+                              child: _desktopCell(
+                                'Form. Recepción',
+                                resumen.hasForm2 ? 'Sí' : 'No',
+                              ),
+                            ),
+                            Expanded(
+                              child: _desktopCell(
+                                'Form. Ensayo',
+                                resumen.hasForm3 ? 'Sí' : 'No',
+                              ),
+                            ),
+                            Expanded(
+                              child: _desktopCell(
+                                'Estado',
+                                '${item['estado'] ?? 'Activo'}',
+                              ),
+                            ),
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                AdminActionButton(
+                                  icon: Icons.open_in_new_rounded,
+                                  color: Palette.primary,
+                                  tooltip: 'Abrir',
+                                  onTap: () => _abrirSwitch(item),
                                 ),
-                              ),
-                            ],
-                          ),
+                                const SizedBox(width: 6),
+                                AdminActionButton(
+                                  icon: Icons.delete_outline_rounded,
+                                  color: Palette.statsDanger,
+                                  tooltip: 'Eliminar',
+                                  onTap: () => _eliminar(item),
+                                ),
+                              ],
+                            ),
+                          ],
                         ),
                       ],
                     ),
-                  ],
-                ),
-              );
-            },
-          ),
-        );
+                  );
+                },
+              ),
+            );
       },
     );
   }
@@ -499,22 +573,20 @@ class _LaboratoriosPageState extends State<LaboratoriosPage> {
                   Row(
                     children: [
                       Expanded(
-                        child: OutlinedButton.icon(
+                        child: AdminActionButtonMobile(
+                          icon: Icons.open_in_new_rounded,
+                          color: Palette.primary,
+                          label: 'Abrir',
                           onPressed: () => _abrirSwitch(item),
-                          icon: const Icon(Icons.open_in_new_rounded, size: 18),
-                          label: const Text('Abrir'),
                         ),
                       ),
                       const SizedBox(width: 8),
                       Expanded(
-                        child: ElevatedButton.icon(
+                        child: AdminActionButtonMobile(
+                          icon: Icons.delete_outline_rounded,
+                          color: Palette.statsDanger,
+                          label: 'Eliminar',
                           onPressed: () => _eliminar(item),
-                          icon: const Icon(Icons.delete_rounded, size: 18),
-                          label: const Text('Eliminar'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.red.shade600,
-                            foregroundColor: Colors.white,
-                          ),
                         ),
                       ),
                     ],
@@ -625,3 +697,4 @@ class _LaboratorioResumen {
     );
   }
 }
+

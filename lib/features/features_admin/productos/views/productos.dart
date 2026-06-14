@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 
 import 'package:quimisol_movil/core/theme/palette.dart';
 import 'package:quimisol_movil/features/features_admin/productos/data/producto_dialog_result.dart';
+import 'package:quimisol_movil/shared/widgets/pagination_bar.dart';
+
+import 'package:quimisol_movil/shared/widgets/admin_action_button.dart';
 
 import '../controllers/products_controller.dart';
 import '../data/producto_row.dart';
@@ -28,33 +31,31 @@ class _ProductosPageState extends State<ProductosPage> {
   String _search = '';
 
   String _tipo = 'Todos'; // Todos | PRODUCTO | INSUMO
+  int _currentPage = 0;
+  static const int _pageSize = 10;
 
   final controller = ProductosController();
+
+  late final Stream<QuerySnapshot<Map<String, dynamic>>> _cachedProductosStream;
+  late final Stream<QuerySnapshot<Map<String, dynamic>>> _cachedUnidadesStream;
+  late final Stream<QuerySnapshot<Map<String, dynamic>>> _cachedAlmacenesStream;
 
   @override
   void initState() {
     super.initState();
-    _searchCtrl.addListener(
-      () => setState(() => _search = _searchCtrl.text.trim().toLowerCase()),
-    );
+    _cachedProductosStream = controller.productosStream();
+    _cachedUnidadesStream = controller.unidadesStream();
+    _cachedAlmacenesStream = controller.almacenesStream();
+    _searchCtrl.addListener(() => setState(() {
+          _search = _searchCtrl.text.trim().toLowerCase();
+          _currentPage = 0;
+        }));
   }
 
   @override
   void dispose() {
     _searchCtrl.dispose();
     super.dispose();
-  }
-
-  Stream<QuerySnapshot<Map<String, dynamic>>> _productosStream() {
-    return controller.productosStream();
-  }
-
-  Stream<QuerySnapshot<Map<String, dynamic>>> _unidadesStream() {
-    return controller.unidadesStream();
-  }
-
-  Stream<QuerySnapshot<Map<String, dynamic>>> _almacenesStream() {
-    return controller.almacenesStream();
   }
 
   Future<void> _openAddDialog({
@@ -263,7 +264,7 @@ class _ProductosPageState extends State<ProductosPage> {
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: _unidadesStream(),
+      stream: _cachedUnidadesStream,
       builder: (context, unidadesSnap) {
         if (unidadesSnap.hasError) {
           return Padding(
@@ -285,7 +286,7 @@ class _ProductosPageState extends State<ProductosPage> {
         }).toList();
 
         return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-          stream: _almacenesStream(),
+          stream: _cachedAlmacenesStream,
           builder: (context, almacenesSnap) {
             if (almacenesSnap.hasError) {
               return Padding(
@@ -392,7 +393,7 @@ class _ProductosPageState extends State<ProductosPage> {
                                     ),
                                     fontWeight: FontWeight.w900,
                                   ),
-                                  onSelected: (_) => setState(() => _tipo = t),
+                                  onSelected: (_) => setState(() { _tipo = t; _currentPage = 0; }),
                                 );
                               },
                             ),
@@ -400,7 +401,7 @@ class _ProductosPageState extends State<ProductosPage> {
                           const SizedBox(height: 16),
                           Expanded(
                             child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                              stream: _productosStream(),
+                              stream: _cachedProductosStream,
                               builder: (context, snapshot) {
                                 if (snapshot.hasError) {
                                   return ErrorBox(
@@ -445,231 +446,211 @@ class _ProductosPageState extends State<ProductosPage> {
                                   );
                                 }
 
+                                final totalPages = (filtered.length / _pageSize).ceil().clamp(1, 99999);
+                                final page = _currentPage.clamp(0, totalPages - 1);
+                                final pageItems = filtered.skip(page * _pageSize).take(_pageSize).toList();
+
+                                final paginationBar = AdminPaginationBar(
+                                  currentPage: page,
+                                  totalItems: filtered.length,
+                                  pageSize: _pageSize,
+                                  onPrev: page > 0 ? () => setState(() => _currentPage = page - 1) : null,
+                                  onNext: (page + 1) * _pageSize < filtered.length ? () => setState(() => _currentPage = page + 1) : null,
+                                );
+
                                 if (isMobile) {
-                                  return ListView.separated(
-                                    padding: const EdgeInsets.only(bottom: 96),
-                                    itemCount: filtered.length,
-                                    separatorBuilder: (_, __) =>
-                                        const SizedBox(height: 10),
-                                    itemBuilder: (_, i) {
-                                      final p = filtered[i];
+                                  return Column(
+                                    children: [
+                                      Expanded(
+                                        child: ListView.separated(
+                                          padding: const EdgeInsets.only(bottom: 8),
+                                          itemCount: pageItems.length,
+                                          separatorBuilder: (_, __) =>
+                                              const SizedBox(height: 10),
+                                          itemBuilder: (_, i) {
+                                            final p = pageItems[i];
+                                            final id = p.id;
+                                            final nombre = p.nombre;
+                                            final imagenUrl = p.imagenUrl.trim();
+                                            final imagenPath = p.imagenPath.trim();
 
-                                      final id = p.id;
-                                      final nombre = p.nombre;
-                                      final imagenUrl = p.imagenUrl.trim();
-                                      final imagenPath = p.imagenPath.trim();
-
-                                      return _ProductoCardMobile(
-                                        nombre: nombre,
-                                        codigo: p.codigo,
-                                        tipoItem: p.tipoItem,
-                                        unidadNombre: p.unidadNombre,
-                                        descripcion: p.descripcion,
-                                        stock: p.stock,
-                                        precio: p.precio,
-                                        imagenUrl: imagenUrl,
-                                        onTapImage:
-                                            (imagenPath.isEmpty &&
-                                                    imagenUrl.isEmpty)
-                                                ? null
-                                                : () => _openImageViewer(
-                                                      title: nombre,
-                                                      imagenPath: imagenPath,
-                                                      imagenUrl: imagenUrl,
-                                                    ),
-                                        onEdit: () => _openEditDialog(
-                                          id: id,
-                                          product: p,
-                                          unidades: unidades,
-                                          almacenes: almacenes,
+                                            return _ProductoCardMobile(
+                                              nombre: nombre,
+                                              codigo: p.codigo,
+                                              tipoItem: p.tipoItem,
+                                              unidadNombre: p.unidadNombre,
+                                              descripcion: p.descripcion,
+                                              stock: p.stock,
+                                              precio: p.precio,
+                                              imagenUrl: imagenUrl,
+                                              onTapImage: (imagenPath.isEmpty && imagenUrl.isEmpty)
+                                                  ? null
+                                                  : () => _openImageViewer(
+                                                        title: nombre,
+                                                        imagenPath: imagenPath,
+                                                        imagenUrl: imagenUrl,
+                                                      ),
+                                              onEdit: () => _openEditDialog(
+                                                id: id,
+                                                product: p,
+                                                unidades: unidades,
+                                                almacenes: almacenes,
+                                              ),
+                                              onDelete: () => _deleteProducto(
+                                                id,
+                                                nombre,
+                                                imagenPath: imagenPath,
+                                              ),
+                                            );
+                                          },
                                         ),
-                                        onDelete: () => _deleteProducto(
-                                          id,
-                                          nombre,
-                                          imagenPath: imagenPath,
-                                        ),
-                                      );
-                                    },
+                                      ),
+                                      paginationBar,
+                                    ],
                                   );
                                 }
 
-                                return Container(
-                                  decoration: BoxDecoration(
-                                    color: Palette.white,
-                                    borderRadius: BorderRadius.circular(18),
-                                    border: Border.all(
-                                      color: Palette.button.withValues(
-                                        alpha: 0.35,
-                                      ),
-                                    ),
-                                  ),
-                                  child: ClipRRect(
-                                    borderRadius: BorderRadius.circular(18),
-                                    child: SingleChildScrollView(
-                                      child: DataTable(
-                                        headingRowHeight: 52,
-                                        dataRowMinHeight: 64,
-                                        dataRowMaxHeight: 84,
-                                        columnSpacing: 18,
-                                        headingTextStyle: const TextStyle(
-                                          fontWeight: FontWeight.w900,
-                                          color: Palette.ink,
-                                        ),
-                                        columns: const [
-                                          DataColumn(label: Text('Imagen')),
-                                          DataColumn(label: Text('Código')),
-                                          DataColumn(label: Text('Nombre')),
-                                          DataColumn(
-                                            label: Text('Descripción'),
+                                return Column(
+                                  children: [
+                                    Expanded(
+                                      child: Container(
+                                        decoration: BoxDecoration(
+                                          color: Palette.white,
+                                          borderRadius: BorderRadius.circular(18),
+                                          border: Border.all(
+                                            color: Palette.button.withValues(alpha: 0.35),
                                           ),
-                                          DataColumn(label: Text('Tipo')),
-                                          DataColumn(label: Text('Unidad')),
-                                          DataColumn(label: Text('Stock')),
-                                          DataColumn(label: Text('Precio')),
-                                          DataColumn(label: Text('Acciones')),
-                                        ],
-                                        rows: filtered.map((p) {
-                                          final id = p.id;
-                                          final nombre = p.nombre;
-                                          final tipoItem = p.tipoItem;
-                                          final unidadNombre = p.unidadNombre;
-                                          final desc = p.descripcion;
-                                          final stock = p.stock;
-                                          final precio = p.precio;
-                                          final imagenUrl = p.imagenUrl.trim();
-                                          final imagenPath = p.imagenPath.trim();
+                                        ),
+                                        child: ClipRRect(
+                                          borderRadius: BorderRadius.circular(18),
+                                          child: SingleChildScrollView(
+                                            child: DataTable(
+                                              headingRowHeight: 52,
+                                              dataRowMinHeight: 64,
+                                              dataRowMaxHeight: 84,
+                                              columnSpacing: 18,
+                                              headingTextStyle: const TextStyle(
+                                                fontWeight: FontWeight.w900,
+                                                color: Palette.ink,
+                                              ),
+                                              columns: const [
+                                                DataColumn(label: Expanded(child: Center(child: Text('Imagen')))),
+                                                DataColumn(label: Text('Código')),
+                                                DataColumn(label: Text('Nombre')),
+                                                DataColumn(label: Text('Descripción')),
+                                                DataColumn(label: Expanded(child: Center(child: Text('Tipo')))),
+                                                DataColumn(label: Text('Unidad')),
+                                                DataColumn(label: Expanded(child: Center(child: Text('Stock')))),
+                                                DataColumn(label: Expanded(child: Center(child: Text('Precio')))),
+                                                DataColumn(label: Expanded(child: Center(child: Text('Acciones')))),
+                                              ],
+                                              rows: pageItems.map((p) {
+                                                final id = p.id;
+                                                final nombre = p.nombre;
+                                                final tipoItem = p.tipoItem;
+                                                final unidadNombre = p.unidadNombre;
+                                                final desc = p.descripcion;
+                                                final stock = p.stock;
+                                                final precio = p.precio;
+                                                final imagenUrl = p.imagenUrl.trim();
+                                                final imagenPath = p.imagenPath.trim();
 
-                                          return DataRow(
-                                            cells: [
-                                              DataCell(
-                                                InkWell(
-                                                  onTap:
-                                                      (imagenPath.isEmpty &&
-                                                              imagenUrl.isEmpty)
-                                                          ? null
-                                                          : () =>
-                                                                _openImageViewer(
-                                                                  title: nombre,
-                                                                  imagenPath:
-                                                                      imagenPath,
-                                                                  imagenUrl:
-                                                                      imagenUrl,
-                                                                ),
-                                                  child: _ProductoThumb(
-                                                    imagenPath: imagenPath,
-                                                    imagenUrl: imagenUrl,
-                                                  ),
-                                                ),
-                                              ),
-                                              DataCell(
-                                                Text(
-                                                  p.codigo.isEmpty
-                                                      ? '-'
-                                                      : p.codigo,
-                                                  style: const TextStyle(
-                                                    fontWeight: FontWeight.w700,
-                                                  ),
-                                                ),
-                                              ),
-                                              DataCell(
-                                                SizedBox(
-                                                  width: 240,
-                                                  child: Text(
-                                                    nombre.isEmpty
-                                                        ? '-'
-                                                        : nombre,
-                                                    maxLines: 2,
-                                                    overflow:
-                                                        TextOverflow.ellipsis,
-                                                    style: const TextStyle(
-                                                      fontWeight:
-                                                          FontWeight.w700,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                              DataCell(
-                                                SizedBox(
-                                                  width: 320,
-                                                  child: Text(
-                                                    desc.trim().isEmpty
-                                                        ? '-'
-                                                        : desc.trim(),
-                                                    maxLines: 2,
-                                                    overflow:
-                                                        TextOverflow.ellipsis,
-                                                    style: TextStyle(
-                                                      color: Palette.ink
-                                                          .withValues(
-                                                            alpha: 0.85,
+                                                return DataRow(
+                                                  cells: [
+                                                    DataCell(
+                                                      Center(
+                                                        child: InkWell(
+                                                          onTap: (imagenPath.isEmpty && imagenUrl.isEmpty)
+                                                              ? null
+                                                              : () => _openImageViewer(
+                                                                    title: nombre,
+                                                                    imagenPath: imagenPath,
+                                                                    imagenUrl: imagenUrl,
+                                                                  ),
+                                                          child: _ProductoThumb(
+                                                            imagenPath: imagenPath,
+                                                            imagenUrl: imagenUrl,
                                                           ),
-                                                    ),
-                                                  ),
-                                                ),
-                                              ),
-                                              DataCell(
-                                                _ChipTipo(tipoItem: tipoItem),
-                                              ),
-                                              DataCell(
-                                                Text(
-                                                  unidadNombre.isEmpty
-                                                      ? '-'
-                                                      : unidadNombre,
-                                                ),
-                                              ),
-                                              DataCell(Text(stock.toString())),
-                                              DataCell(
-                                                Text(
-                                                  precio.toStringAsFixed(2),
-                                                ),
-                                              ),
-                                              DataCell(
-                                                Row(
-                                                  children: [
-                                                    IconButton(
-                                                      tooltip: 'Editar',
-                                                      onPressed: () =>
-                                                          _openEditDialog(
-                                                            id: id,
-                                                            product: p,
-                                                            unidades: unidades,
-                                                            almacenes:
-                                                                almacenes,
-                                                          ),
-                                                      icon: Icon(
-                                                        Icons.edit_rounded,
-                                                        color:
-                                                            Palette.primary,
+                                                        ),
                                                       ),
                                                     ),
-                                                    IconButton(
-                                                      tooltip: 'Eliminar',
-                                                      onPressed: () =>
-                                                          _deleteProducto(
-                                                            id,
-                                                            nombre,
-                                                            imagenPath:
-                                                                imagenPath,
+                                                    DataCell(
+                                                      Text(
+                                                        p.codigo.isEmpty ? '-' : p.codigo,
+                                                        style: const TextStyle(fontWeight: FontWeight.w700),
+                                                      ),
+                                                    ),
+                                                    DataCell(
+                                                      SizedBox(
+                                                        width: 240,
+                                                        child: Text(
+                                                          nombre.isEmpty ? '-' : nombre,
+                                                          maxLines: 2,
+                                                          overflow: TextOverflow.ellipsis,
+                                                          style: const TextStyle(fontWeight: FontWeight.w700),
+                                                        ),
+                                                      ),
+                                                    ),
+                                                    DataCell(
+                                                      SizedBox(
+                                                        width: 220,
+                                                        child: Text(
+                                                          desc.trim().isEmpty ? '-' : desc.trim(),
+                                                          maxLines: 2,
+                                                          overflow: TextOverflow.ellipsis,
+                                                          style: TextStyle(
+                                                            color: Palette.ink.withValues(alpha: 0.85),
                                                           ),
-                                                      icon: Icon(
-                                                        Icons
-                                                            .delete_outline_rounded,
-                                                        color: Palette
-                                                            .statsDanger
-                                                            .withValues(
-                                                              alpha: 0.95,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                    DataCell(Center(child: _ChipTipo(tipoItem: tipoItem))),
+                                                    DataCell(
+                                                      Text(unidadNombre.isEmpty ? '-' : unidadNombre),
+                                                    ),
+                                                    DataCell(Center(child: Text(stock.toString(), style: const TextStyle(fontWeight: FontWeight.w700)))),
+                                                    DataCell(Center(child: Text(precio.toStringAsFixed(2), style: const TextStyle(fontWeight: FontWeight.w700)))),
+                                                    DataCell(
+                                                      Center(
+                                                        child: Row(
+                                                          mainAxisSize: MainAxisSize.min,
+                                                          children: [
+                                                            AdminActionButton(
+                                                              icon: Icons.edit_rounded,
+                                                              color: Palette.primary,
+                                                              tooltip: 'Editar',
+                                                              onTap: () => _openEditDialog(
+                                                                id: id,
+                                                                product: p,
+                                                                unidades: unidades,
+                                                                almacenes: almacenes,
+                                                              ),
                                                             ),
+                                                            const SizedBox(width: 6),
+                                                            AdminActionButton(
+                                                              icon: Icons.delete_outline_rounded,
+                                                              color: Palette.statsDanger,
+                                                              tooltip: 'Eliminar',
+                                                              onTap: () => _deleteProducto(
+                                                                id,
+                                                                nombre,
+                                                                imagenPath: imagenPath,
+                                                              ),
+                                                            ),
+                                                          ],
+                                                        ),
                                                       ),
                                                     ),
                                                   ],
-                                                ),
-                                              ),
-                                            ],
-                                          );
-                                        }).toList(),
+                                                );
+                                              }).toList(),
+                                            ),
+                                          ),
+                                        ),
                                       ),
                                     ),
-                                  ),
+                                    paginationBar,
+                                  ],
                                 );
                               },
                             ),
@@ -856,44 +837,20 @@ class _HeaderProductos extends StatelessWidget {
           const SizedBox(width: 12),
 
           if (!compact)
-            InkWell(
-              onTap: canAdd ? onAdd : null,
-              borderRadius: BorderRadius.circular(999),
-              child: AnimatedOpacity(
-                duration: const Duration(milliseconds: 160),
-                opacity: canAdd ? 1 : 0.55,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 12,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Palette.white.withValues(alpha: 0.22),
-                    borderRadius: BorderRadius.circular(999),
-                    border: Border.all(
-                      color: Palette.button.withValues(alpha: 0.90),
-                      width: 2.4,
-                    ),
-                  ),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 10,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Palette.white.withValues(alpha: 0.80),
-                      borderRadius: BorderRadius.circular(999),
-                      border: Border.all(
-                        color: Palette.button.withValues(alpha: 0.22),
-                        width: 1.4,
-                      ),
-                    ),
-                    child: _GradientIconText(
-                      compact: false,
-                      enabled: canAdd,
-                    ),
-                  ),
+            ElevatedButton.icon(
+              onPressed: canAdd ? onAdd : null,
+              icon: const Icon(Icons.add_rounded),
+              label: const Text('Agregar producto'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Palette.white.withValues(alpha: 0.18),
+                foregroundColor: Palette.white,
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  side: const BorderSide(color: Palette.white, width: 2),
                 ),
+                textStyle: const TextStyle(fontWeight: FontWeight.w900),
               ),
             ),
         ],
@@ -1214,45 +1171,20 @@ class _ProductoCardMobile extends StatelessWidget {
             Row(
               children: [
                 Expanded(
-                  child: OutlinedButton.icon(
+                  child: AdminActionButtonMobile(
+                    icon: Icons.edit_rounded,
+                    color: Palette.primary,
+                    label: 'Editar',
                     onPressed: onEdit,
-                    icon: const Icon(Icons.edit_rounded, size: 18),
-                    label: const Text('Editar'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Palette.primary,
-                      side: BorderSide(
-                        color: Palette.primary.withValues(alpha: 0.35),
-                      ),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      textStyle: const TextStyle(fontWeight: FontWeight.w900),
-                    ),
                   ),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
-                  child: OutlinedButton.icon(
+                  child: AdminActionButtonMobile(
+                    icon: Icons.delete_outline_rounded,
+                    color: Palette.statsDanger,
+                    label: 'Eliminar',
                     onPressed: onDelete,
-                    icon: const Icon(
-                      Icons.delete_outline_rounded,
-                      size: 18,
-                    ),
-                    label: const Text('Eliminar'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Palette.statsDanger.withValues(
-                        alpha: 0.95,
-                      ),
-                      side: BorderSide(
-                        color: Palette.statsDanger.withValues(alpha: 0.35),
-                      ),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      textStyle: const TextStyle(fontWeight: FontWeight.w900),
-                    ),
                   ),
                 ),
               ],
