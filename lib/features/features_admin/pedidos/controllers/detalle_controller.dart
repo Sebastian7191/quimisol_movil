@@ -45,37 +45,57 @@ class PedidoDetalleController {
     required String almacenId,
   }) async {
     final dep = departamento.trim().toLowerCase();
-    final alm = almacenId.trim();
 
     final snap = await _fire.collection('usuarios').get();
 
-    final out = <QueryDocumentSnapshot<Map<String, dynamic>>>[];
-
+    // Paso 1: filtrar solo repartidores activos
+    final candidatos = <QueryDocumentSnapshot<Map<String, dynamic>>>[];
     for (final d in snap.docs) {
       final data = d.data();
-
       final rol = (data['rol'] ?? data['role'] ?? '').toString().toLowerCase();
       final activo = (data['activo'] ?? data['isActive'] ?? true) == true;
-
       if (!activo) continue;
-
       final isRepartidor =
           rol.contains('repartidor') ||
           rol.contains('delivery') ||
           rol == 'driver';
-
       if (!isRepartidor) continue;
+      candidatos.add(d);
+    }
 
-      final depUser = (data['departamento'] ?? '')
-          .toString()
-          .trim()
-          .toLowerCase();
+    if (dep.isEmpty) return candidatos;
 
-      if (dep.isNotEmpty && depUser.isNotEmpty && depUser != dep) {
-        continue;
+    // Paso 2: recopilar almacenIds únicos de los candidatos
+    final almacenIds = <String>{};
+    for (final d in candidatos) {
+      final data = d.data();
+      final almId =
+          (data['almacenId'] ??
+                  data['almacen_id'] ??
+                  data['almacenUid'] ??
+                  data['almacen_uid'] ??
+                  '')
+              .toString()
+              .trim();
+      if (almId.isNotEmpty) almacenIds.add(almId);
+    }
+
+    // Paso 3: consultar los almacenes y construir mapa almacenId -> departamento
+    final almacenDepMap = <String, String>{};
+    for (final id in almacenIds) {
+      final doc = await _fire.collection('almacenes').doc(id).get();
+      if (doc.exists) {
+        final depAlmacen =
+            (doc.data()?['departamento'] ?? '').toString().trim().toLowerCase();
+        almacenDepMap[id] = depAlmacen;
       }
+    }
 
-      final almacenUser =
+    // Paso 4: filtrar por el departamento del almacén del repartidor
+    final out = <QueryDocumentSnapshot<Map<String, dynamic>>>[];
+    for (final d in candidatos) {
+      final data = d.data();
+      final almId =
           (data['almacenId'] ??
                   data['almacen_id'] ??
                   data['almacenUid'] ??
@@ -84,11 +104,16 @@ class PedidoDetalleController {
               .toString()
               .trim();
 
-      if (alm.isNotEmpty && almacenUser.isNotEmpty && almacenUser != alm) {
+      if (almId.isEmpty) {
+        // Sin almacén asignado: se incluye para no excluir por error
+        out.add(d);
         continue;
       }
 
-      out.add(d);
+      final depAlmacen = almacenDepMap[almId] ?? '';
+      if (depAlmacen.isEmpty || depAlmacen == dep) {
+        out.add(d);
+      }
     }
 
     return out;

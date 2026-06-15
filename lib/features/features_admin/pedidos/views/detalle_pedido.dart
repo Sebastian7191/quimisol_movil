@@ -154,10 +154,11 @@ class _PedidoDetalleFormState extends State<_PedidoDetalleForm> {
     final now = DateTime.now();
     final initial = _fechaEnvioEdit ?? now;
 
+    final today = DateTime(now.year, now.month, now.day);
     final date = await showDatePicker(
       context: context,
-      initialDate: initial,
-      firstDate: DateTime(now.year - 1),
+      initialDate: initial.isBefore(today) ? today : initial,
+      firstDate: today,
       lastDate: DateTime(now.year + 3),
     );
     if (date == null || !mounted) return;
@@ -396,6 +397,7 @@ class _PedidoDetalleFormState extends State<_PedidoDetalleForm> {
         ),
         Footer(
           isSaving: _saving,
+          readOnly: _estadoEdit == kEstadoEntregado,
           onClose: _saving ? null : () => Navigator.pop(context),
           onSave: _saving ? null : _saveChanges,
         ),

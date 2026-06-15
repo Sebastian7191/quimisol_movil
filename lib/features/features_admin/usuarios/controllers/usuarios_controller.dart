@@ -13,10 +13,7 @@ class UsuariosController {
   // ================= STREAM =================
 
   Stream<QuerySnapshot<Map<String, dynamic>>> usersStream() {
-    return _db
-        .collection('usuarios')
-        .orderBy('created_at', descending: true)
-        .snapshots();
+    return _db.collection('usuarios').snapshots();
   }
 
   // ================= FILTER =================
@@ -47,12 +44,15 @@ class UsuariosController {
     String query,
     String roleFilter,
   ) {
-    return docs
+    final list = docs
         .where(
           (d) => matches(data: d.data(), query: query, roleFilter: roleFilter),
         )
         .map((d) => UserRow.fromFirestore(d.id, d.data()))
         .toList();
+
+    list.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+    return list;
   }
 
   // ================= ROLE =================

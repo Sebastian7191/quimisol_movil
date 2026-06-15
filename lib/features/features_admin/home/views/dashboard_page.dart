@@ -21,6 +21,7 @@ class DashboardPage extends StatefulWidget {
 class _DashboardPageState extends State<DashboardPage> {
   late final DashboardController c;
   late final DashboardFirestore repo;
+  final _statsNotifier = ValueNotifier<DashboardStats?>(null);
 
   @override
   void initState() {
@@ -32,6 +33,7 @@ class _DashboardPageState extends State<DashboardPage> {
   @override
   void dispose() {
     c.dispose();
+    _statsNotifier.dispose();
     super.dispose();
   }
 
@@ -51,10 +53,18 @@ class _DashboardPageState extends State<DashboardPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  DashboardHeader(width: w),
+                  // Header con botones de exportación (stats llegan via ValueNotifier)
+                  ValueListenableBuilder<DashboardStats?>(
+                    valueListenable: _statsNotifier,
+                    builder: (context, stats, _) => DashboardHeader(
+                      width: w,
+                      stats: stats,
+                      range: c.range,
+                    ),
+                  ),
                   const SizedBox(height: 14),
 
-                  // filtros (incluye almacenes desde Firestore)
+                  // Filtros (almacenes desde Firestore)
                   StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
                     stream: repo.almacenesStream(),
                     builder: (context, snapAlm) {
@@ -107,6 +117,11 @@ class _DashboardPageState extends State<DashboardPage> {
                                         rangeStart: from,
                                       );
 
+                                      // Propaga stats al header sin llamar setState en build
+                                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                                        if (mounted) _statsNotifier.value = stats;
+                                      });
+
                                       return Column(
                                         children: [
                                           DashboardStatCards(width: w, stats: stats),
@@ -131,14 +146,6 @@ class _DashboardPageState extends State<DashboardPage> {
                   PredictiveReportPanel(departamentoSeleccionado: c.departamento),
 
                   const SizedBox(height: 22),
-                 /* Text(
-                    'Tip: si algún gráfico sale vacío, revisa el rango/filtros.',
-                    style: TextStyle(
-                      color: Palette.ink.withValues(alpha: 0.6),
-                      fontWeight: FontWeight.w600,
-                      fontSize: 12,
-                    ),
-                  ),*/
                 ],
               ),
             );

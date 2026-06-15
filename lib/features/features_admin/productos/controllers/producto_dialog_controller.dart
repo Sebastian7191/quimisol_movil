@@ -130,7 +130,7 @@ class ProductoDialogController extends ChangeNotifier {
   // ✅ Si la categoría contiene botella, el label visual será Gramaje
   bool get categoriaEsBotella {
     final s = (categoriaNombre ?? '').trim().toLowerCase();
-    return s.contains('Botella');
+    return s.contains('botella');
   }
 
   // ✅ label dinámico
