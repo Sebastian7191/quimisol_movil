@@ -71,7 +71,7 @@ class _CategoriaDialogState extends State<CategoriaDialog> {
               Text(
                 widget.title,
                 style: const TextStyle(
-                  fontSize: 18,
+                  fontSize: 19,
                   fontWeight: FontWeight.w900,
                   color: Palette.ink,
                 ),

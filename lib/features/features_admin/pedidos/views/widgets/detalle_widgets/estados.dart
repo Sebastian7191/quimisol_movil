@@ -61,7 +61,7 @@ class EstadoEditor extends StatelessWidget {
           style: TextStyle(
             color: ink,
             fontWeight: FontWeight.w900,
-            fontSize: 12.8,
+            fontSize: 14.5,
           ),
           onChanged: onChanged == null ? null : (v) => onChanged!(v ?? value),
           items: options
@@ -76,29 +76,29 @@ class EstadoEditor extends StatelessWidget {
   }
 }
 
+Color colorForEstado(String s) {
+  switch (s.toLowerCase().trim()) {
+    case 'entregado':
+      return Palette.statsSuccess;
+    case 'cancelado':
+      return Palette.statsDanger;
+    case 'en camino':
+    case 'encamino':
+      return Palette.statsWarning;
+    case 'aceptado':
+      return Palette.secondary;
+    case 'pendiente':
+    default:
+      return Palette.primary;
+  }
+}
+
 class EstadoPill extends StatelessWidget {
   const EstadoPill({super.key, required this.estado});
   final String estado;
 
   String _label(String s) {
     return s.replaceAll('_', ' ').toUpperCase();
-  }
-
-  Color _color(String s) {
-    switch (s.toLowerCase().trim()) {
-      case 'entregado':
-        return Palette.statsSuccess;
-      case 'cancelado':
-        return Palette.statsDanger;
-      case 'en camino':
-      case 'encamino':
-        return Palette.statsWarning;
-      case 'aceptado':
-        return Palette.secondary;
-      case 'pendiente':
-      default:
-        return Palette.primary;
-    }
   }
 
   IconData _icon(String s) {
@@ -120,7 +120,7 @@ class EstadoPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final c = _color(estado);
+    final c = colorForEstado(estado);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
@@ -138,7 +138,7 @@ class EstadoPill extends StatelessWidget {
             style: TextStyle(
               color: Colors.white,
               fontWeight: FontWeight.w900,
-              fontSize: 12,
+              fontSize: 14,
               shadows: [
                 Shadow(
                   blurRadius: 10,

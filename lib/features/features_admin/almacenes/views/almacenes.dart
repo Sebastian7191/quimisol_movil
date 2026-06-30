@@ -69,6 +69,7 @@ class _AlmacenesPageState extends State<AlmacenesPage> {
       nombre: res.nombre,
       departamento: res.departamento,
       descripcion: res.descripcion,
+      ubicacion: res.ubicacion,
     );
   }
 
@@ -81,6 +82,7 @@ class _AlmacenesPageState extends State<AlmacenesPage> {
         'nombre': res.nombre.trim(),
         'departamento': res.departamento.trim(),
         'descripcion': res.descripcion.trim(),
+        'ubicacion': res.ubicacion.trim(),
         'last_update': FieldValue.serverTimestamp(),
       },
       SetOptions(merge: true),
@@ -101,6 +103,7 @@ class _AlmacenesPageState extends State<AlmacenesPage> {
         almacenId: (a['id'] ?? '').toString(),
         nombre: (a['nombre'] ?? '').toString(),
         departamento: (a['departamento'] ?? '').toString(),
+        ubicacion: (a['ubicacion'] ?? '').toString(),
       ),
     );
   }
@@ -150,7 +153,7 @@ class _AlmacenesPageState extends State<AlmacenesPage> {
         initialNombre: (a['nombre'] ?? '').toString(),
         initialDepartamento: (a['departamento'] ?? '').toString(),
         initialDescripcion: (a['descripcion'] ?? '').toString(),
-        // si quieres usar tu lista del controller:
+        initialUbicacion: (a['ubicacion'] ?? '').toString(),
         departamentos: controller.departamentos
             .where((d) => d != 'Todos')
             .toList(),
@@ -279,7 +282,7 @@ class _AlmacenesPageState extends State<AlmacenesPage> {
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
                               fontWeight: FontWeight.w900,
-                              fontSize: 16,
+                              fontSize: 20,
                               color: Palette.ink,
                             ),
                           ),
@@ -343,18 +346,7 @@ class _AlmacenesPageState extends State<AlmacenesPage> {
 
     return Scaffold(
       backgroundColor: Palette.card,
-      floatingActionButton: w < 720
-          ? FloatingActionButton.extended(
-              onPressed: _openAddAlmacenDialog,
-              backgroundColor: Palette.primary,
-              foregroundColor: Palette.white,
-              icon: const Icon(Icons.add_rounded),
-              label: const Text(
-                'Agregar',
-                style: TextStyle(fontWeight: FontWeight.w900),
-              ),
-            )
-          : null,
+      floatingActionButton: null,
       body: SafeArea(
         child: Padding(
           padding: EdgeInsets.all(w < 420 ? 14 : 20),
@@ -540,23 +532,25 @@ class _HeaderAlmacenes extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Container(
-            width: 54,
-            height: 54,
-            decoration: BoxDecoration(
-              color: Palette.white.withValues(alpha: 0.18),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: Palette.white.withValues(alpha: 0.35),
+          if (!compact) ...[
+            Container(
+              width: 54,
+              height: 54,
+              decoration: BoxDecoration(
+                color: Palette.white.withValues(alpha: 0.18),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: Palette.white.withValues(alpha: 0.35),
+                ),
+              ),
+              child: const Icon(
+                Icons.warehouse_rounded,
+                color: Palette.white,
+                size: 28,
               ),
             ),
-            child: const Icon(
-              Icons.warehouse_rounded,
-              color: Palette.white,
-              size: 28,
-            ),
-          ),
-          const SizedBox(width: 12),
+            const SizedBox(width: 12),
+          ],
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -564,7 +558,7 @@ class _HeaderAlmacenes extends StatelessWidget {
                 Text(
                   'Gestión de Almacenes',
                   style: TextStyle(
-                    fontSize: compact ? 18 : 22,
+                    fontSize: compact ? 19 : 23,
                     fontWeight: FontWeight.w900,
                     color: Palette.white,
                   ),
@@ -573,7 +567,7 @@ class _HeaderAlmacenes extends StatelessWidget {
                 Text(
                   'Administra almacenes por departamento',
                   style: TextStyle(
-                    fontSize: compact ? 12 : 13,
+                    fontSize: compact ? 16 : 17,
                     color: Palette.white.withValues(alpha: 0.92),
                     fontWeight: FontWeight.w700,
                   ),
@@ -582,24 +576,22 @@ class _HeaderAlmacenes extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 12),
-          if (!compact)
-            ElevatedButton.icon(
-              onPressed: onAdd,
-              icon: const Icon(Icons.add_rounded),
-              label: const Text('Agregar almacén'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Palette.white.withValues(alpha: 0.18),
-                foregroundColor: Palette.white,
-                elevation: 0,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                  side: const BorderSide(color: Palette.white, width: 2),
-                ),
-                textStyle: const TextStyle(fontWeight: FontWeight.w900),
+          ElevatedButton.icon(
+            onPressed: onAdd,
+            icon: const Icon(Icons.add_rounded, size: 18),
+            label: Text(compact ? 'Agregar' : 'Agregar almacén'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: compact ? Palette.white : Palette.white.withValues(alpha: 0.18),
+              foregroundColor: compact ? Palette.primary : Palette.white,
+              elevation: 0,
+              padding: EdgeInsets.symmetric(horizontal: compact ? 14 : 16, vertical: compact ? 10 : 14),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(compact ? 999 : 14),
+                side: compact ? BorderSide.none : const BorderSide(color: Palette.white, width: 2),
               ),
+              textStyle: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
             ),
+          ),
         ],
       ),
     );
@@ -658,7 +650,7 @@ class _AlmacenCard extends StatelessWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
-                            fontSize: 16,
+                            fontSize: 20,
                             fontWeight: FontWeight.w900,
                             color: Palette.ink,
                           ),
@@ -806,7 +798,7 @@ class _StatusChip extends StatelessWidget {
       child: Text(
         isZero ? 'Sin stock' : 'OK',
         style: TextStyle(
-          fontSize: 12,
+          fontSize: 16,
           fontWeight: FontWeight.w900,
           color: base,
         ),
@@ -831,7 +823,7 @@ class _Stat extends StatelessWidget {
           label,
           style: TextStyle(
             color: Palette.ink.withValues(alpha: 0.6),
-            fontSize: 12,
+            fontSize: 16,
             fontWeight: FontWeight.w700,
           ),
         ),
@@ -839,7 +831,7 @@ class _Stat extends StatelessWidget {
         Text(
           value,
           style: const TextStyle(
-            fontSize: 16,
+            fontSize: 20,
             fontWeight: FontWeight.w900,
             color: Palette.ink,
           ),

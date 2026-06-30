@@ -250,7 +250,43 @@ class _PagosPageState extends State<PagosPage> {
     }
   }
 
+  void _showNoPaymentMethodAlert() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        icon: const Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 42),
+        title: const Text(
+          'No puedes desactivar este método',
+          textAlign: TextAlign.center,
+        ),
+        content: const Text(
+          'Debes dejar al menos un método de pago activo. Si desactivas ambos, tus clientes no podrán realizar compras.',
+          textAlign: TextAlign.center,
+        ),
+        actionsAlignment: MainAxisAlignment.center,
+        actions: [
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Palette.button,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: const Text('Entendido'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _updateQrActive(bool value) async {
+    if (!value && !_cashActive) {
+      _showNoPaymentMethodAlert();
+      return;
+    }
     try {
       setState(() => _isUpdatingQrState = true);
 
@@ -279,6 +315,10 @@ class _PagosPageState extends State<PagosPage> {
   }
 
   Future<void> _updateCashActive(bool value) async {
+    if (!value && !_qrActive) {
+      _showNoPaymentMethodAlert();
+      return;
+    }
     try {
       setState(() => _isUpdatingCashState = true);
 
@@ -468,7 +508,7 @@ class _PagosHeader extends StatelessWidget {
                   'Gestión de pagos',
                   style: TextStyle(
                     color: Colors.white,
-                    fontSize: isMobile ? 22 : 26,
+                    fontSize: isMobile ? 23 : 27,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
@@ -477,7 +517,7 @@ class _PagosHeader extends StatelessWidget {
                   'Administra los métodos de pago disponibles y la imagen QR que se mostrará a tus clientes.',
                   style: TextStyle(
                     color: Colors.white.withValues(alpha: 0.92),
-                    fontSize: isMobile ? 13 : 14,
+                    fontSize: isMobile ? 14.5 : 15.5,
                     fontWeight: FontWeight.w500,
                     height: 1.45,
                   ),
@@ -584,7 +624,7 @@ class _SwitchOption extends StatelessWidget {
                   style: TextStyle(
                     color: selected ? Palette.primary : Palette.ink,
                     fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
-                    fontSize: 13,
+                    fontSize: 14.5,
                   ),
                 ),
               ),
@@ -704,10 +744,10 @@ class _MetodosPagoPanel extends StatelessWidget {
                 ),
               ),
               child: Text(
-                'Este método no requiere imagen. Su configuración se guarda por separado en Firestore como config_efectivo, mientras que el QR se guarda en config_qr.',
+                'Este método no requiere imagen.',
                 style: TextStyle(
                   color: Palette.ink.withValues(alpha: 0.72),
-                  fontSize: 13,
+                  fontSize: 14.5,
                   fontWeight: FontWeight.w500,
                   height: 1.45,
                 ),
@@ -772,7 +812,7 @@ class _MetodoSectionCard extends StatelessWidget {
                       title,
                       style: const TextStyle(
                         color: Palette.ink,
-                        fontSize: 18,
+                        fontSize: 19,
                         fontWeight: FontWeight.w900,
                       ),
                     ),
@@ -781,7 +821,7 @@ class _MetodoSectionCard extends StatelessWidget {
                       subtitle,
                       style: TextStyle(
                         color: Palette.ink.withValues(alpha: 0.68),
-                        fontSize: 12.8,
+                        fontSize: 14.5,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -820,7 +860,7 @@ class _InlineStatusSwitch extends StatelessWidget {
           style: TextStyle(
             color: value ? Colors.green.shade700 : Colors.red.shade700,
             fontWeight: FontWeight.w800,
-            fontSize: 12.5,
+            fontSize: 14,
           ),
         ),
         const SizedBox(height: 4),
@@ -913,7 +953,7 @@ class _QrPreviewBox extends StatelessWidget {
                   'No hay imagen QR cargada',
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    fontSize: 17,
+                    fontSize: 18,
                     fontWeight: FontWeight.w900,
                     color: Palette.ink,
                   ),
@@ -924,7 +964,7 @@ class _QrPreviewBox extends StatelessWidget {
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     color: Palette.ink.withValues(alpha: 0.68),
-                    fontSize: 13.2,
+                    fontSize: 14.5,
                     fontWeight: FontWeight.w500,
                     height: 1.45,
                   ),
@@ -971,7 +1011,7 @@ class _QrActionBox extends StatelessWidget {
           const Text(
             'Configuración del QR',
             style: TextStyle(
-              fontSize: 18,
+              fontSize: 19,
               fontWeight: FontWeight.w900,
               color: Palette.ink,
             ),
@@ -983,7 +1023,7 @@ class _QrActionBox extends StatelessWidget {
                 : 'Carga una imagen QR clara y nítida. Se guardará en Storage y su referencia en Firestore.',
             style: TextStyle(
               color: Palette.ink.withValues(alpha: 0.68),
-              fontSize: 13,
+              fontSize: 14.5,
               fontWeight: FontWeight.w500,
               height: 1.45,
             ),
@@ -1080,7 +1120,6 @@ class _CobroEstadosPanel extends StatelessWidget {
           int pendiente = 0;
           int pagoQr = 0;
           int pagoEfectivo = 0;
-          int verificacionManual = 0;
 
           if (snap.hasData) {
             for (final doc in snap.data!.docs) {
@@ -1094,7 +1133,6 @@ class _CobroEstadosPanel extends StatelessWidget {
               if (estado == 'pendiente') pendiente++;
               if (tipo == 'qr' && estado == 'pagado') pagoQr++;
               if (tipo == 'efectivo' && estado == 'pagado') pagoEfectivo++;
-              if (estado == 'verificando') verificacionManual++;
             }
           }
 
@@ -1131,14 +1169,6 @@ class _CobroEstadosPanel extends StatelessWidget {
                 description: 'Pedidos marcados con pago presencial o contra entrega.',
                 icon: Icons.payments_rounded,
                 color: Colors.green,
-              ),
-              const SizedBox(height: 12),
-              _StateCard(
-                title: 'Verificación manual',
-                count: loading ? '…' : verificacionManual.toString(),
-                description: 'Pagos que luego podrás revisar y validar manualmente.',
-                icon: Icons.fact_check_rounded,
-                color: Colors.purple,
               ),
             ],
           );
@@ -1196,7 +1226,7 @@ class _StateCard extends StatelessWidget {
                   style: const TextStyle(
                     color: Palette.ink,
                     fontWeight: FontWeight.w800,
-                    fontSize: 14.2,
+                    fontSize: 15.5,
                   ),
                 ),
                 const SizedBox(height: 6),
@@ -1204,7 +1234,7 @@ class _StateCard extends StatelessWidget {
                   description,
                   style: TextStyle(
                     color: Palette.ink.withValues(alpha: 0.68),
-                    fontSize: 12.7,
+                    fontSize: 14,
                     fontWeight: FontWeight.w500,
                     height: 1.4,
                   ),
@@ -1227,7 +1257,7 @@ class _StateCard extends StatelessWidget {
               style: TextStyle(
                 color: color,
                 fontWeight: FontWeight.w900,
-                fontSize: 16,
+                fontSize: 17,
               ),
             ),
           ),
@@ -1270,7 +1300,7 @@ class _PanelTitle extends StatelessWidget {
                 title,
                 style: const TextStyle(
                   color: Palette.ink,
-                  fontSize: 19,
+                  fontSize: 20,
                   fontWeight: FontWeight.w900,
                 ),
               ),
@@ -1279,7 +1309,7 @@ class _PanelTitle extends StatelessWidget {
                 subtitle,
                 style: TextStyle(
                   color: Palette.ink.withValues(alpha: 0.68),
-                  fontSize: 12.8,
+                  fontSize: 14.5,
                   fontWeight: FontWeight.w500,
                 ),
               ),

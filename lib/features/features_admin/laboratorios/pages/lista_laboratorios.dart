@@ -1,4 +1,4 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+﻿import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:quimisol_movil/core/theme/palette.dart';
 import 'package:quimisol_movil/features/features_admin/laboratorios/pages/laboratorios_forms_switch_page.dart';
@@ -160,15 +160,7 @@ class _LaboratoriosPageState extends State<LaboratoriosPage> {
 
         return Scaffold(
           backgroundColor: Colors.transparent,
-          floatingActionButton: isMobile
-              ? FloatingActionButton.extended(
-                  onPressed: _crearNuevo,
-                  icon: const Icon(Icons.add_rounded),
-                  label: const Text('Nuevo'),
-                  backgroundColor: Palette.button,
-                  foregroundColor: Colors.white,
-                )
-              : null,
+          floatingActionButton: null,
           body: SafeArea(
             child: Padding(
               padding: EdgeInsets.all(isMobile ? 12 : 18),
@@ -197,23 +189,25 @@ class _LaboratoriosPageState extends State<LaboratoriosPage> {
                     ),
                     child: Row(
                       children: [
-                        Container(
-                          width: isMobile ? 48 : 56,
-                          height: isMobile ? 48 : 56,
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.14),
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(
+                        if (!isMobile) ...[
+                          Container(
+                            width: 56,
+                            height: 56,
+                            decoration: BoxDecoration(
                               color: Colors.white.withValues(alpha: 0.14),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: Colors.white.withValues(alpha: 0.14),
+                              ),
+                            ),
+                            child: const Icon(
+                              Icons.science_rounded,
+                              color: Colors.white,
+                              size: 26,
                             ),
                           ),
-                          child: const Icon(
-                            Icons.science_rounded,
-                            color: Colors.white,
-                            size: 26,
-                          ),
-                        ),
-                        const SizedBox(width: 14),
+                          const SizedBox(width: 14),
+                        ],
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -222,7 +216,7 @@ class _LaboratoriosPageState extends State<LaboratoriosPage> {
                                 'Laboratorios',
                                 style: TextStyle(
                                   color: Colors.white,
-                                  fontSize: isMobile ? 20 : 24,
+                                  fontSize: isMobile ? 21 : 25,
                                   fontWeight: FontWeight.w900,
                                 ),
                               ),
@@ -231,35 +225,30 @@ class _LaboratoriosPageState extends State<LaboratoriosPage> {
                                 'Gestión de formularios 1, 2 y 3',
                                 style: TextStyle(
                                   color: Colors.white.withValues(alpha: 0.85),
-                                  fontSize: 13,
+                                  fontSize: 16,
                                   fontWeight: FontWeight.w500,
                                 ),
                               ),
                             ],
                           ),
                         ),
-                        if (!isMobile) ...[
-                          const SizedBox(width: 12),
-                          ElevatedButton.icon(
-                            onPressed: _crearNuevo,
-                            icon: const Icon(Icons.add_rounded),
-                            label: const Text('Nuevo laboratorio'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Palette.white.withValues(alpha: 0.18),
-                              foregroundColor: Palette.white,
-                              elevation: 0,
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 16, vertical: 14),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(14),
-                                side: const BorderSide(
-                                    color: Palette.white, width: 2),
-                              ),
-                              textStyle:
-                                  const TextStyle(fontWeight: FontWeight.w900),
+                        const SizedBox(width: 12),
+                        ElevatedButton.icon(
+                          onPressed: _crearNuevo,
+                          icon: const Icon(Icons.add_rounded, size: 18),
+                          label: Text(isMobile ? 'Agregar' : 'Nuevo laboratorio'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: isMobile ? Palette.white : Palette.white.withValues(alpha: 0.18),
+                            foregroundColor: isMobile ? Palette.primary : Palette.white,
+                            elevation: 0,
+                            padding: EdgeInsets.symmetric(horizontal: isMobile ? 14 : 16, vertical: isMobile ? 10 : 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(isMobile ? 999 : 14),
+                              side: isMobile ? BorderSide.none : const BorderSide(color: Palette.white, width: 2),
                             ),
+                            textStyle: const TextStyle(fontWeight: FontWeight.w900, fontSize: 20),
                           ),
-                        ],
+                        ),
                       ],
                     ),
                   ),
@@ -506,7 +495,7 @@ class _LaboratoriosPageState extends State<LaboratoriosPage> {
           Text(
             label,
             style: TextStyle(
-              fontSize: 12,
+              fontSize: 16,
               fontWeight: FontWeight.w700,
               color: Colors.black.withValues(alpha: 0.6),
             ),
@@ -517,7 +506,7 @@ class _LaboratoriosPageState extends State<LaboratoriosPage> {
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(
-              fontSize: 13,
+              fontSize: 16,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -556,7 +545,7 @@ class _LaboratoriosPageState extends State<LaboratoriosPage> {
                     '${item['id'] ?? parentId}',
                     style: const TextStyle(
                       fontWeight: FontWeight.w900,
-                      fontSize: 15,
+                      fontSize: 18,
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -607,7 +596,7 @@ class _LaboratoriosPageState extends State<LaboratoriosPage> {
         text: TextSpan(
           style: const TextStyle(
             color: Colors.black87,
-            fontSize: 13,
+            fontSize: 16,
           ),
           children: [
             TextSpan(

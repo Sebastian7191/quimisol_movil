@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:quimisol_movil/core/theme/palette.dart';
 import 'package:intl/intl.dart';
 import 'estados.dart';
 
@@ -19,6 +18,7 @@ class Header extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final color = colorForEstado(estado);
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(18, 16, 12, 14),
@@ -27,9 +27,8 @@ class Header extends StatelessWidget {
           begin: Alignment.centerLeft,
           end: Alignment.centerRight,
           colors: [
-            Palette.primary.withValues(alpha: 0.96),
-            Palette.secondary.withValues(alpha: 0.92),
-            Palette.button.withValues(alpha: 0.96),
+            color.withValues(alpha: 0.96),
+            color.withValues(alpha: 0.80),
           ],
         ),
       ),
@@ -57,7 +56,7 @@ class Header extends StatelessWidget {
                   style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.w900,
-                    fontSize: 18,
+                    fontSize: 19,
                     letterSpacing: -0.2,
                   ),
                 ),
@@ -71,7 +70,7 @@ class Header extends StatelessWidget {
                   style: TextStyle(
                     color: Colors.white.withValues(alpha: 0.85),
                     fontWeight: FontWeight.w700,
-                    fontSize: 12.5,
+                    fontSize: 14,
                   ),
                 ),
               ],

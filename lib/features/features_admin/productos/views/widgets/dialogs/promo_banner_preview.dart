@@ -64,7 +64,7 @@ class PromoBannerPreview extends StatelessWidget {
                     style: const TextStyle(
                       fontWeight: FontWeight.w900,
                       color: Palette.ink,
-                      fontSize: 16.5,
+                      fontSize: 17.5,
                     ),
                   ),
                   const SizedBox(height: 6),
@@ -76,7 +76,7 @@ class PromoBannerPreview extends StatelessWidget {
                       color: Palette.ink.withValues(alpha: 0.55),
                       fontWeight: FontWeight.w800,
                       height: 1.15,
-                      fontSize: 12.6,
+                      fontSize: 14.1,
                     ),
                   ),
                   const SizedBox(height: 10),
@@ -98,7 +98,7 @@ class PromoBannerPreview extends StatelessWidget {
                           ),
                           textStyle: const TextStyle(
                             fontWeight: FontWeight.w900,
-                            fontSize: 13,
+                            fontSize: 14.5,
                           ),
                         ),
                         child: FittedBox(

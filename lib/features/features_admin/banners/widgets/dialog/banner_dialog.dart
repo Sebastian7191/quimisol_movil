@@ -203,7 +203,7 @@ class _BannerDialogState extends State<BannerDialog> {
                   style: const TextStyle(
                     fontWeight: FontWeight.w900,
                     color: Palette.ink,
-                    fontSize: 14.5,
+                    fontSize: 16,
                   ),
                 ),
                 const SizedBox(height: 2),
@@ -212,7 +212,7 @@ class _BannerDialogState extends State<BannerDialog> {
                   style: TextStyle(
                     color: Palette.ink.withValues(alpha: 0.65),
                     fontWeight: FontWeight.w700,
-                    fontSize: 12.2,
+                    fontSize: 13.7,
                   ),
                 ),
               ],
@@ -277,7 +277,7 @@ class _BannerDialogState extends State<BannerDialog> {
                   style: const TextStyle(
                     fontWeight: FontWeight.w900,
                     color: Palette.ink,
-                    fontSize: 16,
+                    fontSize: 17,
                   ),
                 ),
                 const SizedBox(height: 2),
@@ -286,7 +286,7 @@ class _BannerDialogState extends State<BannerDialog> {
                   style: TextStyle(
                     color: Palette.ink.withValues(alpha: 0.65),
                     fontWeight: FontWeight.w700,
-                    fontSize: 12.2,
+                    fontSize: 13.7,
                   ),
                 ),
               ],
@@ -342,7 +342,7 @@ class _BannerDialogState extends State<BannerDialog> {
                   style: TextStyle(
                     fontWeight: FontWeight.w900,
                     color: Palette.ink,
-                    fontSize: 14.5,
+                    fontSize: 16,
                   ),
                 ),
               ),
@@ -422,7 +422,7 @@ class _BannerDialogState extends State<BannerDialog> {
                                       style: TextStyle(
                                         fontWeight: FontWeight.w700,
                                         color: Palette.ink.withValues(alpha: 0.65),
-                                        fontSize: 12.2,
+                                        fontSize: 13.7,
                                       ),
                                     ),
                                   ],

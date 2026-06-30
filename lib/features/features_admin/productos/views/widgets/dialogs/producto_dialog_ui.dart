@@ -83,7 +83,7 @@ class ProductoDialogUI {
                   style: TextStyle(
                     color: Palette.ink.withValues(alpha: 0.70),
                     fontWeight: FontWeight.w600,
-                    fontSize: 12.5,
+                    fontSize: 16,
                   ),
                 ),
               ],

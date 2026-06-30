@@ -40,7 +40,7 @@ class AiStatusPill extends StatelessWidget {
         style: TextStyle(
           fontWeight: FontWeight.w900,
           color: c,
-          fontSize: 11.5,
+          fontSize: 13.5,
         ),
       ),
     );
@@ -214,7 +214,7 @@ class AiBox extends StatelessWidget {
                 style: TextStyle(
                   color: Palette.ink.withValues(alpha: 0.60),
                   fontWeight: FontWeight.w700,
-                  fontSize: 12,
+                  fontSize: 14,
                 ),
               ),
             ),
@@ -267,7 +267,7 @@ class AiSummaryCard extends StatelessWidget {
                   style: TextStyle(
                     color: badgeColor,
                     fontWeight: FontWeight.w900,
-                    fontSize: 11.5,
+                    fontSize: 13.5,
                   ),
                 ),
               ),

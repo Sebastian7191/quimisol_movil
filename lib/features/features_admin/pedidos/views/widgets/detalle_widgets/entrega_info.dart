@@ -39,7 +39,7 @@ class EntregaInfo extends StatelessWidget {
               style: TextStyle(
                 color: ink.withValues(alpha: 0.78),
                 fontWeight: FontWeight.w800,
-                fontSize: 12,
+                fontSize: 14,
               ),
             ),
           ],
@@ -58,7 +58,7 @@ class EntregaInfo extends StatelessWidget {
             style: TextStyle(
               color: ink,
               fontWeight: FontWeight.w900,
-              fontSize: 13.5,
+              fontSize: 15,
               height: 1.25,
             ),
           ),

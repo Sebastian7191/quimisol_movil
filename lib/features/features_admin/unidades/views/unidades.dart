@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'package:quimisol_movil/core/theme/palette.dart';
@@ -158,13 +158,7 @@ class _UnidadesPageState extends State<UnidadesPage> {
         return Scaffold(
           backgroundColor: Palette.card,
 
-          // ✅ FAB pill en móvil (mejor UX)
-          floatingActionButton: compact
-              ? _FloatingAddPill(
-                  enabled: true,
-                  onTap: _openAddDialog,
-                )
-              : null,
+          floatingActionButton: null,
 
           body: SafeArea(
             child: Padding(
@@ -271,12 +265,17 @@ class _UnidadesPageState extends State<UnidadesPage> {
                                     child: SingleChildScrollView(
                                       scrollDirection: Axis.horizontal,
                                       child: DataTable(
-                                        headingRowHeight: 52,
-                                        dataRowMinHeight: 56,
-                                        dataRowMaxHeight: 72,
+                                        headingRowHeight: 58,
+                                        dataRowMinHeight: 62,
+                                        dataRowMaxHeight: 80,
                                         columnSpacing: 18,
                                         headingTextStyle: const TextStyle(
                                           fontWeight: FontWeight.w900,
+                                          fontSize: 16.5,
+                                          color: Palette.ink,
+                                        ),
+                                        dataTextStyle: const TextStyle(
+                                          fontSize: 16.5,
                                           color: Palette.ink,
                                         ),
                                         columns: const [
@@ -409,23 +408,25 @@ class _HeaderUnidades extends StatelessWidget {
         children: [
           Row(
             children: [
-              Container(
-                width: 54,
-                height: 54,
-                decoration: BoxDecoration(
-                  color: Palette.white.withValues(alpha: 0.18),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: Palette.white.withValues(alpha: 0.35),
+              if (!compact) ...[
+                Container(
+                  width: 54,
+                  height: 54,
+                  decoration: BoxDecoration(
+                    color: Palette.white.withValues(alpha: 0.18),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: Palette.white.withValues(alpha: 0.35),
+                    ),
+                  ),
+                  child: const Icon(
+                    Icons.straighten_rounded,
+                    color: Palette.white,
+                    size: 28,
                   ),
                 ),
-                child: const Icon(
-                  Icons.straighten_rounded,
-                  color: Palette.white,
-                  size: 28,
-                ),
-              ),
-              const SizedBox(width: 12),
+                const SizedBox(width: 12),
+              ],
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -435,7 +436,7 @@ class _HeaderUnidades extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        fontSize: compact ? 18 : 22,
+                        fontSize: compact ? 15.5 : 19.5,
                         fontWeight: FontWeight.w900,
                         color: Palette.white,
                       ),
@@ -446,7 +447,7 @@ class _HeaderUnidades extends StatelessWidget {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        fontSize: compact ? 12 : 13,
+                        fontSize: compact ? 14.5 : 16.5,
                         color: Palette.white.withValues(alpha: 0.92),
                         fontWeight: FontWeight.w600,
                       ),
@@ -454,26 +455,23 @@ class _HeaderUnidades extends StatelessWidget {
                   ],
                 ),
               ),
-
-              if (!compact) ...[
-                const SizedBox(width: 12),
-                ElevatedButton.icon(
-                  onPressed: onAdd,
-                  icon: const Icon(Icons.add_rounded),
-                  label: const Text('Agregar unidad'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Palette.white.withValues(alpha: 0.18),
-                    foregroundColor: Palette.white,
-                    elevation: 0,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                      side: const BorderSide(color: Palette.white, width: 2),
-                    ),
-                    textStyle: const TextStyle(fontWeight: FontWeight.w900),
+              const SizedBox(width: 12),
+              ElevatedButton.icon(
+                onPressed: onAdd,
+                icon: const Icon(Icons.add_rounded, size: 18),
+                label: Text(compact ? 'Agregar' : 'Agregar unidad'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: compact ? Palette.white : Palette.white.withValues(alpha: 0.18),
+                  foregroundColor: compact ? Palette.primary : Palette.white,
+                  elevation: 0,
+                  padding: EdgeInsets.symmetric(horizontal: compact ? 14 : 16, vertical: compact ? 10 : 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(compact ? 999 : 14),
+                    side: compact ? BorderSide.none : const BorderSide(color: Palette.white, width: 2),
                   ),
+                  textStyle: const TextStyle(fontWeight: FontWeight.w900, fontSize: 14.5),
                 ),
-              ],
+              ),
             ],
           ),
           const SizedBox(height: 12),
@@ -550,81 +548,6 @@ class _HeaderUnidades extends StatelessWidget {
 
 // ===================== BOTÓN PILL (FAB) =====================
 
-class _FloatingAddPill extends StatelessWidget {
-  final bool enabled;
-  final VoidCallback? onTap;
-
-  const _FloatingAddPill({required this.enabled, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: enabled ? onTap : null,
-        borderRadius: BorderRadius.circular(999),
-        child: AnimatedOpacity(
-          duration: const Duration(milliseconds: 160),
-          opacity: enabled ? 1 : 0.55,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(
-              color: Palette.white.withValues(alpha: 0.92),
-              borderRadius: BorderRadius.circular(999),
-              border: Border.all(
-                color: Palette.button.withValues(alpha: 0.95),
-                width: 3,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.12),
-                  blurRadius: 18,
-                  offset: const Offset(0, 10),
-                ),
-              ],
-            ),
-            child: const _GradientIconText(compact: true, enabled: true),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _GradientIconText extends StatelessWidget {
-  final bool compact;
-  final bool enabled;
-
-  const _GradientIconText({required this.compact, required this.enabled});
-
-  @override
-  Widget build(BuildContext context) {
-    final gradient = LinearGradient(
-      begin: Alignment.centerLeft,
-      end: Alignment.centerRight,
-      colors: [
-        Palette.gradientStart.withValues(alpha: enabled ? 1 : 0.55),
-        Palette.secondary.withValues(alpha: enabled ? 1 : 0.55),
-      ],
-    );
-
-    return ShaderMask(
-      shaderCallback: (rect) => gradient.createShader(rect),
-      blendMode: BlendMode.srcIn,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.add_rounded, size: 20),
-          const SizedBox(width: 8),
-          Text(
-            compact ? 'Agregar' : 'Agregar unidad',
-            style: const TextStyle(fontWeight: FontWeight.w900),
-          ),
-        ],
-      ),
-    );
-  }
-}
 
 // ===================== MOBILE CARD =====================
 
@@ -691,7 +614,7 @@ class _UnidadCardMobile extends StatelessWidget {
                         style: const TextStyle(
                           fontWeight: FontWeight.w900,
                           color: Palette.ink,
-                          fontSize: 14.5,
+                          fontSize: 18.5,
                         ),
                       ),
                       const SizedBox(height: 4),
@@ -715,7 +638,7 @@ class _UnidadCardMobile extends StatelessWidget {
                 style: TextStyle(
                   color: Palette.ink.withValues(alpha: 0.78),
                   fontWeight: FontWeight.w700,
-                  fontSize: 12.5,
+                  fontSize: 15.5,
                   height: 1.15,
                 ),
               )
@@ -725,7 +648,7 @@ class _UnidadCardMobile extends StatelessWidget {
                 style: TextStyle(
                   color: Palette.ink.withValues(alpha: 0.55),
                   fontWeight: FontWeight.w700,
-                  fontSize: 12.5,
+                  fontSize: 15.5,
                 ),
               ),
 
@@ -782,7 +705,7 @@ class _MiniInfoChip extends StatelessWidget {
             style: TextStyle(
               color: Palette.ink.withValues(alpha: 0.65),
               fontWeight: FontWeight.w900,
-              fontSize: 12,
+              fontSize: 15.5,
             ),
           ),
           Text(
@@ -790,7 +713,7 @@ class _MiniInfoChip extends StatelessWidget {
             style: const TextStyle(
               color: Palette.ink,
               fontWeight: FontWeight.w900,
-              fontSize: 12,
+              fontSize: 15.5,
             ),
           ),
         ],

@@ -55,7 +55,7 @@ class SectionCard extends StatelessWidget {
                   style: TextStyle(
                     color: ink,
                     fontWeight: FontWeight.w900,
-                    fontSize: 14,
+                    fontSize: 15.5,
                   ),
                 ),
               ),

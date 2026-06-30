@@ -55,7 +55,7 @@ class ProductoDialogTopBar extends StatelessWidget {
                 Text(
                   controller.title,
                   style: const TextStyle(
-                    fontSize: 18,
+                    fontSize: 21,
                     fontWeight: FontWeight.w900,
                     color: Palette.ink,
                   ),
@@ -68,7 +68,7 @@ class ProductoDialogTopBar extends StatelessWidget {
                   style: TextStyle(
                     color: Palette.ink.withValues(alpha: 0.70),
                     fontWeight: FontWeight.w600,
-                    fontSize: 12.5,
+                    fontSize: 16,
                   ),
                 ),
               ],

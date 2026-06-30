@@ -168,7 +168,7 @@ class PerProductList extends StatelessWidget {
                     style: TextStyle(
                       fontWeight: FontWeight.w900,
                       color: urgColor,
-                      fontSize: 12,
+                      fontSize: 14,
                     ),
                   ),
                 ),

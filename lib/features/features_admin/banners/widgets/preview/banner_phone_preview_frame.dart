@@ -96,7 +96,7 @@ class BannerPhonePreviewFrame extends StatelessWidget {
                 style: TextStyle(
                   color: Palette.ink.withValues(alpha: 0.7),
                   fontWeight: FontWeight.w900,
-                  fontSize: 12.5,
+                  fontSize: 14,
                 ),
               ),
               const SizedBox(height: 10),
@@ -117,7 +117,7 @@ class BannerPhonePreviewFrame extends StatelessWidget {
                 style: TextStyle(
                   color: Palette.ink.withValues(alpha: 0.7),
                   fontWeight: FontWeight.w900,
-                  fontSize: 12.5,
+                  fontSize: 14,
                 ),
               ),
               const SizedBox(height: 10),

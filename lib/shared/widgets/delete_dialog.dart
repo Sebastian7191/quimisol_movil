@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:quimisol/core/theme/palette.dart';
+import 'package:quimisol_movil/core/theme/palette.dart';
 
 class ConfirmDeleteDialog extends StatelessWidget {
   final String title;

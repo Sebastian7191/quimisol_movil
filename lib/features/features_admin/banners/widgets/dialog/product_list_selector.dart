@@ -126,7 +126,7 @@ class ProductListSelector extends StatelessWidget {
                                         'Seleccionado',
                                         style: TextStyle(
                                           fontWeight: FontWeight.w900,
-                                          fontSize: 12,
+                                          fontSize: 14,
                                           color: Palette.primary,
                                         ),
                                       ),

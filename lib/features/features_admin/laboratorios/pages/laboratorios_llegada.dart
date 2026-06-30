@@ -321,7 +321,7 @@ class LaboratoriosPage extends StatelessWidget {
                           Text(
                             'Laboratorios',
                             style: TextStyle(
-                              fontSize: isMobile ? 22 : 28,
+                              fontSize: isMobile ? 23 : 29,
                               fontWeight: FontWeight.w900,
                               color: Palette.primary,
                             ),
@@ -330,7 +330,7 @@ class LaboratoriosPage extends StatelessWidget {
                           Text(
                             'Vista PDF del formato de recepción de muestras',
                             style: TextStyle(
-                              fontSize: 13,
+                              fontSize: 14.5,
                               color: Colors.black.withValues(alpha: 0.65),
                               fontWeight: FontWeight.w500,
                             ),

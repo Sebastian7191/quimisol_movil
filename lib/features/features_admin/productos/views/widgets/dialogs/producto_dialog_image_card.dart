@@ -66,7 +66,7 @@ class ProductoDialogImageCard extends StatelessWidget {
                         style: TextStyle(
                           color: Palette.statsSuccess.withValues(alpha: 0.95),
                           fontWeight: FontWeight.w900,
-                          fontSize: 12,
+                          fontSize: 14,
                         ),
                       ),
                     ),

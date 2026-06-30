@@ -186,7 +186,7 @@ class _PromoBannerToggle extends StatelessWidget {
               style: TextStyle(
                 fontWeight: FontWeight.w900,
                 color: Palette.ink,
-                fontSize: 13,
+                fontSize: 16,
               ),
             ),
           ),

@@ -187,13 +187,18 @@ class _BannersPageState extends State<BannersPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(20),
-      child: LayoutBuilder(
-        builder: (context, c) {
-          final isNarrow = c.maxWidth < 640;
+    return LayoutBuilder(
+      builder: (context, c) {
+        final w = c.maxWidth;
+        final compact = w < 720;
+        final isNarrow = w < 640;
 
-          return Column(
+        return Scaffold(
+          backgroundColor: Colors.transparent,
+          floatingActionButton: null,
+          body: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // ================= HEADER =================
@@ -222,23 +227,25 @@ class _BannersPageState extends State<BannersPage> {
                   children: [
                     Row(
                       children: [
-                        Container(
-                          width: 54,
-                          height: 54,
-                          decoration: BoxDecoration(
-                            color: Palette.white.withValues(alpha: 0.18),
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(
-                              color: Palette.white.withValues(alpha: 0.35),
+                        if (!compact) ...[
+                          Container(
+                            width: 54,
+                            height: 54,
+                            decoration: BoxDecoration(
+                              color: Palette.white.withValues(alpha: 0.18),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: Palette.white.withValues(alpha: 0.35),
+                              ),
+                            ),
+                            child: const Icon(
+                              Icons.campaign_rounded,
+                              color: Palette.white,
+                              size: 28,
                             ),
                           ),
-                          child: const Icon(
-                            Icons.campaign_rounded, // banners
-                            color: Palette.white,
-                            size: 28,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
+                          const SizedBox(width: 12),
+                        ],
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -246,7 +253,7 @@ class _BannersPageState extends State<BannersPage> {
                               Text(
                                 'Gestión de Banners',
                                 style: TextStyle(
-                                  fontSize: isNarrow ? 18 : 22,
+                                  fontSize: isNarrow ? 19 : 23,
                                   fontWeight: FontWeight.w900,
                                   color: Palette.white,
                                 ),
@@ -255,7 +262,7 @@ class _BannersPageState extends State<BannersPage> {
                               Text(
                                 'Crea y administra banners promocionales',
                                 style: TextStyle(
-                                  fontSize: isNarrow ? 12 : 13,
+                                  fontSize: isNarrow ? 14 : 14.5,
                                   color: Palette.white.withValues(alpha: 0.92),
                                   fontWeight: FontWeight.w600,
                                 ),
@@ -264,26 +271,20 @@ class _BannersPageState extends State<BannersPage> {
                           ),
                         ),
                         const SizedBox(width: 12),
-                        SizedBox(
-                          width: isNarrow ? 140 : null,
-                          child: ElevatedButton.icon(
-                            onPressed: _openAddDialog,
-                            icon: const Icon(Icons.add_rounded),
-                            label: Text(isNarrow ? 'Agregar' : 'Agregar banner'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Palette.white.withValues(alpha: 0.18),
-                              foregroundColor: Palette.white,
-                              elevation: 0,
-                              padding:
-                                  const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(14),
-                                side: BorderSide(
-                                  color: Palette.white, width: 2,
-                                ),
-                              ),
-                              textStyle: const TextStyle(fontWeight: FontWeight.w900),
+                        ElevatedButton.icon(
+                          onPressed: _openAddDialog,
+                          icon: const Icon(Icons.add_rounded, size: 18),
+                          label: Text(compact ? 'Agregar' : 'Agregar banner'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: compact ? Palette.white : Palette.white.withValues(alpha: 0.18),
+                            foregroundColor: compact ? Palette.primary : Palette.white,
+                            elevation: 0,
+                            padding: EdgeInsets.symmetric(horizontal: compact ? 14 : 16, vertical: compact ? 10 : 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(compact ? 999 : 14),
+                              side: compact ? BorderSide.none : const BorderSide(color: Palette.white, width: 2),
                             ),
+                            textStyle: const TextStyle(fontWeight: FontWeight.w900, fontSize: 14.5),
                           ),
                         ),
                       ],
@@ -444,9 +445,11 @@ class _BannersPageState extends State<BannersPage> {
                 ),
               ),
             ],
-          );
-        },
-      ),
-    );
+          ),
+        ),
+      );
+    },
+  );
   }
 }
+

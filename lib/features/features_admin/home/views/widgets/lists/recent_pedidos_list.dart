@@ -45,14 +45,14 @@ class RecentPedidosList extends StatelessWidget {
                       p.codigo.isEmpty ? 'Pedido' : p.codigo,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w900, color: Palette.ink),
+                      style: const TextStyle(fontSize: 14.5, fontWeight: FontWeight.w900, color: Palette.ink),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       p.direccion.isEmpty ? p.departamento : p.direccion,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Palette.ink.withValues(alpha: 0.75)),
+                      style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: Palette.ink.withValues(alpha: 0.75)),
                     ),
                     if (p.repartidorNombre.isNotEmpty) ...[
                       const SizedBox(height: 2),
@@ -60,7 +60,7 @@ class RecentPedidosList extends StatelessWidget {
                         'Repartidor: ${p.repartidorNombre}',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Palette.ink.withValues(alpha: 0.65)),
+                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Palette.ink.withValues(alpha: 0.65)),
                       ),
                     ]
                   ],
@@ -102,7 +102,7 @@ class RecentPedidosList extends StatelessWidget {
         borderRadius: BorderRadius.circular(999),
         border: Border.all(color: c.withValues(alpha: 0.35)),
       ),
-      child: Text(t, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900, color: c)),
+      child: Text(t, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w900, color: c)),
     );
   }
 

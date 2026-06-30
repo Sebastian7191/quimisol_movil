@@ -68,7 +68,7 @@ class BannerCardBodyPreview extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                        fontSize: 18,
+                        fontSize: 19,
                         fontWeight: FontWeight.w900,
                         color: Palette.ink,
                         height: 1.05,
@@ -80,7 +80,7 @@ class BannerCardBodyPreview extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        fontSize: 13,
+                        fontSize: 14.5,
                         fontWeight: FontWeight.w800,
                         color: Palette.ink.withValues(alpha: 0.62),
                       ),
@@ -104,7 +104,7 @@ class BannerCardBodyPreview extends StatelessWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
-                            fontSize: 20,
+                            fontSize: 21,
                             fontWeight: FontWeight.w900,
                             color: Palette.ink,
                             height: 1.05,
@@ -116,7 +116,7 @@ class BannerCardBodyPreview extends StatelessWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            fontSize: 13,
+                            fontSize: 14.5,
                             fontWeight: FontWeight.w800,
                             color: Palette.ink.withValues(alpha: 0.62),
                           ),

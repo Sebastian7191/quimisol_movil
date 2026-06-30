@@ -31,11 +31,13 @@ class AlmacenesController {
     required String nombre,
     required String departamento,
     required String descripcion,
+    String ubicacion = '',
   }) async {
     return firestore.guardarAlmacen(
       nombre: nombre,
       departamento: departamento,
       descripcion: descripcion,
+      ubicacion: ubicacion,
     );
   }
 
@@ -80,7 +82,7 @@ class AlmacenesController {
         'nombre': (data['nombre'] ?? '').toString(),
         'departamento': (data['departamento'] ?? '').toString(),
         'descripcion': (data['descripcion'] ?? '').toString(),
-        // ✅ calculados:
+        'ubicacion': (data['ubicacion'] ?? '').toString(),
         'productos': productos,
         'stock': stock,
         'activo': (data['activo'] is bool) ? (data['activo'] as bool) : true,

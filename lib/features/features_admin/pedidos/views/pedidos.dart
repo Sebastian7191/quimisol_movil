@@ -1,4 +1,4 @@
-import 'dart:math' as math;
+﻿import 'dart:math' as math;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
@@ -131,7 +131,7 @@ class _PedidosPageState extends State<PedidosPage> with TickerProviderStateMixin
                         style: TextStyle(
                           color: ink,
                           fontWeight: FontWeight.w900,
-                          fontSize: 15,
+                          fontSize: 16.5,
                         ),
                       ),
                     ),
@@ -323,6 +323,7 @@ class _PedidosPageState extends State<PedidosPage> with TickerProviderStateMixin
                                       style: TextStyle(
                                         color: ink.withValues(alpha: 0.55),
                                         fontWeight: FontWeight.w800,
+                                        fontSize: 14.5,
                                       ),
                                     ),
                                     const SizedBox(width: 8),
@@ -536,7 +537,7 @@ class _PedidosHeader extends StatelessWidget {
                             'Pedidos',
                             style: TextStyle(
                               color: Colors.white,
-                              fontSize: 20,
+                              fontSize: 22,
                               fontWeight: FontWeight.w900,
                               letterSpacing: -0.2,
                             ),
@@ -547,7 +548,7 @@ class _PedidosHeader extends StatelessWidget {
                             style: TextStyle(
                               color: Colors.white70,
                               fontWeight: FontWeight.w700,
-                              fontSize: 12.5,
+                              fontSize: 16,
                             ),
                           ),
                         ],
@@ -576,7 +577,7 @@ class _PedidosHeader extends StatelessWidget {
                               style: TextStyle(
                                 color: Colors.white,
                                 fontWeight: FontWeight.w900,
-                                fontSize: 13,
+                                fontSize: 14,
                               ),
                             ),
                           ],
@@ -736,7 +737,7 @@ class _EstadoFilterMini extends StatelessWidget {
           style: const TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.w900,
-            fontSize: 12.5,
+            fontSize: 14,
           ),
           onChanged: (v) => onChanged(v ?? 'Todos'),
           selectedItemBuilder: (_) => items.map((e) => Center(child: Text(labelFor(e)))).toList(),
@@ -821,7 +822,7 @@ class _DeptoBlock extends StatelessWidget {
                   style: TextStyle(
                     color: ink.withValues(alpha: 0.8),
                     fontWeight: FontWeight.w900,
-                    fontSize: 12,
+                    fontSize: 14,
                   ),
                 ),
               ),

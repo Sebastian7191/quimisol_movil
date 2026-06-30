@@ -120,7 +120,7 @@ class _DashboardHeaderState extends State<DashboardHeader> {
                 Text(
                   'Dashboard',
                   style: TextStyle(
-                    fontSize: compact ? 18 : 22,
+                    fontSize: compact ? 19 : 23,
                     fontWeight: FontWeight.w900,
                     color: Palette.white,
                   ),
@@ -129,7 +129,7 @@ class _DashboardHeaderState extends State<DashboardHeader> {
                 Text(
                   'Pedidos, productos, usuarios, repartidores y banners',
                   style: TextStyle(
-                    fontSize: compact ? 12 : 13,
+                    fontSize: compact ? 13.5 : 14.5,
                     color: Palette.white.withValues(alpha: 0.92),
                     fontWeight: FontWeight.w600,
                   ),
@@ -195,7 +195,7 @@ class _DashboardHeaderState extends State<DashboardHeader> {
                     style: TextStyle(
                       color: Palette.white.withValues(alpha: 0.95),
                       fontWeight: FontWeight.w800,
-                      fontSize: 12,
+                      fontSize: 13.5,
                     ),
                   ),
                 ],
@@ -274,7 +274,7 @@ class _HeaderExportBtnState extends State<_HeaderExportBtn> {
                 widget.loading ? 'Exportando…' : widget.label,
                 style: TextStyle(
                   fontWeight: FontWeight.w800,
-                  fontSize: 13,
+                  fontSize: 14.5,
                   color: Palette.white.withValues(alpha: active ? 1.0 : 0.45),
                 ),
               ),

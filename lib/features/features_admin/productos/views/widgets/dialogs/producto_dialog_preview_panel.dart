@@ -164,7 +164,7 @@ class ProductoDialogPreviewPanel extends StatelessWidget {
                       style: TextStyle(
                         fontWeight: FontWeight.w900,
                         color: Palette.ink,
-                        fontSize: 14.5,
+                        fontSize: 16,
                       ),
                     ),
                   ),

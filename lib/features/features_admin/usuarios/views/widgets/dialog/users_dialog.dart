@@ -199,7 +199,7 @@ class _UsersDetailsSheetState extends State<_UsersDetailsSheet> {
                           style: TextStyle(
                             color: ink,
                             fontWeight: FontWeight.w900,
-                            fontSize: 16,
+                            fontSize: 20,
                           ),
                         ),
                         const SizedBox(height: 2),
@@ -210,6 +210,7 @@ class _UsersDetailsSheetState extends State<_UsersDetailsSheet> {
                           style: TextStyle(
                             color: ink.withValues(alpha: .60),
                             fontWeight: FontWeight.w700,
+                            fontSize: 16,
                           ),
                         ),
                       ],
@@ -349,7 +350,7 @@ class _NitEditorCard extends StatelessWidget {
                 style: TextStyle(
                   color: ink,
                   fontWeight: FontWeight.w900,
-                  fontSize: 14,
+                  fontSize: 17.5,
                 ),
               ),
             ],
@@ -464,7 +465,7 @@ class _DetailTile extends StatelessWidget {
                   style: TextStyle(
                     color: ink.withValues(alpha: .55),
                     fontWeight: FontWeight.w800,
-                    fontSize: 12,
+                    fontSize: 15,
                   ),
                 ),
                 const SizedBox(height: 2),
@@ -472,7 +473,7 @@ class _DetailTile extends StatelessWidget {
                   value,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: ink, fontWeight: FontWeight.w900),
+                  style: TextStyle(color: ink, fontWeight: FontWeight.w900, fontSize: 16),
                 ),
               ],
             ),
@@ -777,7 +778,7 @@ class _AlmacenComboFancyState extends State<_AlmacenComboFancy> {
                         style: TextStyle(
                           color: ink,
                           fontWeight: FontWeight.w900,
-                          fontSize: 15.5,
+                          fontSize: 17,
                         ),
                       ),
                     ),
@@ -945,7 +946,7 @@ class _AlmacenComboFancyState extends State<_AlmacenComboFancy> {
                   style: TextStyle(
                     color: ink.withValues(alpha: .65),
                     fontWeight: FontWeight.w900,
-                    fontSize: 12.5,
+                    fontSize: 14,
                   ),
                 ),
               ],
@@ -1019,7 +1020,7 @@ class _AlmacenComboFancyState extends State<_AlmacenComboFancy> {
                     style: TextStyle(
                       color: ink,
                       fontWeight: FontWeight.w900,
-                      fontSize: 12.5,
+                      fontSize: 14,
                     ),
                   ),
                 ),

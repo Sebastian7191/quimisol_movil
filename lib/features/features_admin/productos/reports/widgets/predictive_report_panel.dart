@@ -239,7 +239,7 @@ class _PredictiveReportPanelState extends State<PredictiveReportPanel>
                 child: Text(
                   'Reporte predictivo',
                   style: TextStyle(
-                    fontSize: 15.5,
+                    fontSize: 16.5,
                     fontWeight: FontWeight.w900,
                     color: Palette.ink,
                   ),
@@ -312,7 +312,7 @@ class _PredictiveReportPanelState extends State<PredictiveReportPanel>
             Text(
               'Genera un reporte para verlo aquí.',
               style: TextStyle(
-                fontSize: 12,
+                fontSize: 14,
                 fontWeight: FontWeight.w700,
                 color: Palette.ink.withValues(alpha: 0.75),
               ),

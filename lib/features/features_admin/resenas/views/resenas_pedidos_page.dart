@@ -32,6 +32,7 @@ class _ResenasPedidosPageState extends State<ResenasPedidosPage> {
       FirebaseFirestore.instance
           .collectionGroup('reviewEntrega')
           .orderBy('createdAt', descending: true)
+          .limit(6)
           .snapshots();
 
   Future<void> _delete(DocumentReference ref, String pedidoId) async {
@@ -121,7 +122,7 @@ class _ResenasPedidosPageState extends State<ResenasPedidosPage> {
                               Text(
                                 'Reseñas de Pedidos',
                                 style: TextStyle(
-                                  fontSize: isNarrow ? 16 : 20,
+                                  fontSize: isNarrow ? 17 : 21,
                                   fontWeight: FontWeight.w900,
                                   color: Palette.white,
                                 ),
@@ -130,7 +131,7 @@ class _ResenasPedidosPageState extends State<ResenasPedidosPage> {
                               Text(
                                 'Valoraciones de entrega de los clientes',
                                 style: TextStyle(
-                                  fontSize: isNarrow ? 11 : 12.5,
+                                  fontSize: isNarrow ? 13 : 14,
                                   color: Palette.white.withValues(alpha: 0.92),
                                   fontWeight: FontWeight.w600,
                                 ),
@@ -340,7 +341,7 @@ class _ResenaEntregaCard extends StatelessWidget {
                             style: const TextStyle(
                               fontWeight: FontWeight.w900,
                               color: Palette.ink,
-                              fontSize: 14,
+                              fontSize: 15.5,
                             ),
                           ),
                           if (clienteNombre.isNotEmpty) ...[
@@ -350,7 +351,7 @@ class _ResenaEntregaCard extends StatelessWidget {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
-                                fontSize: 12,
+                                fontSize: 13.5,
                                 fontWeight: FontWeight.w700,
                                 color: Palette.ink.withValues(alpha: 0.55),
                               ),
@@ -378,7 +379,7 @@ class _ResenaEntregaCard extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         color: Palette.ink.withValues(alpha: 0.72),
-                        fontSize: 12.5,
+                        fontSize: 14,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -394,7 +395,7 @@ class _ResenaEntregaCard extends StatelessWidget {
                       Text(
                         _formatDate(fecha!),
                         style: TextStyle(
-                          fontSize: 11.5,
+                          fontSize: 13,
                           color: Palette.ink.withValues(alpha: 0.45),
                           fontWeight: FontWeight.w600,
                         ),
@@ -463,11 +464,11 @@ class _EmptyBox extends StatelessWidget {
           const SizedBox(height: 14),
           Text(title,
               style: const TextStyle(
-                  fontWeight: FontWeight.w900, color: Palette.ink, fontSize: 16)),
+                  fontWeight: FontWeight.w900, color: Palette.ink, fontSize: 17)),
           const SizedBox(height: 6),
           Text(subtitle,
               textAlign: TextAlign.center,
-              style: TextStyle(color: Palette.ink.withValues(alpha: 0.55), fontSize: 13)),
+              style: TextStyle(color: Palette.ink.withValues(alpha: 0.55), fontSize: 14.5)),
         ],
       ),
     );

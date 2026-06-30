@@ -4,7 +4,8 @@ import 'package:quimisol_movil/core/theme/palette.dart';
 import 'package:quimisol_movil/features/features_admin/soporte/pages/admin_chat_page.dart';
 
 class AdminChatFooterPanel extends StatefulWidget {
-  const AdminChatFooterPanel({super.key});
+  final bool openDownward;
+  const AdminChatFooterPanel({super.key, this.openDownward = false});
 
   @override
   State<AdminChatFooterPanel> createState() => _AdminChatFooterPanelState();
@@ -168,22 +169,14 @@ class _AdminChatFooterPanelState extends State<AdminChatFooterPanel>
         final chats = snapshot.data ?? const <_AdminChatPreview>[];
         final totalUnread = chats.fold<int>(0, (sum, e) => sum + e.unread);
 
-        return SizedBox(
-          width: panelWidth,
-          child: AnimatedSize(
-            duration: const Duration(milliseconds: 340),
-            curve: Curves.easeInOutCubicEmphasized,
-            alignment: Alignment.bottomLeft,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                AnimatedSize(
-                  duration: const Duration(milliseconds: 340),
-                  curve: Curves.easeInOutCubicEmphasized,
-                  alignment: Alignment.bottomLeft,
-                  child: _open
-                      ? TweenAnimationBuilder<double>(
+        final openDownward = widget.openDownward;
+
+        final panel = AnimatedSize(
+          duration: const Duration(milliseconds: 340),
+          curve: Curves.easeInOutCubicEmphasized,
+          alignment: openDownward ? Alignment.topLeft : Alignment.bottomLeft,
+          child: _open
+              ? TweenAnimationBuilder<double>(
                           key: const ValueKey('chat_panel_tween'),
                           tween: Tween(begin: 0, end: 1),
                           duration: const Duration(milliseconds: 360),
@@ -273,9 +266,9 @@ class _AdminChatFooterPanelState extends State<AdminChatFooterPanel>
                           ),
                         )
                       : const SizedBox.shrink(),
-                ),
+        );
 
-                Material(
+        final toggleButton = Material(
                   color: Colors.transparent,
                   child: InkWell(
                     onTap: _toggle,
@@ -339,7 +332,7 @@ class _AdminChatFooterPanelState extends State<AdminChatFooterPanel>
                                       '$totalUnread',
                                       style: const TextStyle(
                                         color: Colors.white,
-                                        fontSize: 10,
+                                        fontSize: 12,
                                         fontWeight: FontWeight.w800,
                                       ),
                                     ),
@@ -353,7 +346,7 @@ class _AdminChatFooterPanelState extends State<AdminChatFooterPanel>
                             style: const TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.w800,
-                              fontSize: 13.5,
+                              fontSize: 15,
                             ),
                           ),
                           const SizedBox(width: 6),
@@ -371,11 +364,19 @@ class _AdminChatFooterPanelState extends State<AdminChatFooterPanel>
                       ),
                     ),
                   ),
-                ),
-              ],
-            ),
-          ),
         );
+
+        final column = Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: openDownward
+              ? [toggleButton, panel]
+              : [panel, toggleButton],
+        );
+
+        return openDownward
+            ? column
+            : SizedBox(width: panelWidth, child: column);
       },
     );
   }
@@ -414,7 +415,7 @@ class _Header extends StatelessWidget {
               style: TextStyle(
                 color: Palette.primary,
                 fontWeight: FontWeight.w800,
-                fontSize: 14,
+                fontSize: 15.5,
               ),
             ),
           ),
@@ -430,7 +431,7 @@ class _Header extends StatelessWidget {
                 '$totalUnread sin leer',
                 style: const TextStyle(
                   color: Palette.primary,
-                  fontSize: 11,
+                  fontSize: 13,
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -491,9 +492,9 @@ class _ChatListTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final avatarR = compact ? 20.0 : 24.0;
-    final nameSize = compact ? 13.2 : 15.0;
-    final msgSize = compact ? 12.1 : 13.4;
-    final timeSize = compact ? 10.5 : 11.8;
+    final nameSize = compact ? 14.7 : 16.5;
+    final msgSize = compact ? 13.6 : 14.9;
+    final timeSize = compact ? 12.5 : 13.8;
     final verticalPad = compact ? 9.0 : 12.0;
     final horizontalPad = compact ? 10.0 : 12.0;
 
@@ -527,7 +528,7 @@ class _ChatListTile extends StatelessWidget {
                       style: TextStyle(
                         color: Palette.primary,
                         fontWeight: FontWeight.w800,
-                        fontSize: compact ? 12 : 13.5,
+                        fontSize: compact ? 14 : 15,
                       ),
                     ),
                   ),
@@ -611,7 +612,7 @@ class _ChatListTile extends StatelessWidget {
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           color: Colors.white,
-                          fontSize: compact ? 10.5 : 11.5,
+                          fontSize: compact ? 12.5 : 13.5,
                           fontWeight: FontWeight.w800,
                         ),
                       ),
@@ -660,7 +661,7 @@ class _StatusChip extends StatelessWidget {
         label,
         style: TextStyle(
           color: color,
-          fontSize: 10.8,
+          fontSize: 12.8,
           fontWeight: FontWeight.w700,
         ),
       ),
@@ -725,7 +726,7 @@ class _ChatsEmptyState extends StatelessWidget {
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: Palette.ink.withOpacity(0.65),
-                fontSize: 12,
+                fontSize: 14,
               ),
             ),
           ],
@@ -917,7 +918,7 @@ class _AdminSoporteFullPageInline extends StatelessWidget {
                           style: TextStyle(
                             color: Palette.primary,
                             fontWeight: FontWeight.w800,
-                            fontSize: 16.5,
+                            fontSize: 17.5,
                           ),
                         ),
                         SizedBox(height: 2),
@@ -925,7 +926,7 @@ class _AdminSoporteFullPageInline extends StatelessWidget {
                           'Chats de soporte (vista ampliada)',
                           style: TextStyle(
                             color: Palette.ink,
-                            fontSize: 12.5,
+                            fontSize: 14,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -947,7 +948,7 @@ class _AdminSoporteFullPageInline extends StatelessWidget {
                         '$totalUnread sin leer',
                         style: const TextStyle(
                           color: Palette.primary,
-                          fontSize: 11.8,
+                          fontSize: 13.8,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
@@ -994,7 +995,7 @@ class _AdminSoporteFullPageInline extends StatelessWidget {
                       'Buscar chats (UI)',
                       style: TextStyle(
                         color: Palette.ink.withOpacity(0.65),
-                        fontSize: 14,
+                        fontSize: 15.5,
                         fontWeight: FontWeight.w500,
                       ),
                     ),

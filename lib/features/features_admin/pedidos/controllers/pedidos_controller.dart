@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:quimisol_movil/core/constants/pedido_estado.dart';
 import '../data/pedido_row.dart';
 import '../data/depto_section.dart';
 
@@ -21,7 +22,9 @@ class PedidosController {
     final q = query.trim().toLowerCase();
 
     return pedidos.where((p) {
-      if (estado != 'Todos' && p.estado != estado) return false;
+      if (estado != 'Todos' && normalizeEstado(p.estado) != estado) {
+        return false;
+      }
       if (q.isEmpty) return true;
 
       return p.codigo.toLowerCase().contains(q) ||

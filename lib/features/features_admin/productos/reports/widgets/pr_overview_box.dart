@@ -103,7 +103,7 @@ class StatTile extends StatelessWidget {
                 title,
                 style: TextStyle(
                   fontWeight: FontWeight.w800,
-                  fontSize: 11.5,
+                  fontSize: 13.5,
                   color: Palette.ink.withValues(alpha: 0.70),
                 ),
               ),
@@ -112,7 +112,7 @@ class StatTile extends StatelessWidget {
                 value,
                 style: const TextStyle(
                   fontWeight: FontWeight.w900,
-                  fontSize: 13.5,
+                  fontSize: 15,
                   color: Palette.ink,
                 ),
               ),

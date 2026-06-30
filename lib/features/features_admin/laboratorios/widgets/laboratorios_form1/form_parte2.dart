@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:quimisol_movil/core/theme/palette.dart';
 import 'package:quimisol_movil/features/features_admin/laboratorios/models/formulario1_models.dart';
 
@@ -232,7 +232,7 @@ class _MobileItemCard extends StatelessWidget {
                 'Ítem ${item.item}',
                 style: const TextStyle(
                   fontWeight: FontWeight.w800,
-                  fontSize: 15,
+                  fontSize: 23,
                 ),
               ),
               const Spacer(),
@@ -302,7 +302,7 @@ class _SectionCard extends StatelessWidget {
           Text(
             title,
             style: const TextStyle(
-              fontSize: 16,
+              fontSize: 24,
               fontWeight: FontWeight.w800,
               color: Colors.black87,
             ),

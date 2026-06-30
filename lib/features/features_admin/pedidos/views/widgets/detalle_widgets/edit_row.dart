@@ -20,7 +20,7 @@ class EditRow extends StatelessWidget {
               style: TextStyle(
                 color: Palette.ink.withValues(alpha: 0.62),
                 fontWeight: FontWeight.w900,
-                fontSize: 12,
+                fontSize: 14,
               ),
             ),
           ),

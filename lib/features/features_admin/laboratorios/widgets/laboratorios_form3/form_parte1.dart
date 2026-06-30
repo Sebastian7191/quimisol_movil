@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:quimisol_movil/core/theme/palette.dart';
 import 'package:quimisol_movil/features/features_admin/laboratorios/models/cliente_mayorista_option.dart';
 
@@ -235,7 +235,7 @@ class _SectionCard extends StatelessWidget {
           Text(
             title,
             style: const TextStyle(
-              fontSize: 16,
+              fontSize: 24,
               fontWeight: FontWeight.w800,
               color: Colors.black87,
             ),

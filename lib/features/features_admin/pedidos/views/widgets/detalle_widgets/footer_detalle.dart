@@ -40,7 +40,7 @@ class Footer extends StatelessWidget {
                     ? Palette.statsWarning
                     : Palette.ink.withValues(alpha: 0.62),
                 fontWeight: FontWeight.w700,
-                fontSize: 12,
+                fontSize: 14,
               ),
             ),
           ),

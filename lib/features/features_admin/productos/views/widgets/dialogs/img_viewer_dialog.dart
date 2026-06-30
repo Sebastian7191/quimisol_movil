@@ -56,7 +56,7 @@ class ImageViewerDialog extends StatelessWidget {
                 title,
                 style: const TextStyle(
                   fontWeight: FontWeight.w900,
-                  fontSize: 16,
+                  fontSize: 17,
                   color: Palette.ink,
                 ),
               ),

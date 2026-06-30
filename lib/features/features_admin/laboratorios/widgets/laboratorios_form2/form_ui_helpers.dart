@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:quimisol_movil/core/theme/palette.dart';
 
@@ -32,7 +32,7 @@ class FormUiHelpers {
             title,
             style: const TextStyle(
               fontWeight: FontWeight.w900,
-              fontSize: 18,
+              fontSize: 26,
               color: Colors.black87,
             ),
           ),
@@ -41,7 +41,7 @@ class FormUiHelpers {
             Text(
               subtitle,
               style: TextStyle(
-                fontSize: 12.5,
+                fontSize: 20,
                 color: Colors.black.withValues(alpha: 0.62),
                 fontWeight: FontWeight.w500,
                 height: 1.4,
@@ -76,7 +76,7 @@ class FormUiHelpers {
             title,
             style: const TextStyle(
               fontWeight: FontWeight.w800,
-              fontSize: 15,
+              fontSize: 23,
             ),
           ),
           const SizedBox(height: 10),

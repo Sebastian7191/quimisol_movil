@@ -19,6 +19,7 @@ class AlmacenesFirestore {
     required String nombre,
     required String departamento,
     required String descripcion,
+    String ubicacion = '',
   }) async {
     final ref = _db.collection('almacenes');
 
@@ -26,9 +27,9 @@ class AlmacenesFirestore {
       'nombre': nombre.trim(),
       'departamento': departamento,
       'descripcion': descripcion.trim(),
+      'ubicacion': ubicacion.trim(),
       'activo': true,
       'createdAt': FieldValue.serverTimestamp(),
-      // opcionales (se recalculan en UI igual):
       'productos': 0,
       'stock': 0,
     });

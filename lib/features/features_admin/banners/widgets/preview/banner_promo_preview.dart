@@ -59,7 +59,7 @@ class BannerPromoPreview extends StatelessWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
-                            fontSize: 22,
+                            fontSize: 23,
                             fontWeight: FontWeight.w900,
                             color: Palette.ink,
                             height: 1.05,
@@ -71,7 +71,7 @@ class BannerPromoPreview extends StatelessWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            fontSize: 14,
+                            fontSize: 15.5,
                             fontWeight: FontWeight.w800,
                             color: Palette.ink.withValues(alpha: 0.62),
                           ),
@@ -146,7 +146,7 @@ class _PrimaryButton extends StatelessWidget {
             style: const TextStyle(
               color: Palette.white,
               fontWeight: FontWeight.w900,
-              fontSize: 13.5,
+              fontSize: 15,
             ),
           ),
         ),

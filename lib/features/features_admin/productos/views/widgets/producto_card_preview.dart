@@ -102,7 +102,7 @@ class ProductoCardPreview extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
-                fontSize: 14.5,
+                fontSize: 16,
                 fontWeight: FontWeight.w900,
                 color: Palette.ink,
               ),
@@ -122,7 +122,7 @@ class ProductoCardPreview extends StatelessWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
-                            fontSize: 13.5,
+                            fontSize: 15,
                             fontWeight: FontWeight.w900,
                             color: Palette.ink,
                           ),
@@ -136,7 +136,7 @@ class ProductoCardPreview extends StatelessWidget {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              fontSize: 12.0,
+                              fontSize: 14,
                               fontWeight: FontWeight.w800,
                               color: Palette.ink.withValues(alpha: 0.45),
                               decoration: TextDecoration.lineThrough,
@@ -155,7 +155,7 @@ class ProductoCardPreview extends StatelessWidget {
                     Text(
                       rating <= 0 ? '0.0' : rating.toStringAsFixed(1),
                       style: TextStyle(
-                        fontSize: 12.5,
+                        fontSize: 14,
                         fontWeight: FontWeight.w800,
                         color: Palette.ink.withValues(alpha: 0.65),
                       ),
@@ -175,7 +175,7 @@ class ProductoCardPreview extends StatelessWidget {
                 style: TextStyle(
                   color: Palette.statsDanger.withValues(alpha: 0.95),
                   fontWeight: FontWeight.w900,
-                  fontSize: 12.0,
+                  fontSize: 14,
                 ),
               ),
             ],
@@ -185,7 +185,7 @@ class ProductoCardPreview extends StatelessWidget {
             Text(
               'Stock: $stock',
               style: TextStyle(
-                fontSize: 12.0,
+                fontSize: 14,
                 fontWeight: FontWeight.w800,
                 color: Palette.ink.withValues(alpha: 0.55),
               ),
@@ -217,7 +217,7 @@ class PhonePreviewFrame extends StatelessWidget {
           style: TextStyle(
             color: Palette.ink.withValues(alpha: 0.7),
             fontWeight: FontWeight.w900,
-            fontSize: 12.5,
+            fontSize: 14,
           ),
         ),
         const SizedBox(height: 10),

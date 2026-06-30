@@ -70,7 +70,7 @@ class PredictiveMiniChip extends StatelessWidget {
         child: Text(
           label,
           style: TextStyle(
-            fontSize: 12,
+            fontSize: 14,
             fontWeight: FontWeight.w900,
             color: tx,
           ),
@@ -103,7 +103,7 @@ class PredictiveMiniStatusPill extends StatelessWidget {
         style: TextStyle(
           fontWeight: FontWeight.w900,
           color: color,
-          fontSize: 11.5,
+          fontSize: 13.5,
         ),
       ),
     );

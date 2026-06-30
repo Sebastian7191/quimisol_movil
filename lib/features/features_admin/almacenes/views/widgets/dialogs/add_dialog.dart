@@ -7,6 +7,7 @@ class AddAlmacenDialog extends StatefulWidget {
   final String? initialNombre;
   final String? initialDepartamento;
   final String? initialDescripcion;
+  final String? initialUbicacion;
 
   /// Texto del título (si no pasas, se decide solo)
   final String? title;
@@ -22,6 +23,7 @@ class AddAlmacenDialog extends StatefulWidget {
     this.initialNombre,
     this.initialDepartamento,
     this.initialDescripcion,
+    this.initialUbicacion,
     this.title,
     this.primaryActionText = 'Guardar',
     this.departamentos,
@@ -36,6 +38,7 @@ class _AddAlmacenDialogState extends State<AddAlmacenDialog> {
 
   late final TextEditingController _nombreCtrl;
   late final TextEditingController _descripcionCtrl;
+  late final TextEditingController _ubicacionCtrl;
 
   late List<String> _deptos;
   String? _depto;
@@ -67,6 +70,7 @@ class _AddAlmacenDialogState extends State<AddAlmacenDialog> {
 
     _nombreCtrl = TextEditingController(text: widget.initialNombre ?? '');
     _descripcionCtrl = TextEditingController(text: widget.initialDescripcion ?? '');
+    _ubicacionCtrl = TextEditingController(text: widget.initialUbicacion ?? '');
 
     final initDepto = (widget.initialDepartamento ?? '').trim();
     _depto = _deptos.contains(initDepto)
@@ -78,6 +82,7 @@ class _AddAlmacenDialogState extends State<AddAlmacenDialog> {
   void dispose() {
     _nombreCtrl.dispose();
     _descripcionCtrl.dispose();
+    _ubicacionCtrl.dispose();
     super.dispose();
   }
 
@@ -94,6 +99,7 @@ class _AddAlmacenDialogState extends State<AddAlmacenDialog> {
         nombre: _nombreCtrl.text.trim(),
         departamento: _depto!,
         descripcion: _descripcionCtrl.text.trim(),
+        ubicacion: _ubicacionCtrl.text.trim(),
       ),
     );
   }
@@ -116,7 +122,7 @@ class _AddAlmacenDialogState extends State<AddAlmacenDialog> {
               Text(
                 dialogTitle,
                 style: const TextStyle(
-                  fontSize: 18,
+                  fontSize: 19,
                   fontWeight: FontWeight.w900,
                   color: Palette.ink,
                 ),
@@ -162,6 +168,26 @@ class _AddAlmacenDialogState extends State<AddAlmacenDialog> {
                         labelText: 'Departamento',
                         prefixIcon: Icon(
                           Icons.place_rounded,
+                          color: Palette.primary.withValues(alpha: 0.9),
+                        ),
+                        filled: true,
+                        fillColor: Palette.fieldBg,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    TextFormField(
+                      controller: _ubicacionCtrl,
+                      textInputAction: TextInputAction.next,
+                      decoration: InputDecoration(
+                        labelText: 'Ubicación (opcional)',
+                        hintText: 'Ej: Av. Blanco Galindo Km 5, Cochabamba',
+                        prefixIcon: Icon(
+                          Icons.location_on_rounded,
                           color: Palette.primary.withValues(alpha: 0.9),
                         ),
                         filled: true,

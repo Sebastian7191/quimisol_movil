@@ -92,7 +92,7 @@ class _TopHeaderMock extends StatelessWidget {
             style: TextStyle(
               fontWeight: FontWeight.w900,
               color: Palette.ink,
-              fontSize: 14,
+              fontSize: 15.5,
             ),
           ),
           const SizedBox(width: 4),
@@ -130,7 +130,7 @@ class _TopHeaderMock extends StatelessWidget {
                 style: TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.w900,
-                  fontSize: 14,
+                  fontSize: 15.5,
                 ),
               ),
             ),
@@ -191,7 +191,7 @@ class _BannerMock extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 16,
+                    fontSize: 17,
                     fontWeight: FontWeight.w900,
                     color: Palette.ink,
                   ),
@@ -202,7 +202,7 @@ class _BannerMock extends StatelessWidget {
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 12.5,
+                    fontSize: 14,
                     fontWeight: FontWeight.w700,
                     color: Palette.ink.withValues(alpha: 0.55),
                     height: 1.2,
@@ -223,7 +223,7 @@ class _BannerMock extends StatelessWidget {
                     style: TextStyle(
                       color: Palette.white,
                       fontWeight: FontWeight.w900,
-                      fontSize: 12.5,
+                      fontSize: 14,
                     ),
                   ),
                 ),

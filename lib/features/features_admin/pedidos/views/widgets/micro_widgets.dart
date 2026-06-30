@@ -133,11 +133,7 @@ Widget statusPill(String estado) {
       labelFor(estado),
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
-      style: TextStyle(
-        color: ink,
-        fontWeight: FontWeight.w900,
-        fontSize: 12,
-      ),
+      style: TextStyle(color: ink, fontWeight: FontWeight.w900, fontSize: 14),
     ),
   );
 }
@@ -157,11 +153,7 @@ Widget paymentPill(String estadoPago) {
       labelEstadoPago(estadoPago),
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
-      style: TextStyle(
-        color: ink,
-        fontWeight: FontWeight.w900,
-        fontSize: 12,
-      ),
+      style: TextStyle(color: ink, fontWeight: FontWeight.w900, fontSize: 14),
     ),
   );
 }
@@ -190,7 +182,7 @@ Widget miniPill(IconData icon, String text) {
             style: TextStyle(
               color: ink.withValues(alpha: 0.72),
               fontWeight: FontWeight.w800,
-              fontSize: 11.5,
+              fontSize: 14.5,
             ),
           ),
         ),
@@ -229,7 +221,7 @@ class CountPill extends StatelessWidget {
         style: TextStyle(
           color: ink.withValues(alpha: 0.8),
           fontWeight: FontWeight.w900,
-          fontSize: 12,
+          fontSize: 14,
         ),
       ),
     );
@@ -255,7 +247,7 @@ class HintPill extends StatelessWidget {
         style: TextStyle(
           color: ink.withValues(alpha: 0.65),
           fontWeight: FontWeight.w800,
-          fontSize: 11.5,
+          fontSize: 14.5,
         ),
       ),
     );
@@ -370,8 +362,9 @@ class PedidoCard extends StatelessWidget {
     final address = p.direccion.trim();
     final depto = p.departamento.trim();
     final conteo = p.conteoItems;
-    final fecha =
-        p.fechaLabel.isNotEmpty ? p.fechaLabel : formatDateTime(p.createdAt);
+    final fecha = p.fechaLabel.isNotEmpty
+        ? p.fechaLabel
+        : formatDateTime(p.createdAt);
     final totalLabel = p.totalLabel.isNotEmpty
         ? p.totalLabel
         : '${p.totalFinal.toStringAsFixed(2)} Bs';
@@ -399,144 +392,146 @@ class PedidoCard extends StatelessWidget {
                 ),
               ],
             ),
-            child: Row(
-              children: [
-                Container(
-                  width: 8,
-                  height: 118,
-                  decoration: BoxDecoration(
-                    color: barColor.withValues(alpha: 0.95),
-                    borderRadius: const BorderRadius.only(
-                      topLeft: Radius.circular(18),
-                      bottomLeft: Radius.circular(18),
+            child: IntrinsicHeight(
+              child: Row(
+                children: [
+                  Container(
+                    width: 14,
+                    decoration: BoxDecoration(
+                      color: barColor.withValues(alpha: 0.95),
+                      borderRadius: const BorderRadius.only(
+                        topLeft: Radius.circular(18),
+                        bottomLeft: Radius.circular(18),
+                      ),
                     ),
                   ),
-                ),
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(12, 12, 10, 12),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (!tiny)
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  code.isEmpty ? 'Pedido' : '#$code',
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    color: ink,
-                                    fontWeight: FontWeight.w900,
-                                    fontSize: 15,
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(12, 12, 10, 12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (!tiny)
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    code.isEmpty ? 'Pedido' : '#$code',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      color: ink,
+                                      fontWeight: FontWeight.w900,
+                                      fontSize: 18.5,
+                                    ),
                                   ),
                                 ),
-                              ),
-                              const SizedBox(width: 10),
-                              statusPill(estado),
-                              const SizedBox(width: 10),
-                              Flexible(
-                                child: Text(
+                                const SizedBox(width: 10),
+                                statusPill(estado),
+                                const SizedBox(width: 10),
+                                Flexible(
+                                  child: Text(
+                                    fecha,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    textAlign: TextAlign.right,
+                                    style: TextStyle(
+                                      color: ink.withValues(alpha: 0.55),
+                                      fontWeight: FontWeight.w800,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            )
+                          else
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        code.isEmpty ? 'Pedido' : '#$code',
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          color: ink,
+                                          fontWeight: FontWeight.w900,
+                                          fontSize: 18.5,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    statusPill(estado),
+                                  ],
+                                ),
+                                const SizedBox(height: 6),
+                                Text(
                                   fecha,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  textAlign: TextAlign.right,
                                   style: TextStyle(
                                     color: ink.withValues(alpha: 0.55),
                                     fontWeight: FontWeight.w800,
-                                    fontSize: 12,
+                                    fontSize: 14,
                                   ),
                                 ),
-                              ),
-                            ],
-                          )
-                        else
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                              ],
+                            ),
+                          const SizedBox(height: 8),
+                          Text(
+                            address.isEmpty ? '-' : address,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: ink.withValues(alpha: 0.80),
+                              fontWeight: FontWeight.w800,
+                              fontSize: 15.5,
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          Wrap(
+                            spacing: 10,
+                            runSpacing: 8,
                             children: [
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      code.isEmpty ? 'Pedido' : '#$code',
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(
-                                        color: ink,
-                                        fontWeight: FontWeight.w900,
-                                        fontSize: 15,
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  statusPill(estado),
-                                ],
+                              if (depto.isNotEmpty)
+                                miniPill(Icons.map_rounded, depto),
+                              miniPill(
+                                Icons.shopping_bag_rounded,
+                                'Items: $conteo',
                               ),
-                              const SizedBox(height: 6),
-                              Text(
-                                fecha,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  color: ink.withValues(alpha: 0.55),
-                                  fontWeight: FontWeight.w800,
-                                  fontSize: 12,
-                                ),
-                              ),
+                              miniPill(Icons.payments_rounded, totalLabel),
                             ],
                           ),
-                        const SizedBox(height: 8),
-                        Text(
-                          address.isEmpty ? '-' : address,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: ink.withValues(alpha: 0.80),
-                            fontWeight: FontWeight.w800,
+                          const SizedBox(height: 8),
+                          Wrap(
+                            spacing: 10,
+                            runSpacing: 8,
+                            children: [
+                              miniPill(
+                                p.tipoPago == 'qr'
+                                    ? Icons.qr_code_rounded
+                                    : Icons.payments_outlined,
+                                'Pago: $tipoPago',
+                              ),
+                              paymentPill(estadoPago),
+                            ],
                           ),
-                        ),
-                        const SizedBox(height: 10),
-                        Wrap(
-                          spacing: 10,
-                          runSpacing: 8,
-                          children: [
-                            if (depto.isNotEmpty)
-                              miniPill(Icons.map_rounded, depto),
-                            miniPill(
-                              Icons.shopping_bag_rounded,
-                              'Items: $conteo',
-                            ),
-                            miniPill(Icons.payments_rounded, totalLabel),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        Wrap(
-                          spacing: 10,
-                          runSpacing: 8,
-                          children: [
-                            miniPill(
-                              p.tipoPago == 'qr'
-                                  ? Icons.qr_code_rounded
-                                  : Icons.payments_outlined,
-                              'Pago: $tipoPago',
-                            ),
-                            paymentPill(estadoPago),
-                          ],
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.only(right: 10),
-                  child: Icon(
-                    Icons.chevron_right_rounded,
-                    color: ink.withValues(alpha: 0.35),
-                    size: 26,
+                  Padding(
+                    padding: const EdgeInsets.only(right: 10),
+                    child: Icon(
+                      Icons.chevron_right_rounded,
+                      color: ink.withValues(alpha: 0.35),
+                      size: 26,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         );

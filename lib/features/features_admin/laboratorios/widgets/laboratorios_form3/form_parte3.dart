@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:quimisol_movil/core/theme/palette.dart';
 
 class Formulario3Parte3 extends StatelessWidget {
@@ -282,7 +282,7 @@ class _SectionCard extends StatelessWidget {
           Text(
             title,
             style: const TextStyle(
-              fontSize: 16,
+              fontSize: 24,
               fontWeight: FontWeight.w800,
               color: Colors.black87,
             ),

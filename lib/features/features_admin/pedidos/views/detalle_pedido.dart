@@ -363,7 +363,7 @@ class _PedidoDetalleFormState extends State<_PedidoDetalleForm> {
                       style: const TextStyle(
                         color: Palette.ink,
                         fontWeight: FontWeight.w900,
-                        fontSize: 12,
+                        fontSize: 14,
                       ),
                     ),
                   ),
@@ -607,7 +607,7 @@ class _GestionFieldBlock extends StatelessWidget {
           style: TextStyle(
             color: Palette.ink.withValues(alpha: 0.72),
             fontWeight: FontWeight.w900,
-            fontSize: 12.5,
+            fontSize: 14,
           ),
         ),
         const SizedBox(height: 8),
@@ -811,7 +811,7 @@ class _ComprobanteWidget extends StatelessWidget {
           'Toca la imagen para verla completa.',
           style: TextStyle(
             color: Palette.ink.withValues(alpha: 0.62),
-            fontSize: 12,
+            fontSize: 14,
             fontWeight: FontWeight.w700,
           ),
         ),
@@ -855,7 +855,7 @@ class _ComprobanteZoomDialog extends StatelessWidget {
                           style: const TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.w800,
-                            fontSize: 16,
+                            fontSize: 17.5,
                           ),
                         ),
                       ),
@@ -903,7 +903,7 @@ class _ComprobanteZoomDialog extends StatelessWidget {
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       color: Colors.white70,
-                      fontSize: 12.5,
+                      fontSize: 14,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -1153,7 +1153,7 @@ class _CostoEnvioField extends StatelessWidget {
               style: TextStyle(
                 color: Palette.ink.withValues(alpha: 0.85),
                 fontWeight: FontWeight.w900,
-                fontSize: 12.5,
+                fontSize: 14,
               ),
             ),
           ),
@@ -1200,7 +1200,7 @@ class _ItemTile extends StatelessWidget {
                             style: const TextStyle(
                               color: Palette.ink,
                               fontWeight: FontWeight.w900,
-                              fontSize: 13.4,
+                              fontSize: 14.9,
                               height: 1.2,
                             ),
                           ),
@@ -1241,7 +1241,7 @@ class _ItemTile extends StatelessWidget {
                       style: const TextStyle(
                         color: Palette.ink,
                         fontWeight: FontWeight.w900,
-                        fontSize: 12.5,
+                        fontSize: 14,
                       ),
                     ),
                   ),
@@ -1273,7 +1273,7 @@ class _ItemTile extends StatelessWidget {
                       style: const TextStyle(
                         color: Palette.ink,
                         fontWeight: FontWeight.w900,
-                        fontSize: 13.2,
+                        fontSize: 14.7,
                         height: 1.15,
                       ),
                     ),
@@ -1310,7 +1310,7 @@ class _ItemTile extends StatelessWidget {
                   style: const TextStyle(
                     color: Palette.ink,
                     fontWeight: FontWeight.w900,
-                    fontSize: 12.5,
+                    fontSize: 14,
                   ),
                 ),
               ),
@@ -1406,7 +1406,7 @@ class _KeyValueList extends StatelessWidget {
                     style: TextStyle(
                       color: Palette.ink.withValues(alpha: 0.62),
                       fontWeight: FontWeight.w900,
-                      fontSize: 12,
+                      fontSize: 14,
                     ),
                   ),
                 ),
@@ -1420,7 +1420,7 @@ class _KeyValueList extends StatelessWidget {
                       fontWeight: rows[i].isStrong
                           ? FontWeight.w900
                           : FontWeight.w800,
-                      fontSize: rows[i].isStrong ? 13.5 : 12.5,
+                      fontSize: rows[i].isStrong ? 15 : 14,
                     ),
                   ),
                 ),
@@ -1460,7 +1460,7 @@ class _Pill extends StatelessWidget {
             style: TextStyle(
               color: Palette.ink.withValues(alpha: 0.72),
               fontWeight: FontWeight.w800,
-              fontSize: 11.5,
+              fontSize: 13.5,
             ),
           ),
         ],

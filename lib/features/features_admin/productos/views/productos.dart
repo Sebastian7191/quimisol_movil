@@ -323,17 +323,7 @@ class _ProductosPageState extends State<ProductosPage> {
                 return Scaffold(
                   backgroundColor: Palette.card,
 
-                  floatingActionButton: compact
-                      ? _FloatingAddPill(
-                          enabled: canAdd,
-                          onTap: canAdd
-                              ? () => _openAddDialog(
-                                    unidades: unidades,
-                                    almacenes: almacenes,
-                                  )
-                              : null,
-                        )
-                      : null,
+                  floatingActionButton: null,
 
                   body: SafeArea(
                     child: Padding(
@@ -531,6 +521,11 @@ class _ProductosPageState extends State<ProductosPage> {
                                               columnSpacing: 18,
                                               headingTextStyle: const TextStyle(
                                                 fontWeight: FontWeight.w900,
+                                                fontSize: 15,
+                                                color: Palette.ink,
+                                              ),
+                                              dataTextStyle: const TextStyle(
+                                                fontSize: 15,
                                                 color: Palette.ink,
                                               ),
                                               columns: const [
@@ -669,87 +664,6 @@ class _ProductosPageState extends State<ProductosPage> {
   }
 }
 
-// ===================== BOTÓN PILL (FAB) =====================
-
-class _FloatingAddPill extends StatelessWidget {
-  final bool enabled;
-  final VoidCallback? onTap;
-
-  const _FloatingAddPill({required this.enabled, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: enabled ? onTap : null,
-        borderRadius: BorderRadius.circular(999),
-        child: AnimatedOpacity(
-          duration: const Duration(milliseconds: 160),
-          opacity: enabled ? 1 : 0.55,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(
-              color: Palette.white.withValues(alpha: 0.92),
-              borderRadius: BorderRadius.circular(999),
-              border: Border.all(
-                color: Palette.button.withValues(alpha: 0.95),
-                width: 3,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.12),
-                  blurRadius: 18,
-                  offset: const Offset(0, 10),
-                ),
-              ],
-            ),
-            child: _GradientIconText(compact: true, enabled: enabled),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _GradientIconText extends StatelessWidget {
-  final bool compact;
-  final bool enabled;
-
-  const _GradientIconText({required this.compact, required this.enabled});
-
-  @override
-  Widget build(BuildContext context) {
-    final gradient = LinearGradient(
-      begin: Alignment.centerLeft,
-      end: Alignment.centerRight,
-      colors: [
-        Palette.gradientStart.withValues(alpha: enabled ? 1 : 0.55),
-        Palette.secondary.withValues(alpha: enabled ? 1 : 0.55),
-      ],
-    );
-
-    return ShaderMask(
-      shaderCallback: (rect) => gradient.createShader(rect),
-      blendMode: BlendMode.srcIn,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.add_rounded, size: 20),
-          const SizedBox(width: 8),
-          Text(
-            compact ? 'Agregar' : 'Agregar producto',
-            style: const TextStyle(
-              fontWeight: FontWeight.w900,
-              fontSize: 14,
-              letterSpacing: 0.2,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
 
 // ===================== HEADER =====================
 
@@ -789,23 +703,25 @@ class _HeaderProductos extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Container(
-            width: 54,
-            height: 54,
-            decoration: BoxDecoration(
-              color: Palette.white.withValues(alpha: 0.18),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: Palette.white.withValues(alpha: 0.35),
+          if (!compact) ...[
+            Container(
+              width: 54,
+              height: 54,
+              decoration: BoxDecoration(
+                color: Palette.white.withValues(alpha: 0.18),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: Palette.white.withValues(alpha: 0.35),
+                ),
+              ),
+              child: const Icon(
+                Icons.inventory_2_rounded,
+                color: Palette.white,
+                size: 28,
               ),
             ),
-            child: const Icon(
-              Icons.inventory_2_rounded,
-              color: Palette.white,
-              size: 28,
-            ),
-          ),
-          const SizedBox(width: 12),
+            const SizedBox(width: 12),
+          ],
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -815,7 +731,7 @@ class _HeaderProductos extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: compact ? 18 : 22,
+                    fontSize: compact ? 19 : 23,
                     fontWeight: FontWeight.w900,
                     color: Palette.white,
                   ),
@@ -826,7 +742,7 @@ class _HeaderProductos extends StatelessWidget {
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: compact ? 12 : 13,
+                    fontSize: compact ? 16 : 17,
                     color: Palette.white.withValues(alpha: 0.92),
                     fontWeight: FontWeight.w700,
                   ),
@@ -835,24 +751,27 @@ class _HeaderProductos extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 12),
-
-          if (!compact)
-            ElevatedButton.icon(
-              onPressed: canAdd ? onAdd : null,
-              icon: const Icon(Icons.add_rounded),
-              label: const Text('Agregar producto'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Palette.white.withValues(alpha: 0.18),
-                foregroundColor: Palette.white,
-                elevation: 0,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                  side: const BorderSide(color: Palette.white, width: 2),
-                ),
-                textStyle: const TextStyle(fontWeight: FontWeight.w900),
+          ElevatedButton.icon(
+            onPressed: canAdd ? onAdd : null,
+            icon: const Icon(Icons.add_rounded, size: 18),
+            label: Text(compact ? 'Agregar' : 'Agregar producto'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: compact ? Palette.white : Palette.white.withValues(alpha: 0.18),
+              foregroundColor: compact ? Palette.primary : Palette.white,
+              elevation: 0,
+              padding: EdgeInsets.symmetric(
+                horizontal: compact ? 14 : 16,
+                vertical: compact ? 10 : 14,
               ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(compact ? 999 : 14),
+                side: compact
+                    ? BorderSide.none
+                    : const BorderSide(color: Palette.white, width: 2),
+              ),
+              textStyle: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
             ),
+          ),
         ],
       ),
     );
@@ -956,7 +875,7 @@ class _ChipTipo extends StatelessWidget {
         style: TextStyle(
           color: fg.withValues(alpha: 0.95),
           fontWeight: FontWeight.w800,
-          fontSize: 12,
+          fontSize: 16,
         ),
       ),
     );
@@ -1099,7 +1018,7 @@ class _ProductoCardMobile extends StatelessWidget {
                         style: const TextStyle(
                           fontWeight: FontWeight.w900,
                           color: Palette.ink,
-                          fontSize: 14.5,
+                          fontSize: 18,
                           height: 1.1,
                         ),
                       ),
@@ -1115,7 +1034,7 @@ class _ProductoCardMobile extends StatelessWidget {
                                 style: TextStyle(
                                   color: Palette.ink.withValues(alpha: 0.65),
                                   fontWeight: FontWeight.w800,
-                                  fontSize: 12,
+                                  fontSize: 16,
                                 ),
                               ),
                             ),
@@ -1138,7 +1057,7 @@ class _ProductoCardMobile extends StatelessWidget {
                 style: TextStyle(
                   color: Palette.ink.withValues(alpha: 0.78),
                   fontWeight: FontWeight.w700,
-                  fontSize: 12.5,
+                  fontSize: 16,
                   height: 1.15,
                 ),
               )
@@ -1148,7 +1067,7 @@ class _ProductoCardMobile extends StatelessWidget {
                 style: TextStyle(
                   color: Palette.ink.withValues(alpha: 0.55),
                   fontWeight: FontWeight.w700,
-                  fontSize: 12.5,
+                  fontSize: 16,
                 ),
               ),
             const SizedBox(height: 10),
@@ -1219,7 +1138,7 @@ class _MiniInfoChip extends StatelessWidget {
             style: TextStyle(
               color: Palette.ink.withValues(alpha: 0.65),
               fontWeight: FontWeight.w900,
-              fontSize: 12,
+              fontSize: 16,
             ),
           ),
           Text(
@@ -1227,7 +1146,7 @@ class _MiniInfoChip extends StatelessWidget {
             style: const TextStyle(
               color: Palette.ink,
               fontWeight: FontWeight.w900,
-              fontSize: 12,
+              fontSize: 16,
             ),
           ),
         ],

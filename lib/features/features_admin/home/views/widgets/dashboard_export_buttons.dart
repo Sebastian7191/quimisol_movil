@@ -109,7 +109,7 @@ class _DashboardExportButtonsState extends State<DashboardExportButtons> {
                   'Exportar datos',
                   style: TextStyle(
                     fontWeight: FontWeight.w900,
-                    fontSize: 14,
+                    fontSize: 15.5,
                     color: Palette.ink,
                   ),
                 ),
@@ -117,7 +117,7 @@ class _DashboardExportButtonsState extends State<DashboardExportButtons> {
                   'Descarga el reporte del período: $_rangeLabel',
                   style: TextStyle(
                     fontWeight: FontWeight.w600,
-                    fontSize: 12,
+                    fontSize: 13.5,
                     color: Palette.ink.withValues(alpha: 0.65),
                   ),
                 ),
@@ -225,7 +225,7 @@ class _ExportBtnState extends State<_ExportBtn> {
                 widget.loading ? 'Exportando…' : widget.label,
                 style: TextStyle(
                   fontWeight: FontWeight.w800,
-                  fontSize: 13,
+                  fontSize: 14.5,
                   color: disabled
                       ? widget.color.withValues(alpha: 0.35)
                       : _hovered

@@ -69,7 +69,7 @@ class _DetailDialog extends StatelessWidget {
                       style: const TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.w800,
-                        fontSize: 16,
+                        fontSize: 17,
                       ),
                     ),
                   ),
@@ -131,11 +131,11 @@ class PedidosDetailContent extends StatelessWidget {
           ),
           title: Text(
             p.codigo.isNotEmpty ? '#${p.codigo}' : p.id.substring(0, 8),
-            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14.5),
           ),
           subtitle: Text(
             '${p.direccion.isNotEmpty ? p.direccion : '—'}  •  ${_dateFmt.format(p.createdAt)}',
-            style: const TextStyle(fontSize: 11),
+            style: const TextStyle(fontSize: 13),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
@@ -146,7 +146,7 @@ class PedidosDetailContent extends StatelessWidget {
               const SizedBox(width: 10),
               Text(
                 'Bs ${_bsFmt.format(monto)}',
-                style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
+                style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14.5),
               ),
             ],
           ),
@@ -198,13 +198,13 @@ class ProductosDetailContent extends StatelessWidget {
           ),
           title: Text(
             p.nombre,
-            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14.5),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
           subtitle: Text(
             '${p.tipo.isNotEmpty ? p.tipo : 'Sin tipo'}  •  ${p.almacenNombre.isNotEmpty ? p.almacenNombre : 'Sin almacén'}',
-            style: const TextStyle(fontSize: 11),
+            style: const TextStyle(fontSize: 13),
           ),
           trailing: Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -216,7 +216,7 @@ class ProductosDetailContent extends StatelessWidget {
               'Stock: ${p.stock}',
               style: const TextStyle(
                 fontWeight: FontWeight.w800,
-                fontSize: 12,
+                fontSize: 13.5,
                 color: Colors.white,
               ),
             ),
@@ -255,13 +255,13 @@ class UsuariosDetailContent extends StatelessWidget {
           ),
           title: Text(
             nombre,
-            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14.5),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
           subtitle: Text(
             u.email.isNotEmpty ? u.email : '—',
-            style: const TextStyle(fontSize: 11),
+            style: const TextStyle(fontSize: 13),
           ),
           trailing: _RolBadge(rol: u.rol),
         );
@@ -298,11 +298,11 @@ class RepartidoresDetailContent extends StatelessWidget {
           ),
           title: Text(
             nombre,
-            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14.5),
           ),
           subtitle: Text(
             r.almacenNombre.isNotEmpty ? r.almacenNombre : 'Sin almacén asignado',
-            style: const TextStyle(fontSize: 11),
+            style: const TextStyle(fontSize: 13),
           ),
           trailing: Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -315,7 +315,7 @@ class RepartidoresDetailContent extends StatelessWidget {
             child: Text(
               r.disponible ? 'Disponible' : 'No disponible',
               style: TextStyle(
-                fontSize: 11,
+                fontSize: 13,
                 fontWeight: FontWeight.w700,
                 color: r.disponible ? Palette.statsSuccess : Colors.grey,
               ),
@@ -365,12 +365,12 @@ class BannersDetailContent extends StatelessWidget {
           ),
           title: Text(
             titulo,
-            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14.5),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
           subtitle: b.imageUrl.isNotEmpty
-              ? Text(b.imageUrl, style: const TextStyle(fontSize: 10), maxLines: 1, overflow: TextOverflow.ellipsis)
+              ? Text(b.imageUrl, style: const TextStyle(fontSize: 12), maxLines: 1, overflow: TextOverflow.ellipsis)
               : null,
           trailing: Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -381,7 +381,7 @@ class BannersDetailContent extends StatelessWidget {
             child: Text(
               b.estado.isNotEmpty ? b.estado : '—',
               style: const TextStyle(
-                fontSize: 11,
+                fontSize: 13,
                 fontWeight: FontWeight.w700,
                 color: Colors.white,
               ),
@@ -421,7 +421,7 @@ class _EstadoBadge extends StatelessWidget {
       ),
       child: Text(
         estado.isNotEmpty ? estado : '—',
-        style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: color),
+        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: color),
       ),
     );
   }
@@ -442,7 +442,7 @@ class _RolBadge extends StatelessWidget {
       ),
       child: Text(
         rol.isNotEmpty ? rol : '—',
-        style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Colors.white),
+        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.white),
       ),
     );
   }

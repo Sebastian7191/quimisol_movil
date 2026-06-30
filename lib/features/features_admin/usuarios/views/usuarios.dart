@@ -127,7 +127,7 @@ class _UsuariosPageState extends State<UsuariosPage>
                                 style: TextStyle(
                                   color: ink,
                                   fontWeight: FontWeight.w900,
-                                  fontSize: 12.5,
+                                  fontSize: 16,
                                 ),
                               ),
                             ),
@@ -271,7 +271,7 @@ class _AnimatedHeader extends StatelessWidget {
                             'Usuarios',
                             style: TextStyle(
                               color: Colors.white,
-                              fontSize: 20,
+                              fontSize: 21,
                               fontWeight: FontWeight.w900,
                               letterSpacing: -0.2,
                             ),
@@ -282,7 +282,7 @@ class _AnimatedHeader extends StatelessWidget {
                             style: TextStyle(
                               color: Colors.white70,
                               fontWeight: FontWeight.w700,
-                              fontSize: 12.5,
+                              fontSize: 14,
                             ),
                           ),
                         ],
@@ -400,12 +400,11 @@ class _RoleFilterMini extends StatelessWidget {
           style: const TextStyle(
             color: Colors.white,
             fontWeight: FontWeight.w900,
-            fontSize: 12.5,
+            fontSize: 14,
           ),
           onChanged: (v) => onChanged(v ?? 'Todos'),
           selectedItemBuilder: (_) => const [
             Center(child: Text('Todos')),
-            Center(child: Text('Superadmin')),
             Center(child: Text('Admin')),
             Center(child: Text('Cliente')),
             Center(child: Text('Cliente Mayorista')),
@@ -416,13 +415,6 @@ class _RoleFilterMini extends StatelessWidget {
               value: 'Todos',
               child: Text(
                 'Todos',
-                style: TextStyle(color: ink, fontWeight: FontWeight.w900),
-              ),
-            ),
-            DropdownMenuItem(
-              value: 'superadmin',
-              child: Text(
-                'Superadmin',
                 style: TextStyle(color: ink, fontWeight: FontWeight.w900),
               ),
             ),
@@ -572,7 +564,7 @@ class _UserCardResponsive extends StatelessWidget {
                                   style: TextStyle(
                                     color: ink,
                                     fontWeight: FontWeight.w900,
-                                    fontSize: 15.2,
+                                    fontSize: 19,
                                   ),
                                 ),
                                 const SizedBox(height: 4),
@@ -583,7 +575,7 @@ class _UserCardResponsive extends StatelessWidget {
                                   style: TextStyle(
                                     color: ink.withValues(alpha: .55),
                                     fontWeight: FontWeight.w700,
-                                    fontSize: 12.5,
+                                    fontSize: 16,
                                   ),
                                 ),
                               ],
@@ -622,7 +614,7 @@ class _UserCardResponsive extends StatelessWidget {
                               style: TextStyle(
                                 color: Palette.ink.withValues(alpha: .75),
                                 fontWeight: FontWeight.w900,
-                                fontSize: 12,
+                                fontSize: 15.5,
                               ),
                             ),
                           ],
@@ -663,7 +655,7 @@ class _UserCardResponsive extends StatelessWidget {
                               style: TextStyle(
                                 color: ink,
                                 fontWeight: FontWeight.w900,
-                                fontSize: 14.8,
+                                fontSize: 19,
                               ),
                             ),
                             const SizedBox(height: 4),
@@ -674,7 +666,7 @@ class _UserCardResponsive extends StatelessWidget {
                               style: TextStyle(
                                 color: ink.withValues(alpha: .55),
                                 fontWeight: FontWeight.w700,
-                                fontSize: 12.5,
+                                fontSize: 16,
                               ),
                             ),
                             const SizedBox(height: 8),
@@ -704,7 +696,7 @@ class _UserCardResponsive extends StatelessWidget {
                                     style: TextStyle(
                                       color: Palette.ink.withValues(alpha: .75),
                                       fontWeight: FontWeight.w900,
-                                      fontSize: 12,
+                                      fontSize: 15.5,
                                     ),
                                   ),
                                 ],
@@ -873,7 +865,7 @@ class _AlmacenComboFancyState extends State<_AlmacenComboFancy> {
                         style: TextStyle(
                           color: ink,
                           fontWeight: FontWeight.w900,
-                          fontSize: 15.5,
+                          fontSize: 17,
                         ),
                       ),
                     ),
@@ -1041,7 +1033,7 @@ class _AlmacenComboFancyState extends State<_AlmacenComboFancy> {
                   style: TextStyle(
                     color: ink.withValues(alpha: .65),
                     fontWeight: FontWeight.w900,
-                    fontSize: 12.5,
+                    fontSize: 14,
                   ),
                 ),
               ],
@@ -1115,7 +1107,7 @@ class _AlmacenComboFancyState extends State<_AlmacenComboFancy> {
                     style: TextStyle(
                       color: ink,
                       fontWeight: FontWeight.w900,
-                      fontSize: 12.5,
+                      fontSize: 15,
                     ),
                   ),
                 ),
@@ -1366,7 +1358,7 @@ class _HintPill extends StatelessWidget {
         style: TextStyle(
           color: ink.withValues(alpha: .55),
           fontWeight: FontWeight.w800,
-          fontSize: 11.5,
+          fontSize: 15.5,
         ),
       ),
     );

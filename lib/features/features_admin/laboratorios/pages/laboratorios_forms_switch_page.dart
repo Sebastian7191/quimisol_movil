@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:quimisol_movil/core/theme/palette.dart';
 
 import 'package:quimisol_movil/features/features_admin/laboratorios/pages/laboratorios_form1.dart';
@@ -196,7 +196,7 @@ class _SwitchItem extends StatelessWidget {
                   style: TextStyle(
                     color: isSelected ? Colors.white : Colors.black87,
                     fontWeight: FontWeight.w700,
-                    fontSize: 14,
+                    fontSize: 22,
                   ),
                 ),
               ),

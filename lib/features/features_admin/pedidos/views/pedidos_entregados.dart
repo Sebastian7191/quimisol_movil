@@ -304,7 +304,7 @@ class _EntregadosHeader extends StatelessWidget {
                             'Pedidos Entregados',
                             style: TextStyle(
                               color: Colors.white,
-                              fontSize: 20,
+                              fontSize: 21,
                               fontWeight: FontWeight.w900,
                               letterSpacing: -0.2,
                             ),
@@ -315,7 +315,7 @@ class _EntregadosHeader extends StatelessWidget {
                             style: TextStyle(
                               color: Colors.white70,
                               fontWeight: FontWeight.w700,
-                              fontSize: 12.5,
+                              fontSize: 14,
                             ),
                           ),
                         ],
@@ -451,7 +451,7 @@ class _DeptoBlockEntregado extends StatelessWidget {
                   style: TextStyle(
                     color: ink,
                     fontWeight: FontWeight.w900,
-                    fontSize: 14.5,
+                    fontSize: 16,
                   ),
                 ),
               ),
@@ -468,7 +468,7 @@ class _DeptoBlockEntregado extends StatelessWidget {
                   style: TextStyle(
                     color: ink.withValues(alpha: 0.8),
                     fontWeight: FontWeight.w900,
-                    fontSize: 12,
+                    fontSize: 14,
                   ),
                 ),
               ),
@@ -512,7 +512,7 @@ class _EmptyEntregados extends StatelessWidget {
               style: TextStyle(
                 color: ink.withValues(alpha: 0.45),
                 fontWeight: FontWeight.w800,
-                fontSize: 15,
+                fontSize: 16.5,
               ),
             ),
           ],

@@ -26,7 +26,7 @@ class WarnBox extends StatelessWidget {
               style: TextStyle(
                 color: ink.withValues(alpha: 0.78),
                 fontWeight: FontWeight.w800,
-                fontSize: 12.2,
+                fontSize: 14,
                 height: 1.2,
               ),
             ),

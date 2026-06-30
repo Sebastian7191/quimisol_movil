@@ -8,11 +8,13 @@ class AlmacenDetailDialog extends StatefulWidget {
     required this.almacenId,
     required this.nombre,
     required this.departamento,
+    this.ubicacion = '',
   });
 
   final String almacenId;
   final String nombre;
   final String departamento;
+  final String ubicacion;
 
   @override
   State<AlmacenDetailDialog> createState() => _AlmacenDetailDialogState();
@@ -61,6 +63,7 @@ class _AlmacenDetailDialogState extends State<AlmacenDetailDialog>
               _DialogHeader(
                 nombre: widget.nombre,
                 departamento: widget.departamento,
+                ubicacion: widget.ubicacion,
                 onClose: () => Navigator.pop(context),
               ),
               ColoredBox(
@@ -73,7 +76,7 @@ class _AlmacenDetailDialogState extends State<AlmacenDetailDialog>
                   indicatorWeight: 3,
                   labelStyle: const TextStyle(
                     fontWeight: FontWeight.w900,
-                    fontSize: 13,
+                    fontSize: 16.5,
                   ),
                   tabs: const [
                     Tab(icon: Icon(Icons.people_rounded, size: 20), text: 'Repartidores'),
@@ -135,10 +138,12 @@ class _DialogHeader extends StatelessWidget {
     required this.nombre,
     required this.departamento,
     required this.onClose,
+    this.ubicacion = '',
   });
 
   final String nombre;
   final String departamento;
+  final String ubicacion;
   final VoidCallback onClose;
 
   @override
@@ -173,7 +178,7 @@ class _DialogHeader extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     fontWeight: FontWeight.w900,
-                    fontSize: 17,
+                    fontSize: 21,
                     color: Palette.white,
                   ),
                 ),
@@ -181,11 +186,33 @@ class _DialogHeader extends StatelessWidget {
                   Text(
                     departamento,
                     style: TextStyle(
-                      fontSize: 12,
+                      fontSize: 16,
                       color: Palette.white.withValues(alpha: 0.85),
                       fontWeight: FontWeight.w600,
                     ),
                   ),
+                if (ubicacion.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Row(
+                    children: [
+                      Icon(Icons.location_on_rounded,
+                          size: 13, color: Palette.white.withValues(alpha: 0.75)),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          ubicacion,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 15,
+                            color: Palette.white.withValues(alpha: 0.78),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ],
             ),
           ),
@@ -360,7 +387,7 @@ class _EmpleadoTile extends StatelessWidget {
             ),
             child: Text(
               role.isEmpty ? 'usuario' : role,
-              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900, color: color),
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900, color: color),
             ),
           ),
         ],
@@ -423,14 +450,14 @@ class _ProductoTile extends StatelessWidget {
                   style: const TextStyle(
                     fontWeight: FontWeight.w800,
                     color: Palette.ink,
-                    fontSize: 14,
+                    fontSize: 18,
                   ),
                 ),
                 if (tipo.isNotEmpty)
                   Text(
                     tipo,
                     style: TextStyle(
-                      fontSize: 11,
+                      fontSize: 15,
                       color: Palette.ink.withValues(alpha: 0.5),
                       fontWeight: FontWeight.w600,
                     ),
@@ -449,7 +476,7 @@ class _ProductoTile extends StatelessWidget {
             child: Text(
               'Stock: $stock',
               style: TextStyle(
-                fontSize: 11,
+                fontSize: 15,
                 fontWeight: FontWeight.w900,
                 color: stockColor,
               ),
@@ -482,7 +509,7 @@ class _EmptyTab extends StatelessWidget {
             style: TextStyle(
               color: Palette.ink.withValues(alpha: 0.4),
               fontWeight: FontWeight.w700,
-              fontSize: 14,
+              fontSize: 18,
             ),
           ),
         ],

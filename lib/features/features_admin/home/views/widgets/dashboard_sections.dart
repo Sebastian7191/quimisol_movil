@@ -38,9 +38,9 @@ class DashboardSections extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900, color: Palette.ink)),
+            Text(title, style: const TextStyle(fontSize: 15.5, fontWeight: FontWeight.w900, color: Palette.ink)),
             const SizedBox(height: 4),
-            Text(subtitle, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Palette.ink.withValues(alpha: 0.72))),
+            Text(subtitle, style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: Palette.ink.withValues(alpha: 0.72))),
             const SizedBox(height: 12),
             child,
           ],

@@ -353,11 +353,12 @@ class _SidebarShellPageState extends State<SidebarShellPage> {
                 ),
               ),
             ),
-            Positioned(
-              left: isMobile ? 10 : 18,
-              bottom: isMobile ? 30 : 16,
-              child: const AdminChatFooterPanel(),
-            ),
+            if (!isMobile)
+              const Positioned(
+                left: 18,
+                bottom: 16,
+                child: AdminChatFooterPanel(),
+              ),
           ],
         );
 
@@ -367,8 +368,15 @@ class _SidebarShellPageState extends State<SidebarShellPage> {
             body: SafeArea(
               child: Stack(
                 children: [
-                  Positioned.fill(child: body),
+                  // Reserva espacio para el topbar y muestra el body debajo
+                  Column(
+                    children: [
+                      const SizedBox(height: 62),
+                      Expanded(child: body),
+                    ],
+                  ),
 
+                  // Hamburger — izquierda, flota sobre el contenido
                   Positioned(
                     top: 10,
                     left: 10,
@@ -405,6 +413,14 @@ class _SidebarShellPageState extends State<SidebarShellPage> {
                     ),
                   ),
 
+                  // Soporte — derecha, el panel se expande hacia abajo libre
+                  const Positioned(
+                    top: 10,
+                    right: 10,
+                    child: AdminChatFooterPanel(openDownward: true),
+                  ),
+
+                  // Scrim cuando el sidebar está abierto
                   if (_sidebarOpen)
                     Positioned.fill(
                       child: GestureDetector(
@@ -416,6 +432,7 @@ class _SidebarShellPageState extends State<SidebarShellPage> {
                       ),
                     ),
 
+                  // Sidebar drawer animado
                   AnimatedPositioned(
                     duration: const Duration(milliseconds: 220),
                     curve: Curves.easeOutCubic,
@@ -622,7 +639,7 @@ class _SidebarHeader extends StatelessWidget {
                     style: TextStyle(
                       color: Palette.white,
                       fontWeight: FontWeight.w800,
-                      fontSize: 15,
+                      fontSize: 16.5,
                     ),
                   ),
                   SizedBox(height: 2),
@@ -630,7 +647,7 @@ class _SidebarHeader extends StatelessWidget {
                     'Panel de control',
                     style: TextStyle(
                       color: Colors.white70,
-                      fontSize: 12,
+                      fontSize: 14,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -701,7 +718,7 @@ class _SidebarItemTile extends StatelessWidget {
                     style: TextStyle(
                       color: textColor,
                       fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
-                      fontSize: 13.5,
+                      fontSize: 15,
                     ),
                   ),
                 ),
@@ -758,7 +775,7 @@ class _LogoutTile extends StatelessWidget {
                       style: TextStyle(
                         color: Colors.red.shade700,
                         fontWeight: FontWeight.w700,
-                        fontSize: 13.2,
+                        fontSize: 14.7,
                       ),
                     ),
                   ),
@@ -793,7 +810,7 @@ class _SidebarFooter extends StatelessWidget {
             Text(
               'Admin',
               style: TextStyle(
-                fontSize: 12,
+                fontSize: 14,
                 color: Palette.ink.withValues(alpha: 0.7),
                 fontWeight: FontWeight.w600,
               ),

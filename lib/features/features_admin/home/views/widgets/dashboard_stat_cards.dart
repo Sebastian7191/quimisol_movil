@@ -292,7 +292,7 @@ class _StatCardState extends State<_StatCard> {
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         fontWeight: FontWeight.w900,
-                        fontSize: 14,
+                        fontSize: 15.5,
                         color: Palette.ink,
                       ),
                     ),
@@ -303,7 +303,7 @@ class _StatCardState extends State<_StatCard> {
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         fontWeight: FontWeight.w600,
-                        fontSize: 12,
+                        fontSize: 13.5,
                         color: Palette.ink.withValues(alpha: 0.75),
                       ),
                     ),
@@ -319,7 +319,7 @@ class _StatCardState extends State<_StatCard> {
                     d.value.toString(),
                     style: const TextStyle(
                       fontWeight: FontWeight.w900,
-                      fontSize: 22,
+                      fontSize: 23,
                       color: Palette.ink,
                     ),
                   ),
@@ -327,7 +327,7 @@ class _StatCardState extends State<_StatCard> {
                     Text(
                       'Ver detalle',
                       style: TextStyle(
-                        fontSize: 10,
+                        fontSize: 12,
                         fontWeight: FontWeight.w600,
                         color: d.accent.withValues(alpha: 0.8),
                       ),

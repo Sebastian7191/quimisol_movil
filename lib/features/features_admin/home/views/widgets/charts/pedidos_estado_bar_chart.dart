@@ -29,10 +29,10 @@ class PedidosEstadoBarChart extends StatelessWidget {
             leftTitles: AxisTitles(
               sideTitles: SideTitles(
                 showTitles: true,
-                reservedSize: 34,
+                reservedSize: 38,
                 getTitlesWidget: (v, meta) => Text(
                   v.toInt().toString(),
-                  style: TextStyle(color: Palette.ink.withValues(alpha: 0.65), fontWeight: FontWeight.w700, fontSize: 11),
+                  style: TextStyle(color: Palette.ink.withValues(alpha: 0.65), fontWeight: FontWeight.w700, fontSize: 13),
                 ),
               ),
             ),
@@ -47,7 +47,7 @@ class PedidosEstadoBarChart extends StatelessWidget {
                     padding: const EdgeInsets.only(top: 6),
                     child: Text(
                       t,
-                      style: TextStyle(color: Palette.ink.withValues(alpha: 0.65), fontWeight: FontWeight.w700, fontSize: 10),
+                      style: TextStyle(color: Palette.ink.withValues(alpha: 0.65), fontWeight: FontWeight.w700, fontSize: 12),
                     ),
                   );
                 },

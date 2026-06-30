@@ -136,7 +136,7 @@ class _RoleComboFancyState extends State<RoleComboFancy> {
               style: TextStyle(
                 color: ink,
                 fontWeight: FontWeight.w900,
-                fontSize: 12.5,
+                fontSize: 14,
               ),
               onChanged:
                   _saving ? null : (v) => _setRole(v ?? widget.currentRole),
