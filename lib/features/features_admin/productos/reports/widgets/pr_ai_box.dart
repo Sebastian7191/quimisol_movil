@@ -175,7 +175,7 @@ class AiBox extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.only(top: 10),
               child: _AiSectionCard(
-                title: 'Insights clave',
+                title: 'Hallazgos clave',
                 icon: Icons.lightbulb_outline_rounded,
                 color: Palette.primary,
                 items: ai.insights,

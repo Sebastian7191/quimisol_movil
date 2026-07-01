@@ -734,9 +734,9 @@ exports.enrichPredictiveReportAI = onDocumentCreated(
 
     const AiSchema = z.object({
       summary: z.string().min(80).max(900),
-      insights: z.array(z.string().min(1)).min(2).max(5),
-      risks: z.array(z.string().min(1)).min(1).max(4),
-      actions: z.array(z.string().min(1)).min(2).max(6),
+      insights: z.array(z.string().min(1)).max(5),
+      risks: z.array(z.string().min(1)).max(4),
+      actions: z.array(z.string().min(1)).min(1).max(6),
     });
 
     function clampArr(arr, max) {
@@ -889,7 +889,7 @@ exports.enrichPredictiveReportAI = onDocumentCreated(
     function shouldAcceptResult(summary, insights, risks, actions) {
       return (
         !looksTruncatedSummary(summary) &&
-        hasUsefulLists(insights, risks, actions)
+        Array.isArray(actions) && actions.length >= 1
       );
     }
 
@@ -924,9 +924,9 @@ exports.enrichPredictiveReportAI = onDocumentCreated(
       "Escribe en español claro.",
       "Si falta espacio, usa menos texto, pero no cortes frases y cierra el JSON.",
       "summary: 3-5 frases, claro y ejecutivo.",
-      "insights: 3 items.",
-      "risks: 2 items.",
-      "actions: 4 items.",
+      "insights: 2-3 items sobre tendencias y patrones detectados.",
+      "risks: 0-2 items. Si no hay riesgos reales en los datos, devuelve [].",
+      "actions: 3-4 items de recomendaciones concretas.",
       "Menciona productos por nombre cuando aplique.",
       "Si hay urgencia alta o poca cobertura, prioriza reposición.",
       "Si hay tendencia al alza y confianza baja, recomienda monitoreo cercano.",
