@@ -1,5 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_modular/flutter_modular.dart';
+
+import 'package:quimisol_movil/shared/services/auth_service.dart';
 
 import '../data/user_row.dart';
 
@@ -9,6 +12,16 @@ class UsuariosController {
   // Search & filter
   final TextEditingController searchCtrl = TextEditingController();
   String roleFilter = 'Todos';
+
+  // ================= PERMISOS =================
+
+  Future<String?> getCurrentUserRole() {
+    return Modular.get<AuthService>().getUserRole();
+  }
+
+  Future<bool> isCurrentUserSuperAdmin() async {
+    return (await getCurrentUserRole()) == 'superadmin';
+  }
 
   // ================= STREAM =================
 
@@ -68,6 +81,16 @@ class UsuariosController {
 
     final snap = await userRef.get();
     final userData = snap.data() ?? {};
+
+    final currentTargetRole =
+        (userData['role'] ?? '').toString().trim().toLowerCase();
+    final touchesAdmin = role == 'admin' || currentTargetRole == 'admin';
+
+    if (touchesAdmin && !(await isCurrentUserSuperAdmin())) {
+      throw Exception(
+        'Solo un superadmin puede asignar o modificar el rol de administrador',
+      );
+    }
 
     final payload = <String, dynamic>{
       'uid': uid,

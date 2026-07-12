@@ -615,6 +615,7 @@ class _AlmacenCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final nombre = (data['nombre'] ?? '').toString();
     final depto = (data['departamento'] ?? '').toString();
+    final ubicacion = (data['ubicacion'] ?? '').toString();
     final productos = (data['productos'] ?? 0) as int;
     final stock = (data['stock'] ?? 0) as int;
 
@@ -669,6 +670,38 @@ class _AlmacenCard extends StatelessWidget {
                       color: Palette.primary,
                       fontWeight: FontWeight.w800,
                     ),
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.location_on_rounded,
+                        size: 15,
+                        color: Palette.ink.withValues(
+                          alpha: ubicacion.isNotEmpty ? 0.5 : 0.3,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          ubicacion.isNotEmpty
+                              ? ubicacion
+                              : 'Sin ubicación registrada',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: Palette.ink.withValues(
+                              alpha: ubicacion.isNotEmpty ? 0.65 : 0.4,
+                            ),
+                            fontWeight: FontWeight.w600,
+                            fontStyle: ubicacion.isNotEmpty
+                                ? FontStyle.normal
+                                : FontStyle.italic,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 12),
 

@@ -24,6 +24,22 @@ class RoleComboFancy extends StatefulWidget {
 class _RoleComboFancyState extends State<RoleComboFancy> {
   bool _saving = false;
   bool _saved = false;
+  bool _isSuperAdmin = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPermissions();
+  }
+
+  Future<void> _loadPermissions() async {
+    final isSuperAdmin = await widget.controller.isCurrentUserSuperAdmin();
+    if (mounted) setState(() => _isSuperAdmin = isSuperAdmin);
+  }
+
+  // Solo un superadmin puede asignar o modificar el rol de administrador.
+  bool get _rowLockedForAdmins =>
+      !_isSuperAdmin && widget.currentRole == 'admin';
 
   Future<void> _setRole(String role) async {
     if (_saving) return;
@@ -138,16 +154,26 @@ class _RoleComboFancyState extends State<RoleComboFancy> {
                 fontWeight: FontWeight.w900,
                 fontSize: 14,
               ),
-              onChanged:
-                  _saving ? null : (v) => _setRole(v ?? widget.currentRole),
-              items: const [
-                DropdownMenuItem(value: 'admin', child: Text('Admin')),
-                DropdownMenuItem(value: 'cliente', child: Text('Cliente')),
-                DropdownMenuItem(
+              // Solo un superadmin puede tocar el rol de un admin
+              // (asignarlo o modificarlo).
+              onChanged: (_saving || _rowLockedForAdmins)
+                  ? null
+                  : (v) => _setRole(v ?? widget.currentRole),
+              items: [
+                if (_isSuperAdmin || widget.currentRole == 'admin')
+                  const DropdownMenuItem(
+                    value: 'admin',
+                    child: Text('Admin'),
+                  ),
+                const DropdownMenuItem(
+                  value: 'cliente',
+                  child: Text('Cliente'),
+                ),
+                const DropdownMenuItem(
                   value: 'cliente_mayorista',
                   child: Text('Cliente Mayorista'),
                 ),
-                DropdownMenuItem(
+                const DropdownMenuItem(
                   value: 'repartidor',
                   child: Text('Repartidor'),
                 ),
