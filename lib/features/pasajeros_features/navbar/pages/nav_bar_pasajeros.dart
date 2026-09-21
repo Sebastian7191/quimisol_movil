@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'dart:math' as math;
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 import 'package:quimisol_movil/core/theme/palette.dart';
@@ -12,6 +14,7 @@ import 'package:quimisol_movil/features/pasajeros_features/pedidos/widgets/revie
 import 'package:quimisol_movil/features/pasajeros_features/pedidos/widgets/review_productos_sheet.dart';
 import 'package:quimisol_movil/shared/stores/guest_store.dart';
 import 'package:quimisol_movil/shared/widgets/guest_lock_view.dart';
+import 'package:quimisol_movil/core/services/notification/local_notification_service.dart';
 
 class Navbar extends StatefulWidget {
   final int initialIndex;
@@ -32,8 +35,14 @@ class _NavbarState extends State<Navbar> {
 
   final PedidoReviewService _reviewService = PedidoReviewService();
 
+  bool _isFirstEmission = true;
   bool _checkingReview = false;
-  bool _reviewFlowDone = false;
+  final Set<String> _processedPedidoIds = {};
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _pedidosSub;
+
+  bool _isFirstPagoEmission = true;
+  final Set<String> _notifiedRejectedIds = {};
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _pagoSub;
 
   @override
   void initState() {
@@ -41,8 +50,16 @@ class _NavbarState extends State<Navbar> {
     _currentIndex = widget.initialIndex.clamp(0, 4);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _checkPendingReviewFlow();
+      _startReviewListener();
+      _startPaymentRejectionListener();
     });
+  }
+
+  @override
+  void dispose() {
+    _pedidosSub?.cancel();
+    _pagoSub?.cancel();
+    super.dispose();
   }
 
   void _goToDeseados() {
@@ -60,28 +77,114 @@ class _NavbarState extends State<Navbar> {
     setState(() => _currentIndex = 3);
   }
 
-  Future<void> _checkPendingReviewFlow() async {
-    if (!mounted || _checkingReview || _reviewFlowDone) return;
-
-    // ✅ Los invitados no tienen pedidos asociados.
+  void _startPaymentRejectionListener() {
     try {
-      if (Modular.get<GuestStore>().value) {
-        _reviewFlowDone = true;
-        return;
-      }
+      if (Modular.get<GuestStore>().value) return;
     } catch (_) {}
 
-    _checkingReview = true;
+    _pagoSub = _reviewService.watchPagosRechazados().listen((snap) async {
+      if (!mounted) return;
 
-    try {
-      final doc = await _reviewService.findPendingDeliveredOrder();
-
-      if (!mounted || doc == null || !doc.exists) {
-        _reviewFlowDone = true;
+      if (_isFirstPagoEmission) {
+        _isFirstPagoEmission = false;
+        // Primera emisión: registrar rechazos ya existentes sin notificar.
+        for (final doc in snap.docs) {
+          _notifiedRejectedIds.add(doc.id);
+        }
         return;
       }
 
-      final data = doc.data() ?? {};
+      // Emisiones siguientes: solo pedidos que acaban de ser rechazados.
+      for (final change in snap.docChanges) {
+        if (change.type != DocumentChangeType.added) continue;
+        final doc = change.doc;
+        if (_notifiedRejectedIds.contains(doc.id)) continue;
+        _notifiedRejectedIds.add(doc.id);
+
+        final data = doc.data();
+        final pedidoCode =
+            (data?['codigo'] ?? doc.id).toString().trim();
+
+        // Notificación local (aparece en el sistema aunque la app esté en foco).
+        await LocalNotificationService()
+            .showPaymentRejected(pedidoCode: pedidoCode);
+
+        if (!mounted) return;
+
+        // Banner in-app con acceso rápido a Pedidos.
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'El pago del pedido #$pedidoCode fue rechazado. '
+              'Sube un nuevo comprobante.',
+            ),
+            backgroundColor: Colors.red.shade700,
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 6),
+            action: SnackBarAction(
+              label: 'Ver',
+              textColor: Colors.white,
+              onPressed: () {
+                if (mounted) setState(() => _currentIndex = 2);
+              },
+            ),
+          ),
+        );
+      }
+    });
+  }
+
+  // Escucha en tiempo real pedidos Entregados. En la primera emisión procesa
+  // cualquier reseña pendiente (igual que antes al abrir la app). En emisiones
+  // siguientes detecta pedidos que acaban de cambiar a Entregado y dispara el
+  // flujo de reseña sin que el usuario tenga que cerrar y volver a abrir.
+  void _startReviewListener() {
+    try {
+      if (Modular.get<GuestStore>().value) return;
+    } catch (_) {}
+
+    _pedidosSub = _reviewService.watchDeliveredOrders().listen((snap) async {
+      if (!mounted) return;
+
+      if (_isFirstEmission) {
+        _isFirstEmission = false;
+        // Primera emisión: buscar pedido Entregado sin reseña (inicio de app).
+        for (final doc in snap.docs) {
+          final data = doc.data();
+          if (data['reviewEntrega'] == null) {
+            await _runReviewFlow(doc);
+            break;
+          }
+        }
+        return;
+      }
+
+      // Emisiones posteriores: solo documentos recién añadidos al resultado
+      // (pedidos que acaban de pasar a estado Entregado).
+      for (final change in snap.docChanges) {
+        if (change.type != DocumentChangeType.added) continue;
+        final doc = change.doc;
+        final data = doc.data();
+        if (data == null || data['reviewEntrega'] != null) continue;
+        if (_processedPedidoIds.contains(doc.id)) continue;
+
+        await _runReviewFlow(doc);
+        break;
+      }
+    });
+  }
+
+  Future<void> _runReviewFlow(
+    DocumentSnapshot<Map<String, dynamic>> doc,
+  ) async {
+    if (!mounted || _checkingReview) return;
+
+    _checkingReview = true;
+    _processedPedidoIds.add(doc.id);
+
+    try {
+      final data = doc.data();
+      if (data == null) return;
       final pedidoId = doc.id;
       final pedidoCode = (data['codigo'] ?? pedidoId).toString().trim();
 
@@ -91,10 +194,7 @@ class _NavbarState extends State<Navbar> {
           .map((e) => Map<String, dynamic>.from(e))
           .toList();
 
-      if (items.isEmpty) {
-        _reviewFlowDone = true;
-        return;
-      }
+      if (items.isEmpty) return;
 
       final entregaResult = await showModalBottomSheet<Map<String, dynamic>>(
         context: context,
@@ -105,13 +205,13 @@ class _NavbarState extends State<Navbar> {
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
         ),
-        builder: (_) => ReviewEntregaSheet(
-          pedidoCode: pedidoCode,
-        ),
+        builder: (_) => ReviewEntregaSheet(pedidoCode: pedidoCode),
       );
 
-      if (!mounted || entregaResult == null) {
-        _reviewFlowDone = true;
+      if (!mounted || entregaResult == null) return;
+
+      if (entregaResult['skipped'] == true) {
+        await _reviewService.skipEntregaReview(pedidoId: pedidoId);
         return;
       }
 
@@ -121,10 +221,7 @@ class _NavbarState extends State<Navbar> {
         comentario: (entregaResult['comentario'] ?? '').toString(),
       );
 
-      if (!mounted) {
-        _reviewFlowDone = true;
-        return;
-      }
+      if (!mounted) return;
 
       final productResult =
           await showModalBottomSheet<List<Map<String, dynamic>>>(
@@ -139,24 +236,16 @@ class _NavbarState extends State<Navbar> {
         builder: (_) => ReviewProductosSheet(items: items),
       );
 
-      if (!mounted || productResult == null) {
-        _reviewFlowDone = true;
-        return;
-      }
+      if (!mounted || productResult == null) return;
 
       await _reviewService.saveProductReviews(
         pedidoId: pedidoId,
         reviews: productResult,
       );
 
-      if (!mounted) {
-        _reviewFlowDone = true;
-        return;
-      }
+      if (!mounted) return;
 
-      setState(() {
-        _currentIndex = 2;
-      });
+      setState(() => _currentIndex = 2);
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -165,11 +254,8 @@ class _NavbarState extends State<Navbar> {
           backgroundColor: Palette.statsSuccess,
         ),
       );
-
-      _reviewFlowDone = true;
     } catch (e) {
       if (!mounted) return;
-
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error al mostrar la calificación: $e'),
@@ -226,16 +312,32 @@ class _NavbarState extends State<Navbar> {
           ),
         ];
 
-        return Scaffold(
-          backgroundColor: Palette.fieldBg,
-          extendBody: true,
-          body: IndexedStack(
-            index: _currentIndex,
-            children: pages,
-          ),
-          bottomNavigationBar: _BottomPillNavbarAnimated(
-            currentIndex: _currentIndex,
-            onChanged: (i) => setState(() => _currentIndex = i),
+        return PopScope(
+          // Sin esto, "atras" en cualquier pestaña que no sea Principal
+          // cerraba la app: el navbar es la ruta raiz, asi que el pop se
+          // llevaba toda la pantalla. Ahora solo sale desde Principal.
+          canPop: _currentIndex == 0,
+          onPopInvokedWithResult: (didPop, _) {
+            if (didPop) return;
+
+            // Soporte vive en el IndexedStack y tambien recibe este evento.
+            // Si solo estaba cerrando su selector de emojis, no cambiamos
+            // de pestaña encima.
+            if (SoporteChatPage.selectorEmojisAbierto) return;
+
+            if (_currentIndex != 0) setState(() => _currentIndex = 0);
+          },
+          child: Scaffold(
+            backgroundColor: Palette.fieldBg,
+            extendBody: true,
+            body: IndexedStack(
+              index: _currentIndex,
+              children: pages,
+            ),
+            bottomNavigationBar: _BottomPillNavbarAnimated(
+              currentIndex: _currentIndex,
+              onChanged: (i) => setState(() => _currentIndex = i),
+            ),
           ),
         );
       },

@@ -9,6 +9,29 @@ class PedidoReviewService {
 
   String get _uid => _auth.currentUser?.uid ?? '';
 
+  /// Stream en tiempo real de pedidos Entregados (hasta 10, por fecha desc).
+  /// El listener filtra en el cliente cuáles aún no tienen reviewEntrega.
+  Stream<QuerySnapshot<Map<String, dynamic>>> watchDeliveredOrders() {
+    if (_uid.isEmpty) return const Stream.empty();
+
+    return _fire
+        .collection('pedidos')
+        .where('uid', isEqualTo: _uid)
+        .where('estado', isEqualTo: 'Entregado')
+        .orderBy('updatedAt', descending: true)
+        .limit(10)
+        .snapshots();
+  }
+
+  Stream<QuerySnapshot<Map<String, dynamic>>> watchPagosRechazados() {
+    if (_uid.isEmpty) return const Stream.empty();
+    return _fire
+        .collection('pedidos')
+        .where('uid', isEqualTo: _uid)
+        .where('estado_pago', isEqualTo: 'rechazado')
+        .snapshots();
+  }
+
   Future<DocumentSnapshot<Map<String, dynamic>>?> findPendingDeliveredOrder() async {
     if (_uid.isEmpty) return null;
 
@@ -29,6 +52,19 @@ class PedidoReviewService {
     }
 
     return null;
+  }
+
+  /// Marca el pedido como "sin reseña" para que no vuelva a aparecer el flujo.
+  Future<void> skipEntregaReview({required String pedidoId}) async {
+    if (_uid.isEmpty) return;
+
+    await _fire.collection('pedidos').doc(pedidoId).set({
+      'reviewEntrega': {
+        'clienteUid': _uid,
+        'skipped': true,
+        'createdAt': FieldValue.serverTimestamp(),
+      },
+    }, SetOptions(merge: true));
   }
 
   Future<void> saveEntregaReview({

@@ -3,11 +3,59 @@ import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
 
 import 'package:quimisol_movil/features/pasajeros_features/wishlist/pages/wishlist_store.dart';
+
+/// Normaliza un departamento para compararlo: sin espacios extra, en
+/// minusculas y sin tildes, porque los nombres vienen de Firestore y pueden
+/// haberse cargado con o sin acento ("Potosí" vs "Potosi").
+String _normDepto(String s) {
+  const acentos = <String, String>{
+    'á': 'a',
+    'é': 'e',
+    'í': 'i',
+    'ó': 'o',
+    'ú': 'u',
+    'ü': 'u',
+    'ñ': 'n',
+  };
+
+  var out = s.trim().toLowerCase();
+  acentos.forEach((con, sin) => out = out.replaceAll(con, sin));
+
+  return out.replaceAll(RegExp(r'\s+'), ' ');
+}
+
+/// Conflicto detectado al intentar mezclar departamentos en el carrito.
+class CartDeptoConflicto {
+  /// Departamento que ya tiene el carrito.
+  final String deptoCarrito;
+
+  /// Departamento del producto que se quiso agregar.
+  final String deptoProducto;
+
+  const CartDeptoConflicto({
+    required this.deptoCarrito,
+    required this.deptoProducto,
+  });
+}
+
+/// Resultado de agregar un producto al carrito.
+class AddToCartResult {
+  /// null si se agrego correctamente.
+  final CartDeptoConflicto? conflicto;
+
+  const AddToCartResult._(this.conflicto);
+
+  const AddToCartResult.ok() : this._(null);
+  const AddToCartResult.conflicto(CartDeptoConflicto c) : this._(c);
+
+  bool get agregado => conflicto == null;
+}
 
 class CartStore extends ChangeNotifier {
   CartStore._();
@@ -16,6 +64,7 @@ class CartStore extends ChangeNotifier {
   final _fire = FirebaseFirestore.instance;
   final _auth = FirebaseAuth.instance;
   final _storage = FirebaseStorage.instance;
+  final _functions = FirebaseFunctions.instanceFor(region: 'us-central1');
 
   final List<CartItem> _items = [];
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _sub;
@@ -27,6 +76,19 @@ class CartStore extends ChangeNotifier {
 
   final Map<String, int> _stockCache = {};
 
+  // ✅ Un pedido solo puede salir de un departamento: no se pueden mezclar
+  // productos de almacenes de Cochabamba y Santa Cruz en el mismo carrito.
+  // productoId -> departamento del almacen ('' si no se pudo resolver)
+  final Map<String, String> _deptoProductoCache = {};
+  // almacenId -> departamento ('' si no se pudo resolver)
+  final Map<String, String> _deptoAlmacenCache = {};
+
+  Set<String> _cartDeptos = {};
+  String _deptosKey = '';
+
+  /// true cuando el stream del carrito ya entrego al menos un snapshot.
+  bool _cartCargado = false;
+
   String? _toastMessage;
   String? consumeToast() {
     final t = _toastMessage;
@@ -35,6 +97,16 @@ class CartStore extends ChangeNotifier {
   }
 
   List<CartItem> get items => _items;
+
+  /// Departamentos (de los almacenes) presentes en el carrito.
+  Set<String> get cartDeptos => _cartDeptos;
+
+  /// Departamento unico del carrito, o null si esta vacio / no se pudo resolver.
+  String? get cartDepto => _cartDeptos.length == 1 ? _cartDeptos.first : null;
+
+  /// true si el carrito quedo con productos de mas de un departamento.
+  /// No deberia pasar, pero si pasa (datos viejos) hay que bloquear el checkout.
+  bool get tieneDeptosMezclados => _cartDeptos.length > 1;
 
   bool isUpdating(String productId) => _updating[productId] == true;
 
@@ -70,11 +142,15 @@ class CartStore extends ChangeNotifier {
 
   void bind() {
     _sub?.cancel();
+    _cartCargado = false;
 
     final uid = _auth.currentUser?.uid;
     if (uid == null) {
       _items.clear();
       _stockCache.clear();
+      _cartDeptos = {};
+      _deptosKey = '';
+      _cartCargado = false;
       notifyListeners();
       return;
     }
@@ -116,6 +192,9 @@ class CartStore extends ChangeNotifier {
         _prefetchStock(it.id);
       }
 
+      _cartCargado = true;
+      _refreshCartDeptos();
+
       notifyListeners();
     });
   }
@@ -156,6 +235,155 @@ class CartStore extends ChangeNotifier {
   String _stockMsg(int stock) {
     if (stock <= 0) return 'Uy 😕 por ahora no hay stock disponible de este producto.';
     return 'Solo tenemos $stock unidad${stock == 1 ? "" : "es"} disponible${stock == 1 ? "" : "s"} por ahora 🙂';
+  }
+
+  // ===========================================================
+  // Departamento del carrito
+  //
+  // Un producto pertenece a un almacen (productos/{id}.almacenId) y cada
+  // almacen vive en un departamento (almacenes/{id}.departamento). Como el
+  // pedido se despacha y entrega dentro de un solo departamento, el carrito
+  // no puede mezclar productos de almacenes de departamentos distintos.
+  // ===========================================================
+
+  Future<String> _fetchDeptoDeAlmacen(String almacenId) async {
+    final cached = _deptoAlmacenCache[almacenId];
+    if (cached != null) return cached;
+
+    try {
+      final doc = await _fire.collection('almacenes').doc(almacenId).get();
+      final dep = (doc.data()?['departamento'] ?? '').toString().trim();
+      _deptoAlmacenCache[almacenId] = dep;
+      return dep;
+    } catch (_) {
+      return '';
+    }
+  }
+
+  Future<String> _fetchDeptoDeProducto(String productId) async {
+    try {
+      final doc = await _fire.collection('productos').doc(productId).get();
+      if (!doc.exists) return '';
+
+      final almacenId = (doc.data()?['almacenId'] ?? '').toString().trim();
+      if (almacenId.isEmpty) return '';
+
+      return await _fetchDeptoDeAlmacen(almacenId);
+    } catch (_) {
+      return '';
+    }
+  }
+
+  /// Departamento del almacen de un producto ('' si no se puede resolver).
+  Future<String> getDeptoDeProducto(String productId) async {
+    final cached = _deptoProductoCache[productId];
+    if (cached != null) return cached;
+
+    final dep = await _fetchDeptoDeProducto(productId);
+    _deptoProductoCache[productId] = dep;
+    return dep;
+  }
+
+  /// Deduplica por nombre normalizado (no por texto exacto) para que
+  /// "Potosi" y "Potosí" no cuenten como dos departamentos distintos.
+  Set<String> _dedupeDeptos(Iterable<String> deps) {
+    final porClave = <String, String>{};
+
+    for (final dep in deps) {
+      final limpio = dep.trim();
+      if (limpio.isEmpty) continue;
+      porClave.putIfAbsent(_normDepto(limpio), () => limpio);
+    }
+
+    return porClave.values.toSet();
+  }
+
+  /// Recalcula los departamentos presentes en el carrito.
+  /// Solo hace trabajo si cambio el conjunto de productos (no al cambiar qty).
+  Future<void> _refreshCartDeptos({bool force = false}) async {
+    final ids = _items.map((e) => e.id).toSet().toList()..sort();
+    final key = ids.join('|');
+
+    if (!force && key == _deptosKey) return;
+    _deptosKey = key;
+
+    if (ids.isEmpty) {
+      if (_cartDeptos.isNotEmpty) {
+        _cartDeptos = {};
+        notifyListeners();
+      }
+      return;
+    }
+
+    final deps = await Future.wait(ids.map(getDeptoDeProducto));
+    final nuevos = _dedupeDeptos(deps);
+
+    // El set de productos pudo cambiar mientras resolviamos.
+    final idsAhora = _items.map((e) => e.id).toSet().toList()..sort();
+    if (idsAhora.join('|') != key) return;
+
+    if (!setEquals(nuevos, _cartDeptos)) {
+      _cartDeptos = nuevos;
+      notifyListeners();
+    }
+  }
+
+  /// Fuerza un recalculo (util al entrar al carrito).
+  Future<void> refreshCartDeptos() => _refreshCartDeptos(force: true);
+
+  /// Lee el carrito directo de Firestore y resuelve sus departamentos.
+  /// Solo se usa cuando el listener todavia no entrego datos.
+  Future<Set<String>> _deptosDelCarritoRemoto() async {
+    final uid = _auth.currentUser?.uid;
+    if (uid == null) return {};
+
+    try {
+      final snap = await _fire
+          .collection('usuarios')
+          .doc(uid)
+          .collection('carrito')
+          .get();
+
+      if (snap.docs.isEmpty) return {};
+
+      final deps = await Future.wait(
+        snap.docs.map((d) => getDeptoDeProducto(d.id)),
+      );
+
+      return _dedupeDeptos(deps);
+    } catch (_) {
+      return {};
+    }
+  }
+
+  /// Revisa si agregar [productId] mezclaria departamentos.
+  /// Devuelve null si no hay conflicto.
+  Future<CartDeptoConflicto?> verificarDepartamento(String productId) async {
+    final deptoProducto = await getDeptoDeProducto(productId);
+    if (deptoProducto.isEmpty) return null;
+
+    // Si el stream del carrito todavia no entrego su primer snapshot, _items
+    // esta vacio aunque el carrito tenga cosas. Leemos directo para no dejar
+    // pasar una mezcla solo por llegar antes que el listener.
+    final Set<String> actuales;
+    if (!_cartCargado) {
+      actuales = await _deptosDelCarritoRemoto();
+    } else {
+      if (_items.isEmpty) return null;
+      await _refreshCartDeptos(force: true);
+      actuales = _cartDeptos;
+    }
+
+    if (actuales.isEmpty) return null;
+
+    final coincide =
+        actuales.any((d) => _normDepto(d) == _normDepto(deptoProducto));
+    if (coincide) return null;
+
+    return CartDeptoConflicto(
+      deptoCarrito: actuales.first,
+      deptoProducto: deptoProducto,
+    );
   }
 
   Future<CartCheckoutPreview?> buildCheckoutPreview({
@@ -211,15 +439,28 @@ class CartStore extends ChangeNotifier {
     );
   }
 
-  Future<void> addProductWithQty({
+  /// Agrega un producto al carrito.
+  ///
+  /// Si el producto pertenece a un almacen de otro departamento devuelve
+  /// [AddToCartResult.conflicto] SIN tocar el carrito, para que la UI pregunte
+  /// al cliente. Si confirma, se vuelve a llamar con [vaciarCarrito] en true.
+  Future<AddToCartResult> addProductWithQty({
     required String productId,
     required String name,
     required double price,
     required String imageUrl,
     required int qty,
+    bool vaciarCarrito = false,
   }) async {
     final uid = _auth.currentUser?.uid;
-    if (uid == null) return;
+    if (uid == null) return const AddToCartResult.ok();
+
+    if (vaciarCarrito) {
+      await clear();
+    } else {
+      final conflicto = await verificarDepartamento(productId);
+      if (conflicto != null) return AddToCartResult.conflicto(conflicto);
+    }
 
     final safeQty = qty <= 0 ? 1 : qty;
 
@@ -268,22 +509,55 @@ class CartStore extends ChangeNotifier {
         });
       }
     });
+
+    return const AddToCartResult.ok();
   }
 
-  Future<void> addFromWishlist(WishItem item) async {
+  Future<AddToCartResult> addFromWishlist(
+    WishItem item, {
+    bool vaciarCarrito = false,
+  }) async {
     final uid = _auth.currentUser?.uid;
-    if (uid == null) return;
+    if (uid == null) return const AddToCartResult.ok();
 
     final stock = await _getStock(item.id);
     if (stock <= 0) {
       _setToast(_stockMsg(stock));
-      return;
+      return const AddToCartResult.ok();
     }
 
-    final cartRef = _fire.collection('usuarios').doc(uid).collection('carrito').doc(item.id);
-    final wishRef = _fire.collection('usuarios').doc(uid).collection('wishlist').doc(item.id);
+    if (vaciarCarrito) {
+      await clear();
+    } else {
+      final conflicto = await verificarDepartamento(item.id);
+      if (conflicto != null) return AddToCartResult.conflicto(conflicto);
+    }
+
+    // El producto se queda en favoritos: agregarlo al carrito no es "moverlo".
+    final cartRef = _cartRef(uid, item.id);
 
     await _fire.runTransaction((tx) async {
+      final snap = await tx.get(cartRef);
+
+      if (snap.exists) {
+        // Ya estaba en el carrito (se puede agregar varias veces desde
+        // favoritos), asi que sumamos una unidad sin pasarnos del stock.
+        final actual = ((snap.data()?['qty'] ?? 1) is num)
+            ? (snap.data()?['qty'] as num).toInt()
+            : int.tryParse((snap.data()?['qty'] ?? '1').toString()) ?? 1;
+
+        if (actual >= stock) {
+          _setToast(_stockMsg(stock));
+          return;
+        }
+
+        tx.update(cartRef, {
+          'qty': actual + 1,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+        return;
+      }
+
       tx.set(cartRef, {
         'name': item.name,
         'price': item.price,
@@ -292,9 +566,9 @@ class CartStore extends ChangeNotifier {
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
       });
-
-      tx.delete(wishRef);
     });
+
+    return const AddToCartResult.ok();
   }
 
   Future<void> incQty(String productId) async {
@@ -498,9 +772,6 @@ class CartStore extends ChangeNotifier {
     final uid = _auth.currentUser?.uid;
     if (uid == null) return null;
 
-    final carritoSnap = await _fire.collection('usuarios').doc(uid).collection('carrito').get();
-    if (carritoSnap.docs.isEmpty) return null;
-
     String? comprobanteUrlFinal = comprobanteUrl;
 
     if (comprobanteBytes != null && comprobanteBytes.isNotEmpty) {
@@ -512,104 +783,25 @@ class CartStore extends ChangeNotifier {
       );
     }
 
-    final items = <Map<String, dynamic>>[];
-    double totalProductos = 0.0;
-
-    for (final d in carritoSnap.docs) {
-      final data = d.data();
-
-      final name = (data['name'] ?? '').toString();
-      final price = (data['price'] is num)
-          ? (data['price'] as num).toDouble()
-          : double.tryParse((data['price'] ?? '0').toString()) ?? 0.0;
-
-      final qty = (data['qty'] is num)
-          ? (data['qty'] as num).toInt()
-          : int.tryParse((data['qty'] ?? '1').toString()) ?? 1;
-
-      final imageUrl = (data['imageUrl'] ?? '').toString();
-
-      final fixedQty = qty <= 0 ? 1 : qty;
-      totalProductos += price * fixedQty;
-
-      items.add({
-        'productId': d.id,
-        'name': name,
-        'price': price,
-        'qty': fixedQty,
-        'imageUrl': imageUrl,
-        'subtotal': price * fixedQty,
+    // El stock se valida y se descuenta del lado del servidor, dentro de
+    // una transacción de Firestore junto con la creación del pedido, para
+    // que dos compras simultáneas de la última unidad no puedan pasar ambas.
+    try {
+      final result = await _functions.httpsCallable('crearPedido').call({
+        'ubicacion': ubicacion.toJson(),
+        'tipoPago': tipoPago,
+        'estadoPago': estadoPago,
+        'comprobanteUrl': comprobanteUrlFinal,
+        'comprobanteNombre': comprobanteNombre,
+        'qrImageUrl': qrImageUrl,
+        'qrDescargaUrl': qrDescargaUrl,
+        'observacionPago': observacionPago,
       });
+
+      return result.data['pedidoId'] as String?;
+    } on FirebaseFunctionsException catch (e) {
+      throw Exception(e.message ?? 'No se pudo crear el pedido.');
     }
-
-    final code = _gen6Digits();
-
-    final pedidoDoc = _fire.collection('pedidos').doc();
-    final userIndexDoc = _fire
-        .collection('usuarios')
-        .doc(uid)
-        .collection('pedidos')
-        .doc(pedidoDoc.id);
-
-    const double costoEnvio = 0.0;
-    final totalFinal = totalProductos + costoEnvio;
-
-    final payload = <String, dynamic>{
-      'codigo': code,
-      'estado': 'pendiente',
-      'tipo_pago': tipoPago,
-      'estado_pago': estadoPago,
-      'departamento': ubicacion.departamento,
-      'direccion': ubicacion.direccion,
-      'total': totalFinal,
-      'subtotal': totalProductos,
-      'costo_envio': costoEnvio,
-      'fecha_entrega': null,
-      'conteoItems': items.length,
-      'items': items,
-      'ubicacion': ubicacion.toJson(),
-      'createdAt': FieldValue.serverTimestamp(),
-      'updatedAt': FieldValue.serverTimestamp(),
-      'uid': uid,
-      'comprobante_url': comprobanteUrlFinal,
-      'comprobante_nombre': comprobanteNombre,
-      'qr_image_url': qrImageUrl,
-      'qr_descarga_url': qrDescargaUrl,
-      'observacion_pago': observacionPago,
-    };
-
-    final indexPayload = <String, dynamic>{
-      'pedidoId': pedidoDoc.id,
-      'codigo': code,
-      'estado': 'pendiente',
-      'tipo_pago': tipoPago,
-      'estado_pago': estadoPago,
-      'departamento': ubicacion.departamento,
-      'direccion': ubicacion.direccion,
-      'total': totalFinal,
-      'subtotal': totalProductos,
-      'costo_envio': costoEnvio,
-      'fecha_entrega': null,
-      'conteoItems': items.length,
-      'createdAt': FieldValue.serverTimestamp(),
-      'updatedAt': FieldValue.serverTimestamp(),
-      'uid': uid,
-      'comprobante_url': comprobanteUrlFinal,
-      'comprobante_nombre': comprobanteNombre,
-      'qr_image_url': qrImageUrl,
-      'observacion_pago': observacionPago,
-    };
-
-    final batch = _fire.batch();
-    batch.set(pedidoDoc, payload);
-    batch.set(userIndexDoc, indexPayload);
-
-    for (final d in carritoSnap.docs) {
-      batch.delete(d.reference);
-    }
-
-    await batch.commit();
-    return pedidoDoc.id;
   }
 
   String _gen6Digits() {

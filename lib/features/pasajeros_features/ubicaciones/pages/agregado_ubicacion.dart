@@ -24,6 +24,7 @@ import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
 
 import 'package:quimisol_movil/core/theme/palette.dart';
+import 'package:quimisol_movil/core/config/mapbox_config.dart';
 
 class AgregadoUbicacionPage extends StatefulWidget {
   final UbicDraft? initialUbicacion;
@@ -40,8 +41,7 @@ class AgregadoUbicacionPage extends StatefulWidget {
 }
 
 class _AgregadoUbicacionPageState extends State<AgregadoUbicacionPage> {
-  static const String _kMapboxToken =
-      'TOKEN_MAPBOX';
+  static const String _kMapboxToken = MapboxConfig.accessToken;
 
   String get _mapboxToken => _kMapboxToken;
 

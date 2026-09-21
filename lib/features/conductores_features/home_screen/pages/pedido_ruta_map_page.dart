@@ -12,6 +12,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart' as mb;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:quimisol_movil/core/config/mapbox_config.dart';
 
 import 'package:quimisol_movil/core/theme/palette.dart';
 import 'package:quimisol_movil/features/conductores_features/home_screen/services/repartidor_servicio_localizacion.dart';
@@ -31,8 +32,7 @@ class PedidoRutaMapPage extends StatefulWidget {
 }
 
 class _PedidoRutaMapPageState extends State<PedidoRutaMapPage> {
-  static const String _mapboxToken =
-      'TOKEN_MAPBOX';
+  static const String _mapboxToken = MapboxConfig.accessToken;
   static const String _styleUri = "mapbox://styles/mapbox/streets-v12";
   static const String _prefSkipStartConfirm = 'skip_start_pedido_confirm';
 
@@ -69,6 +69,8 @@ class _PedidoRutaMapPageState extends State<PedidoRutaMapPage> {
   String? _pedidoDireccion;
   String? _pedidoEstado;
   String? _pedidoEstadoPago;
+  String? _tipoPago;
+  String? _clienteUid;
   double? _pedidoMontoTotal;
 
   List<Map<String, dynamic>> _pedidoItems = [];
@@ -77,6 +79,7 @@ class _PedidoRutaMapPageState extends State<PedidoRutaMapPage> {
   String? _error;
 
   bool _changingEstado = false;
+  bool _marcandoPagado = false;
   bool _fetchingRoute = false;
   bool _skipStartConfirm = false;
 
@@ -332,6 +335,17 @@ class _PedidoRutaMapPageState extends State<PedidoRutaMapPage> {
           .toString()
           .trim();
       if (_pedidoEstadoPago!.isEmpty) _pedidoEstadoPago = null;
+
+      _tipoPago = (data['tipo_pago'] ?? data['tipoPago'] ?? data['metodoPago'] ?? '')
+          .toString()
+          .trim()
+          .toLowerCase();
+      if (_tipoPago!.isEmpty) _tipoPago = null;
+
+      _clienteUid = (data['uid'] ?? data['clienteUid'] ?? data['uidCliente'] ?? '')
+          .toString()
+          .trim();
+      if (_clienteUid!.isEmpty) _clienteUid = null;
 
       final totalRaw = data['total'];
       if (totalRaw is num) {
@@ -884,6 +898,51 @@ class _PedidoRutaMapPageState extends State<PedidoRutaMapPage> {
     }
   }
 
+  Future<void> _marcarComoPagado() async {
+    if (_marcandoPagado) return;
+    setState(() => _marcandoPagado = true);
+    try {
+      final batch = FirebaseFirestore.instance.batch();
+      final pedidoRef = FirebaseFirestore.instance
+          .collection('pedidos')
+          .doc(widget.pedidoId);
+      batch.update(pedidoRef, {
+        'estado_pago': 'pagado',
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      if (_clienteUid != null && _clienteUid!.isNotEmpty) {
+        final userPedidoRef = FirebaseFirestore.instance
+            .collection('usuarios')
+            .doc(_clienteUid)
+            .collection('pedidos')
+            .doc(widget.pedidoId);
+        batch.update(userPedidoRef, {
+          'estado_pago': 'pagado',
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      }
+      await batch.commit();
+      if (!mounted) return;
+      setState(() => _pedidoEstadoPago = 'pagado');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Pago marcado como recibido.'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error actualizando pago: $e'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _marcandoPagado = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final title = _pedidoCodigo != null ? 'Pedido $_pedidoCodigo' : 'Pedido';
@@ -924,9 +983,12 @@ class _PedidoRutaMapPageState extends State<PedidoRutaMapPage> {
                 pedidoDireccion: _pedidoDireccion,
                 estado: _pedidoEstado,
                 estadoPago: _pedidoEstadoPago,
+                tipoPago: _tipoPago,
                 montoTotal: _pedidoMontoTotal,
                 changingEstado: _changingEstado,
                 onToggleEstado: _toggleEstadoPedido,
+                marcandoPagado: _marcandoPagado,
+                onMarcarPagado: _marcarComoPagado,
                 distanciaKm: _ultimaDistanciaKm,
                 duracionMin: _ultimaDuracionMin,
                 items: _pedidoItems,
@@ -948,9 +1010,12 @@ class _BottomInfoPanel extends StatefulWidget {
   final String? pedidoDireccion;
   final String? estado;
   final String? estadoPago;
+  final String? tipoPago;
   final double? montoTotal;
   final bool changingEstado;
   final VoidCallback onToggleEstado;
+  final bool marcandoPagado;
+  final VoidCallback onMarcarPagado;
   final double? distanciaKm;
   final double? duracionMin;
   final List<Map<String, dynamic>> items;
@@ -964,9 +1029,12 @@ class _BottomInfoPanel extends StatefulWidget {
     required this.pedidoDireccion,
     required this.estado,
     required this.estadoPago,
+    required this.tipoPago,
     required this.montoTotal,
     required this.changingEstado,
     required this.onToggleEstado,
+    required this.marcandoPagado,
+    required this.onMarcarPagado,
     required this.distanciaKm,
     required this.duracionMin,
     required this.items,
@@ -1229,16 +1297,7 @@ class _BottomInfoPanelState extends State<_BottomInfoPanel> {
                   ),
                 ],
               ),
-              if (firstItem != null) ...[
-                const SizedBox(height: 12),
-                _PedidoMiniItemCard(
-                  name: _itemName(firstItem),
-                  imageUrl: _itemImage(firstItem),
-                  qty: _itemQty(firstItem),
-                  price: _itemPrice(firstItem),
-                ),
-              ],
-              if (hasMoreItems) ...[
+              if (hasMoreItems || firstItem != null) ...[
                 const SizedBox(height: 10),
                 InkWell(
                   onTap: () => setState(() => _showLista = !_showLista),

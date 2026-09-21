@@ -10,6 +10,7 @@ import 'package:quimisol_movil/core/theme/palette.dart';
 import 'package:quimisol_movil/features/pasajeros_features/homepage/pages/home_page_clientes.dart';
 import 'package:quimisol_movil/features/pasajeros_features/carrito/pages/carrito.dart';
 import 'package:quimisol_movil/features/pasajeros_features/carrito/pages/carrito_store.dart';
+import 'package:quimisol_movil/features/pasajeros_features/carrito/widgets/depto_conflicto_dialog.dart';
 import 'package:quimisol_movil/shared/stores/guest_store.dart';
 import 'package:quimisol_movil/shared/widgets/guest_lock_view.dart';
 
@@ -220,13 +221,32 @@ class _DetalleProductoPageState extends State<DetalleProductoPage> {
     setState(() => _adding = true);
 
     try {
-      await CartStore.I.addProductWithQty(
+      var res = await CartStore.I.addProductWithQty(
         productId: p.id,
         name: p.name,
         price: priceToUse,
         imageUrl: p.imageUrl,
         qty: qty,
       );
+
+      // El carrito ya tiene productos de otro departamento: preguntamos antes
+      // de vaciarlo, en vez de dejar armar un pedido imposible de entregar.
+      if (!res.agregado) {
+        if (!mounted) return;
+
+        final aceptado =
+            await confirmarCambioDeDepartamento(context, res.conflicto!);
+        if (!aceptado) return;
+
+        res = await CartStore.I.addProductWithQty(
+          productId: p.id,
+          name: p.name,
+          price: priceToUse,
+          imageUrl: p.imageUrl,
+          qty: qty,
+          vaciarCarrito: true,
+        );
+      }
 
       if (!mounted) return;
 

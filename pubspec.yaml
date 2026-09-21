@@ -52,7 +52,7 @@ dependencies:
   firebase_messaging: ^16.0.4
   cloud_functions: ^6.0.6
   flutter_local_notifications: ^19.5.0
-  font_awesome_flutter: ^10.12.0
+  font_awesome_flutter: ^11.0.0
   fl_chart: ^1.1.1
   image_picker_web: ^4.0.0
   flutter_localizations:

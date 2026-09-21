@@ -42,6 +42,7 @@ class _DetallePedidoPageState extends State<DetallePedidoPage> {
   bool _savingQr = false;
   bool _sharingQr = false;
   String? _qrImageUrl;
+  bool _cancelando = false;
 
   DocumentReference<Map<String, dynamic>> get _pedidoDoc =>
       _fire.collection('pedidos').doc(widget.pedidoId);
@@ -260,6 +261,77 @@ class _DetallePedidoPageState extends State<DetallePedidoPage> {
   }
 
   bool _isLoggedIn() => _auth.currentUser != null;
+
+  Future<void> _cancelarPedido({
+    required String pedidoId,
+    required String uidCliente,
+  }) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Cancelar pedido'),
+        content: const Text(
+          '¿Estás seguro de que deseas cancelar este pedido? Esta acción no se puede deshacer.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('No, mantener'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(
+              'Sí, cancelar',
+              style: TextStyle(color: Palette.statsDanger),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true || !mounted) return;
+
+    setState(() => _cancelando = true);
+
+    try {
+      final batch = _fire.batch();
+
+      final pedidoRef = _fire.collection('pedidos').doc(pedidoId);
+      batch.set(pedidoRef, {
+        'estado': 'Cancelado',
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      if (uidCliente.isNotEmpty) {
+        final userPedidoRef = _fire
+            .collection('usuarios')
+            .doc(uidCliente)
+            .collection('pedidos')
+            .doc(pedidoId);
+        batch.set(userPedidoRef, {
+          'estado': 'Cancelado',
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+      }
+
+      await batch.commit();
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Tu pedido ha sido cancelado.'),
+          backgroundColor: Palette.statsDanger,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error al cancelar el pedido: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _cancelando = false);
+    }
+  }
 
   Future<void> _loadQrConfig() async {
     try {
@@ -681,6 +753,9 @@ class _DetallePedidoPageState extends State<DetallePedidoPage> {
                             estadoPago.trim().toLowerCase() == 'rechazado';
                         final esEfectivo =
                             tipoPago.trim().toLowerCase().contains('efect');
+
+                        final uidCliente =
+                            _asString(data['uid']).trim();
 
                         final itemsRaw = data['items'];
                         final items = <Map<String, dynamic>>[];
@@ -1326,6 +1401,50 @@ class _DetallePedidoPageState extends State<DetallePedidoPage> {
                                         ),
                                       );
                                     }),
+                                  if (step == _TrackStep.pendiente &&
+                                      esEfectivo) ...[
+                                    const SizedBox(height: 6),
+                                    SizedBox(
+                                      width: double.infinity,
+                                      height: 50,
+                                      child: OutlinedButton.icon(
+                                        onPressed: _cancelando
+                                            ? null
+                                            : () => _cancelarPedido(
+                                                  pedidoId: widget.pedidoId,
+                                                  uidCliente: uidCliente,
+                                                ),
+                                        icon: _cancelando
+                                            ? const SizedBox(
+                                                width: 16,
+                                                height: 16,
+                                                child:
+                                                    CircularProgressIndicator(
+                                                  strokeWidth: 2,
+                                                  color: Palette.statsDanger,
+                                                ),
+                                              )
+                                            : const Icon(
+                                                Icons.cancel_outlined,
+                                              ),
+                                        label: Text(
+                                          _cancelando
+                                              ? 'Cancelando...'
+                                              : 'Cancelar pedido',
+                                        ),
+                                        style: OutlinedButton.styleFrom(
+                                          foregroundColor: Palette.statsDanger,
+                                          side: BorderSide(
+                                            color: Palette.statsDanger,
+                                          ),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(16),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ],
                               ),
                             ),

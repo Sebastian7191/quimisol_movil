@@ -1,5 +1,3 @@
-// lib/features/pasajeros_features/pedidos/widgets/review_productos_sheet.dart
-
 import 'package:flutter/material.dart';
 import 'package:quimisol_movil/core/theme/palette.dart';
 import 'package:quimisol_movil/features/pasajeros_features/pedidos/widgets/rating_stars.dart';
@@ -73,15 +71,38 @@ class _ReviewProductosSheetState extends State<ReviewProductosSheet> {
         ),
         child: Column(
           children: [
-            Container(
-              width: 54,
-              height: 6,
-              decoration: BoxDecoration(
-                color: Palette.ink.withOpacity(0.14),
-                borderRadius: BorderRadius.circular(999),
-              ),
+            // Drag handle + X
+            Row(
+              children: [
+                const SizedBox(width: 40),
+                Expanded(
+                  child: Center(
+                    child: Container(
+                      width: 54,
+                      height: 6,
+                      decoration: BoxDecoration(
+                        color: Palette.ink.withValues(alpha: 0.14),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                    ),
+                  ),
+                ),
+                SizedBox(
+                  width: 40,
+                  child: IconButton(
+                    icon: Icon(
+                      Icons.close_rounded,
+                      color: Palette.ink.withValues(alpha: 0.45),
+                      size: 22,
+                    ),
+                    onPressed: () => Navigator.pop(context, null),
+                    padding: EdgeInsets.zero,
+                    visualDensity: VisualDensity.compact,
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 18),
+            const SizedBox(height: 12),
             Text(
               'Califica tus productos',
               style: TextStyle(
@@ -95,7 +116,7 @@ class _ReviewProductosSheetState extends State<ReviewProductosSheet> {
               'Cuéntanos qué tal te parecieron los productos que compraste.',
               textAlign: TextAlign.center,
               style: TextStyle(
-                color: Palette.ink.withOpacity(0.72),
+                color: Palette.ink.withValues(alpha: 0.72),
                 fontWeight: FontWeight.w700,
                 fontSize: 15,
               ),
@@ -117,11 +138,11 @@ class _ReviewProductosSheetState extends State<ReviewProductosSheet> {
                       color: Palette.white,
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(
-                        color: Palette.primary.withOpacity(0.08),
+                        color: Palette.primary.withValues(alpha: 0.08),
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.04),
+                          color: Colors.black.withValues(alpha: 0.04),
                           blurRadius: 14,
                           offset: const Offset(0, 8),
                         ),
@@ -153,7 +174,7 @@ class _ReviewProductosSheetState extends State<ReviewProductosSheet> {
                                   Text(
                                     'Cantidad comprada: $qty',
                                     style: TextStyle(
-                                      color: Palette.ink.withOpacity(0.65),
+                                      color: Palette.ink.withValues(alpha: 0.65),
                                       fontWeight: FontWeight.w700,
                                       fontSize: 12.5,
                                     ),
@@ -186,13 +207,13 @@ class _ReviewProductosSheetState extends State<ReviewProductosSheet> {
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(14),
                               borderSide: BorderSide(
-                                color: Palette.primary.withOpacity(0.10),
+                                color: Palette.primary.withValues(alpha: 0.10),
                               ),
                             ),
                             enabledBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(14),
                               borderSide: BorderSide(
-                                color: Palette.primary.withOpacity(0.10),
+                                color: Palette.primary.withValues(alpha: 0.10),
                               ),
                             ),
                             focusedBorder: OutlineInputBorder(
@@ -250,17 +271,13 @@ class _ReviewProductosSheetState extends State<ReviewProductosSheet> {
 class _ProductoThumb extends StatelessWidget {
   final String imageUrl;
 
-  const _ProductoThumb({
-    required this.imageUrl,
-  });
+  const _ProductoThumb({required this.imageUrl});
 
   @override
   Widget build(BuildContext context) {
     final hasImage = imageUrl.isNotEmpty;
 
-    if (!hasImage) {
-      return _placeholder();
-    }
+    if (!hasImage) return _placeholder();
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(14),
@@ -300,14 +317,12 @@ class _ProductoThumb extends StatelessWidget {
       decoration: BoxDecoration(
         color: Palette.fieldBg,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: Palette.primary.withOpacity(0.08),
-        ),
+        border: Border.all(color: Palette.primary.withValues(alpha: 0.08)),
       ),
       alignment: Alignment.center,
       child: Icon(
         Icons.inventory_2_outlined,
-        color: Palette.primary.withOpacity(0.75),
+        color: Palette.primary.withValues(alpha: 0.75),
         size: 28,
       ),
     );

@@ -561,8 +561,8 @@ exports.notificarCambioEstadoPago = onDocumentUpdated(
         return;
       }
 
-      if (estadoPagoDespues !== "rechazado" && estadoPagoDespues !== "pagado") {
-        logger.info("Cambio de estado_pago no requiere push", {
+      if (estadoPagoDespues !== "pagado") {
+        logger.info("Cambio de estado_pago no requiere push en esta función", {
           pedidoId,
           estadoPagoAntes,
           estadoPagoDespues,
@@ -596,25 +596,11 @@ exports.notificarCambioEstadoPago = onDocumentUpdated(
           "",
       ).trim();
 
-      let title = "";
-      let body = "";
-      let type = "";
-
-      if (estadoPagoDespues === "rechazado") {
-        title = "Pago rechazado";
-        body = codigoPedido
-          ? `El pedido ${codigoPedido} fue rechazado en la forma de pago. Toca aquí para más detalles.`
-          : "Tu forma de pago fue rechazada. Toca aquí para más detalles.";
-        type = "pedido_pago_rechazado";
-      }
-
-      if (estadoPagoDespues === "pagado") {
-        title = "Pago aceptado";
-        body = codigoPedido
-          ? `Tu pedido ${codigoPedido} fue aceptado. Toca aquí para ver los detalles.`
-          : "Tu pedido fue aceptado. Toca aquí para ver los detalles.";
-        type = "pedido_pago_aceptado";
-      }
+      const title = "Pago aceptado";
+      const body = codigoPedido
+        ? `Tu pedido ${codigoPedido} fue aceptado. Toca aquí para ver los detalles.`
+        : "Tu pedido fue aceptado. Toca aquí para ver los detalles.";
+      const type = "pedido_pago_aceptado";
 
       await sendPushToUserByUid({
         uidDestino: uidCliente,
@@ -1224,6 +1210,164 @@ exports.recordatorioCarritoAbandonado = onSchedule(
 );
 
 /* =========================================================
+ * 11) NOTIFICAR AL CLIENTE CUANDO SU PEDIDO ESTÁ EN CAMINO
+ * Trigger: pedidos/{pedidoId} — cuando estado cambia a "En curso"
+ * =======================================================*/
+
+exports.notificarPedidoEnCamino = onDocumentUpdated(
+  {
+    document: "pedidos/{pedidoId}",
+    region: "us-central1",
+  },
+  async (event) => {
+    try {
+      const beforeSnap = event.data?.before;
+      const afterSnap = event.data?.after;
+
+      if (!beforeSnap || !afterSnap) return;
+
+      const beforeData = beforeSnap.data() || {};
+      const afterData = afterSnap.data() || {};
+      const pedidoId = event.params.pedidoId;
+
+      const estadoAntes = norm(beforeData.estado);
+      const estadoDespues = norm(afterData.estado);
+
+      const estadosEnCamino = ["en_curso", "en curso", "encurso", "en_camino", "en camino"];
+
+      if (estadosEnCamino.includes(estadoAntes) || !estadosEnCamino.includes(estadoDespues)) {
+        return;
+      }
+
+      const uidCliente = String(
+        afterData.uid ||
+          afterData.clienteUid ||
+          afterData.userUid ||
+          afterData.usuarioUid ||
+          afterData.uidCliente ||
+          afterData.createdBy ||
+          "",
+      ).trim();
+
+      if (!uidCliente) {
+        logger.warn("notificarPedidoEnCamino: pedido sin uid del cliente", { pedidoId });
+        return;
+      }
+
+      const codigoPedido = String(afterData.codigo || afterData.codigoPedido || "").trim();
+      const repartidor = String(
+        afterData.repartidorNombre || afterData.nombreRepartidor || afterData.repartidorName || "",
+      ).trim();
+
+      await sendPushToUserByUid({
+        uidDestino: uidCliente,
+        title: "¡Tu pedido está en camino! 🚚",
+        body: codigoPedido
+          ? (repartidor
+              ? `Tu pedido #${codigoPedido} está en camino con ${repartidor}. Prepárate para recibirlo.`
+              : `Tu pedido #${codigoPedido} está en camino. Prepárate para recibirlo.`)
+          : "Tu pedido está en camino. Prepárate para recibirlo.",
+        data: {
+          type: "pedido_en_camino",
+          pedidoId,
+          codigo: codigoPedido,
+          estado: "En curso",
+          target: "detalle_pedido",
+        },
+        androidChannelId: "orders_channel",
+        logContext: {
+          trigger: "notificarPedidoEnCamino",
+          pedidoId,
+          uidCliente,
+          codigoPedido,
+          estadoAntes,
+        },
+      });
+
+      logger.info("Push de pedido en camino enviada", { pedidoId, uidCliente, codigoPedido });
+    } catch (error) {
+      logger.error("Error en notificarPedidoEnCamino", error);
+    }
+  },
+);
+
+/* =========================================================
+ * 11) NOTIFICAR AL CLIENTE CUANDO SU COMPROBANTE ES RECHAZADO
+ * Trigger: pedidos/{pedidoId} — cuando estado_pago cambia a "rechazado"
+ * =======================================================*/
+
+exports.notificarPagoRechazado = onDocumentUpdated(
+  {
+    document: "pedidos/{pedidoId}",
+    region: "us-central1",
+  },
+  async (event) => {
+    try {
+      const beforeSnap = event.data?.before;
+      const afterSnap = event.data?.after;
+
+      if (!beforeSnap || !afterSnap) return;
+
+      const beforeData = beforeSnap.data() || {};
+      const afterData = afterSnap.data() || {};
+      const pedidoId = event.params.pedidoId;
+
+      const estadoPagoAntes = norm(beforeData.estado_pago || beforeData.estadoPago);
+      const estadoPagoDespues = norm(afterData.estado_pago || afterData.estadoPago);
+
+      // Solo actuar cuando cambia A "rechazado" (no si ya estaba rechazado)
+      if (estadoPagoAntes === "rechazado" || estadoPagoDespues !== "rechazado") {
+        return;
+      }
+
+      const uidCliente = String(
+        afterData.uid ||
+          afterData.clienteUid ||
+          afterData.userUid ||
+          afterData.usuarioUid ||
+          afterData.uidCliente ||
+          afterData.createdBy ||
+          "",
+      ).trim();
+
+      if (!uidCliente) {
+        logger.warn("notificarPagoRechazado: pedido sin uid del cliente", { pedidoId });
+        return;
+      }
+
+      const codigoPedido = String(afterData.codigo || afterData.codigoPedido || "").trim();
+
+      await sendPushToUserByUid({
+        uidDestino: uidCliente,
+        title: "Comprobante de pago rechazado",
+        body: codigoPedido
+          ? `El comprobante del pedido #${codigoPedido} fue rechazado. Por favor, sube un nuevo comprobante.`
+          : "Tu comprobante de pago fue rechazado. Por favor, sube uno nuevo para continuar con tu pedido.",
+        data: {
+          type: "pedido_pago_rechazado",
+          pedidoId,
+          codigo: codigoPedido,
+          estadoPago: "rechazado",
+          target: "detalle_pedido",
+        },
+        androidChannelId: "orders_channel",
+        logContext: {
+          trigger: "notificarPagoRechazado",
+          pedidoId,
+          uidCliente,
+          codigoPedido,
+          estadoPagoAntes,
+        },
+      });
+
+      logger.info("Push de pago rechazado enviada", { pedidoId, uidCliente, codigoPedido });
+    } catch (error) {
+      logger.error("Error en notificarPagoRechazado", error);
+    }
+  },
+);
+
+/* =========================================================
  * RECUPERACIÓN DE CONTRASEÑA
  *
  * Configura el correo remitente con variables de entorno:
@@ -1464,3 +1608,223 @@ exports.verificarYResetear = onCall(
     return { success: true };
   },
 );
+
+/* =========================================================
+ * 8) CREAR PEDIDO (checkout atómico)
+ * Callable: crearPedido({ ubicacion, tipoPago, estadoPago,
+ *   comprobanteUrl, comprobanteNombre, qrImageUrl, qrDescargaUrl,
+ *   observacionPago })
+ *
+ * Valida y descuenta el stock de cada producto del carrito y crea
+ * el pedido dentro de una sola transacción de Firestore. Esto evita
+ * que dos usuarios compren la última unidad de un producto a la vez:
+ * Firestore usa optimistic concurrency, así que si dos transacciones
+ * leen el mismo doc de producto, solo la primera en hacer commit gana;
+ * la otra se reintenta automáticamente, relee el stock ya actualizado
+ * y falla la validación antes de escribir nada.
+ * =======================================================*/
+/**
+ * Normaliza un departamento para compararlo: sin espacios extra, en
+ * minusculas y sin tildes, porque los nombres se cargan a mano desde el
+ * panel admin y pueden venir con o sin acento ("Potosi" / "Potosí").
+ *
+ * @param {string} v Nombre del departamento.
+ * @return {string} Nombre normalizado.
+ */
+function normalizaDepto(v) {
+  return String(v || "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ");
+}
+
+exports.crearPedido = onCall({ region: "us-central1" }, async (request) => {
+  const uid = request.auth?.uid;
+  if (!uid) {
+    throw new HttpsError("unauthenticated", "Debes iniciar sesión");
+  }
+
+  const data = request.data || {};
+  const ubicacion = data.ubicacion;
+  if (!ubicacion || !ubicacion.departamento || !ubicacion.direccion) {
+    throw new HttpsError("invalid-argument", "Ubicación de entrega inválida");
+  }
+
+  const tipoPago = String(data.tipoPago || "efectivo");
+  const estadoPago = String(data.estadoPago || "pendiente");
+  const comprobanteUrl = data.comprobanteUrl || null;
+  const comprobanteNombre = data.comprobanteNombre || null;
+  const qrImageUrl = data.qrImageUrl || null;
+  const qrDescargaUrl = data.qrDescargaUrl || null;
+  const observacionPago = data.observacionPago || null;
+
+  const db = admin.firestore();
+  const cartCollRef = db.collection("usuarios").doc(uid).collection("carrito");
+  const pedidoDoc = db.collection("pedidos").doc();
+  const userIndexDoc = db
+    .collection("usuarios")
+    .doc(uid)
+    .collection("pedidos")
+    .doc(pedidoDoc.id);
+
+  const code = String(Math.floor(100000 + Math.random() * 900000));
+
+  const result = await db.runTransaction(async (tx) => {
+    const cartSnap = await tx.get(cartCollRef);
+    if (cartSnap.empty) {
+      throw new HttpsError("failed-precondition", "El carrito está vacío");
+    }
+
+    const productRefs = cartSnap.docs.map((d) =>
+      db.collection("productos").doc(d.id),
+    );
+    const productSnaps = await Promise.all(
+      productRefs.map((ref) => tx.get(ref)),
+    );
+
+    const items = [];
+    let totalProductos = 0;
+
+    for (let i = 0; i < cartSnap.docs.length; i++) {
+      const cartData = cartSnap.docs[i].data() || {};
+      const productSnap = productSnaps[i];
+
+      const name = String(cartData.name || "");
+      const price =
+        typeof cartData.price === "number"
+          ? cartData.price
+          : Number(cartData.price) || 0;
+      const qty =
+        typeof cartData.qty === "number" && cartData.qty > 0
+          ? cartData.qty
+          : Number(cartData.qty) || 1;
+      const imageUrl = String(cartData.imageUrl || "");
+
+      if (!productSnap.exists) {
+        throw new HttpsError(
+          "failed-precondition",
+          `"${name}" ya no está disponible`,
+        );
+      }
+
+      const stock = Number(productSnap.data().stock ?? 0);
+      if (stock < qty) {
+        throw new HttpsError(
+          "failed-precondition",
+          stock <= 0
+            ? `"${name}" se quedó sin stock`
+            : `Solo quedan ${stock} unidad${stock === 1 ? "" : "es"} de "${name}"`,
+        );
+      }
+
+      items.push({
+        productId: cartSnap.docs[i].id,
+        name,
+        price,
+        qty,
+        imageUrl,
+        subtotal: price * qty,
+      });
+      totalProductos += price * qty;
+    }
+
+    // Un pedido se despacha desde un solo almacen, asi que todos los
+    // productos del carrito tienen que pertenecer al mismo departamento.
+    // Se valida aqui (y no solo en la app) porque es la unica capa que el
+    // cliente no puede saltarse.
+    const almacenIds = [
+      ...new Set(
+        productSnaps
+          .map((snap) => String(snap.data().almacenId || "").trim())
+          .filter((id) => id !== ""),
+      ),
+    ];
+
+    const almacenSnaps = await Promise.all(
+      almacenIds.map((id) => tx.get(db.collection("almacenes").doc(id))),
+    );
+
+    // Se deduplica por nombre normalizado (no por texto exacto) para que
+    // "Potosi" y "Potosí" no cuenten como dos departamentos distintos.
+    const deptosPorClave = new Map();
+    for (const snap of almacenSnaps) {
+      if (!snap.exists) continue;
+
+      const dep = String(snap.data().departamento || "").trim();
+      if (dep === "") continue;
+
+      const clave = normalizaDepto(dep);
+      if (!deptosPorClave.has(clave)) deptosPorClave.set(clave, dep);
+    }
+
+    const deptosAlmacen = [...deptosPorClave.values()];
+
+    if (deptosAlmacen.length > 1) {
+      throw new HttpsError(
+        "failed-precondition",
+        `No se puede combinar productos de ${deptosAlmacen.join(" y ")} ` +
+          "en un mismo pedido. Deja solo los productos de un departamento.",
+      );
+    }
+
+    if (
+      deptosAlmacen.length === 1 &&
+      normalizaDepto(deptosAlmacen[0]) !== normalizaDepto(ubicacion.departamento)
+    ) {
+      throw new HttpsError(
+        "failed-precondition",
+        `La dirección de entrega debe estar en ${deptosAlmacen[0]}, ` +
+          "que es el departamento del almacén de estos productos.",
+      );
+    }
+
+    const costoEnvio = 0.0;
+    const totalFinal = totalProductos + costoEnvio;
+
+    const payloadBase = {
+      codigo: code,
+      estado: "pendiente",
+      tipo_pago: tipoPago,
+      estado_pago: estadoPago,
+      departamento: ubicacion.departamento,
+      direccion: ubicacion.direccion,
+      total: totalFinal,
+      subtotal: totalProductos,
+      costo_envio: costoEnvio,
+      fecha_entrega: null,
+      conteoItems: items.length,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      uid,
+      comprobante_url: comprobanteUrl,
+      comprobante_nombre: comprobanteNombre,
+      qr_image_url: qrImageUrl,
+      observacion_pago: observacionPago,
+    };
+
+    for (let i = 0; i < productRefs.length; i++) {
+      tx.update(productRefs[i], {
+        stock: admin.firestore.FieldValue.increment(-items[i].qty),
+      });
+    }
+
+    tx.set(pedidoDoc, {
+      ...payloadBase,
+      items,
+      ubicacion,
+      qr_descarga_url: qrDescargaUrl,
+    });
+    tx.set(userIndexDoc, payloadBase);
+
+    for (const d of cartSnap.docs) {
+      tx.delete(d.ref);
+    }
+
+    return { pedidoId: pedidoDoc.id, code };
+  });
+
+  logger.info("Pedido creado", { pedidoId: result.pedidoId, uid });
+  return result;
+});

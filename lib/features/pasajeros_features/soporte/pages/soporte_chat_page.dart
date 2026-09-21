@@ -11,6 +11,13 @@ import 'package:quimisol_movil/core/services/notifications/fcm_token_service.dar
 import 'package:quimisol_movil/core/theme/palette.dart';
 
 class SoporteChatPage extends StatefulWidget {
+  /// true mientras el selector de emojis esta abierto.
+  ///
+  /// El navbar lo consulta para que "atras" solo cierre el selector en vez de
+  /// ademas cambiar de pestaña: esta pantalla vive dentro de un IndexedStack,
+  /// asi que los dos PopScope reciben el mismo evento.
+  static bool selectorEmojisAbierto = false;
+
   const SoporteChatPage({super.key});
 
   @override
@@ -104,7 +111,7 @@ class _SoporteChatPageState extends State<SoporteChatPage>
 
     _inputFocus.addListener(() {
       if (_inputFocus.hasFocus && _showEmojiPicker) {
-        setState(() => _showEmojiPicker = false);
+        _setEmojiPicker(false);
       }
     });
 
@@ -116,6 +123,7 @@ class _SoporteChatPageState extends State<SoporteChatPage>
     WidgetsBinding.instance.removeObserver(this);
     _messagesSub?.cancel();
     _setClientChatPresence(false);
+    SoporteChatPage.selectorEmojisAbierto = false;
 
     _messageCtrl.dispose();
     _scrollCtrl.dispose();
@@ -483,6 +491,14 @@ class _SoporteChatPageState extends State<SoporteChatPage>
     }
   }
 
+  /// Unico punto que cambia el estado del selector, para que el flag estatico
+  /// no se desincronice.
+  void _setEmojiPicker(bool visible) {
+    if (_showEmojiPicker == visible) return;
+    setState(() => _showEmojiPicker = visible);
+    SoporteChatPage.selectorEmojisAbierto = visible;
+  }
+
   void _toggleEmojiPicker() {
     final canUse =
         _chatStatus == 'pending' || _chatStatus == 'in_progress';
@@ -490,11 +506,11 @@ class _SoporteChatPageState extends State<SoporteChatPage>
     if (!canUse) return;
 
     if (_showEmojiPicker) {
-      setState(() => _showEmojiPicker = false);
+      _setEmojiPicker(false);
       _inputFocus.requestFocus();
     } else {
       _inputFocus.unfocus();
-      setState(() => _showEmojiPicker = true);
+      _setEmojiPicker(true);
     }
   }
 
@@ -883,13 +899,12 @@ class _SoporteChatPageState extends State<SoporteChatPage>
 
   @override
   Widget build(BuildContext context) {
-    return WillPopScope(
-      onWillPop: () async {
-        if (_showEmojiPicker) {
-          setState(() => _showEmojiPicker = false);
-          return false;
-        }
-        return true;
+    return PopScope(
+      // Con el selector abierto, "atras" solo lo cierra.
+      canPop: !_showEmojiPicker,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        if (_showEmojiPicker) _setEmojiPicker(false);
       },
       child: Scaffold(
         backgroundColor: Palette.fieldBg,
@@ -1160,9 +1175,7 @@ class _SoporteChatPageState extends State<SoporteChatPage>
                                           onChanged: _handleTyping,
                                           onTap: () {
                                             if (_showEmojiPicker) {
-                                              setState(
-                                                () => _showEmojiPicker = false,
-                                              );
+                                              _setEmojiPicker(false);
                                             }
                                           },
                                           onSubmitted: (_) => _sendMessage(),

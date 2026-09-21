@@ -6,6 +6,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:quimisol_movil/core/theme/palette.dart';
 import 'package:quimisol_movil/features/pasajeros_features/carrito/pages/carrito.dart';
+import 'package:quimisol_movil/features/pasajeros_features/carrito/widgets/depto_conflicto_dialog.dart';
 import 'package:quimisol_movil/features/pasajeros_features/carrito/pages/carrito_store.dart';
 
 import 'wishlist_store.dart';
@@ -64,8 +65,8 @@ class _WishlistPageState extends State<WishlistPage> {
     _store.remove(item.id);
   }
 
-  // ✅ mantiene tu lógica (addFromWishlist) pero respeta descuento
-  Future<void> _moveToCart(WishItem item, double priceToUse) async {
+  // ✅ agrega al carrito respetando el descuento, sin sacarlo de favoritos
+  Future<void> _addToCart(WishItem item, double priceToUse) async {
     final fixed = WishItem(
       id: item.id,
       name: item.name,
@@ -75,7 +76,27 @@ class _WishlistPageState extends State<WishlistPage> {
       imageUrl: item.imageUrl,
     );
 
-    await _cart.addFromWishlist(fixed);
+    final res = await _cart.addFromWishlist(fixed);
+
+    // Mismo criterio que en el detalle: un pedido sale de un solo
+    // departamento, asi que preguntamos antes de vaciar el carrito.
+    if (!res.agregado) {
+      if (!mounted) return;
+
+      final aceptado =
+          await confirmarCambioDeDepartamento(context, res.conflicto!);
+      if (!aceptado) return;
+
+      await _cart.addFromWishlist(fixed, vaciarCarrito: true);
+    }
+
+    if (!mounted) return;
+
+    // El producto sigue en favoritos, así que sin este aviso no se nota
+    // que pasó algo al tocar el botón.
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Agregado al carrito 🛒')),
+    );
     // ❌ no navegación automática
   }
 
@@ -226,9 +247,9 @@ class _WishlistPageState extends State<WishlistPage> {
                             cardBg: cardBg,
                             ink: ink,
                             onRemove: () => _removeAt(i),
-                            onMoveToCart: it.stock <= 0
+                            onAddToCart: it.stock <= 0
                                 ? null
-                                : (priceToUse) => _moveToCart(it, priceToUse),
+                                : (priceToUse) => _addToCart(it, priceToUse),
                           ),
                         );
                       },
@@ -293,7 +314,7 @@ class _WishCard extends StatelessWidget {
     required this.cardBg,
     required this.ink,
     required this.onRemove,
-    required this.onMoveToCart,
+    required this.onAddToCart,
   });
 
   final WishItem item;
@@ -302,7 +323,7 @@ class _WishCard extends StatelessWidget {
   final Color ink;
   final VoidCallback onRemove;
 
-  final Future<void> Function(double priceToUse)? onMoveToCart;
+  final Future<void> Function(double priceToUse)? onAddToCart;
 
   Stream<DocumentSnapshot<Map<String, dynamic>>> _descuentoStream(String id) {
     return FirebaseFirestore.instance
@@ -498,9 +519,9 @@ class _WishCard extends StatelessWidget {
                 height: 44,
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: (soldOut || onMoveToCart == null)
+                  onPressed: (soldOut || onAddToCart == null)
                       ? null
-                      : () => onMoveToCart!(priceToShow),
+                      : () => onAddToCart!(priceToShow),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: soldOut ? ink.withOpacity(0.10) : primary,
                     elevation: 0,
@@ -509,7 +530,7 @@ class _WishCard extends StatelessWidget {
                     ),
                   ),
                   child: Text(
-                    soldOut ? 'Agotado' : 'Mover al carrito',
+                    soldOut ? 'Agotado' : 'Agregar al carrito',
                     style: TextStyle(
                       color: soldOut ? ink.withOpacity(0.75) : Colors.white,
                       fontWeight: FontWeight.w900,

@@ -162,71 +162,52 @@ class _CarritoPageState extends State<CarritoPage> {
     if (mounted) setState(() => _loadingDeptos = true);
 
     try {
-      final productIds = _items.map((e) => e.id).toSet().toList();
+      // El store ya resuelve carrito -> productos/{id}.almacenId ->
+      // almacenes/{id}.departamento (con cache), asi que no lo repetimos aqui.
+      await _store.refreshCartDeptos();
+      final deps = _store.cartDeptos;
 
-      final productFutures = productIds.map((pid) async {
-        final doc = await _fire.collection('productos').doc(pid).get();
-        if (!doc.exists) return null;
-        final data = doc.data() as Map<String, dynamic>;
-        final almacenId = (data['almacenId'] ?? '').toString().trim();
-        if (almacenId.isEmpty) return null;
-        return almacenId;
-      }).toList();
+      if (!mounted) return;
 
-      final almacenIdsRaw = await Future.wait(productFutures);
-      final almacenIds = almacenIdsRaw.whereType<String>().toSet().toList();
+      setState(() {
+        _allowedDeptos = deps;
+        _loadingDeptos = false;
 
-      if (almacenIds.isEmpty) {
-        if (mounted) {
-          setState(() {
-            _allowedDeptos = {};
-            _loadingDeptos = false;
+        // ✅ importantísimo: solo cuando cambian deptos
+        _ubicStream = null;
+        _ubicStreamKey = '';
+      });
 
-            // ✅ reset stream cache
-            _ubicStream = null;
-            _ubicStreamKey = '';
-          });
-        }
-        return;
-      }
-
-      final depFutures = almacenIds.map((aid) async {
-        final doc = await _fire.collection('almacenes').doc(aid).get();
-        if (!doc.exists) return null;
-        final data = doc.data() as Map<String, dynamic>;
-        final dep = (data['departamento'] ?? '').toString().trim();
-        if (dep.isEmpty) return null;
-        return dep;
-      }).toList();
-
-      final depsRaw = await Future.wait(depFutures);
-      final deps = depsRaw.whereType<String>().toSet();
-
-      if (mounted) {
-        setState(() {
-          _allowedDeptos = deps;
-          _loadingDeptos = false;
-
-          // ✅ importantísimo: solo cuando cambian deptos
-          _ubicStream = null;
-          _ubicStreamKey = '';
-        });
-
-        if (_selectedUbic != null &&
-            !_allowedDeptos
-                .map(_norm)
-                .contains(_norm(_selectedUbic!.departamento))) {
-          _selectedUbic = null;
-        }
+      if (_selectedUbic != null &&
+          !_allowedDeptos
+              .map(_norm)
+              .contains(_norm(_selectedUbic!.departamento))) {
+        _selectedUbic = null;
       }
     } catch (_) {
       if (mounted) setState(() => _loadingDeptos = false);
     }
   }
 
-  Future<void> _payNow() async {
-    if (_uid.isEmpty) return;
-    if (_items.isEmpty) return;
+  /// El carrito quedó con productos de más de un departamento (datos viejos,
+  /// o el producto cambió de almacén después de agregarse). No se puede
+  /// entregar un pedido así, por eso se bloquea el pago hasta que se corrija.
+  bool get _deptosMezclados => _allowedDeptos.length > 1;
+
+  /// Devuelve true si se puede seguir al pago. Si no, ya mostró el aviso.
+  bool _validarAntesDePagar() {
+    if (_deptosMezclados) {
+      final lista = (_allowedDeptos.toList()..sort()).join(' y ');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Tu carrito tiene productos de $lista. Cada pedido se entrega '
+            'desde un solo departamento: deja solo los de uno para continuar.',
+          ),
+        ),
+      );
+      return false;
+    }
 
     if (_selectedUbic == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -234,7 +215,7 @@ class _CarritoPageState extends State<CarritoPage> {
           content: Text('Selecciona una ubicación para la entrega.'),
         ),
       );
-      return;
+      return false;
     }
 
     if (_allowedDeptos.isNotEmpty &&
@@ -248,8 +229,17 @@ class _CarritoPageState extends State<CarritoPage> {
           ),
         ),
       );
-      return;
+      return false;
     }
+
+    return true;
+  }
+
+  Future<void> _payNow() async {
+    if (_uid.isEmpty) return;
+    if (_items.isEmpty) return;
+
+    if (!_validarAntesDePagar()) return;
 
     setState(() => _paying = true);
 
@@ -281,28 +271,7 @@ class _CarritoPageState extends State<CarritoPage> {
     if (_uid.isEmpty) return;
     if (_items.isEmpty) return;
 
-    if (_selectedUbic == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Selecciona una ubicación para la entrega.'),
-        ),
-      );
-      return;
-    }
-
-    if (_allowedDeptos.isNotEmpty &&
-        !_allowedDeptos
-            .map(_norm)
-            .contains(_norm(_selectedUbic!.departamento))) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'La ubicación debe ser del mismo departamento del almacén.',
-          ),
-        ),
-      );
-      return;
-    }
+    if (!_validarAntesDePagar()) return;
 
     await Navigator.push(
       context,
@@ -429,6 +398,44 @@ class _CarritoPageState extends State<CarritoPage> {
                                 ),
                               ),
                             ],
+                          ),
+                        )
+                      else if (_deptosMezclados)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 10),
+                          child: Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFFF4E5),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: const Color(0xFFE39A2B).withOpacity(0.5),
+                              ),
+                            ),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Icon(
+                                  Icons.warning_amber_rounded,
+                                  color: Color(0xFFB26A00),
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Text(
+                                    'Tu carrito tiene productos de '
+                                    '${(_allowedDeptos.toList()..sort()).join(" y ")}. '
+                                    'Cada pedido se entrega desde un solo '
+                                    'departamento: deja solo los productos de '
+                                    'uno para poder continuar.',
+                                    style: const TextStyle(
+                                      color: Color(0xFFB26A00),
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         )
                       else if (_allowedDeptos.isNotEmpty)

@@ -9,6 +9,7 @@ import 'package:http/http.dart' as http;
 import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart' as mb;
 
 import 'package:quimisol_movil/core/theme/palette.dart';
+import 'package:quimisol_movil/core/config/mapbox_config.dart';
 
 class PedidoEnCursoPage extends StatefulWidget {
   final String pedidoId;
@@ -26,8 +27,7 @@ class PedidoEnCursoPage extends StatefulWidget {
 
 class _PedidoEnCursoPageState extends State<PedidoEnCursoPage> {
   // ✅ Token SOLO para Directions HTTP (el SDK del mapa ya está en main.dart)
-  static const String _mapboxToken =
-      'TOKEN_MAPBOX';
+  static const String _mapboxToken = MapboxConfig.accessToken;
 
   final http.Client _http = http.Client();
 

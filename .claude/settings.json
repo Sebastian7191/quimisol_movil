@@ -7,7 +7,11 @@
       "Bash(node -c index.js)",
       "Bash(npx --no-install eslint index.js)",
       "Bash(dart format *)",
-      "Bash(awk '{printf \"%6d KB  %s\\\\n\", $1/1024, $2}')"
+      "Bash(awk '{printf \"%6d KB  %s\\\\n\", $1/1024, $2}')",
+      "Bash(xargs grep -l \"FirebaseFirestore\\\\|collectionGroup\\\\|formulario_2\\\\|formulario_3\")",
+      "Bash(find \"c:/Users/SEBASTIAN-BUENO/Downloads/quimisol\" -name \"firebase.json\" 2>/dev/null | head -5)",
+      "Read(//c/Users/SEBASTIAN-BUENO/Downloads/quimisol/**)",
+      "Bash(npx eslint *)"
     ]
   }
 }

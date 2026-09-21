@@ -469,7 +469,10 @@ class _HomeClienteState extends State<HomeCliente> {
                   top: false,
                   bottom: false,
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
+                    padding: EdgeInsets.fromLTRB(
+                      18, 18, 18,
+                      MediaQuery.of(context).padding.bottom + 16,
+                    ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -717,7 +720,7 @@ class _HomeClienteState extends State<HomeCliente> {
                                         crossAxisCount: 2,
                                         crossAxisSpacing: 14,
                                         mainAxisSpacing: 14,
-                                        childAspectRatio: 0.60,
+                                        childAspectRatio: 0.50,
                                       ),
                                   itemBuilder: (_, i) {
                                     final prod = pageItems[i];
@@ -1675,7 +1678,7 @@ class _ProductCardState extends State<_ProductCard>
                     ClipRRect(
                       borderRadius: BorderRadius.circular(16),
                       child: AspectRatio(
-                        aspectRatio: 16 / 10,
+                        aspectRatio: 1 / 1,
                         child: Stack(
                           children: [
                             Positioned.fill(
@@ -1954,32 +1957,12 @@ class _PaginationBar extends StatelessWidget {
   final int pageSize;
   final ValueChanged<int> onChanged;
 
-  /// Devuelve los números de página visibles. Usa `-1` como marcador de "…".
-  /// Patrón: siempre primera, última y vecinos de la actual. Resto colapsa.
-  List<int> _visiblePages() {
-    if (totalPages <= 7) {
-      return List.generate(totalPages, (i) => i);
-    }
-
-    final pages = <int>{0, totalPages - 1, currentPage};
-    for (final offset in [-1, 1]) {
-      final p = currentPage + offset;
-      if (p > 0 && p < totalPages - 1) pages.add(p);
-    }
-
-    final sorted = pages.toList()..sort();
-    final result = <int>[];
-    for (int i = 0; i < sorted.length; i++) {
-      if (i > 0 && sorted[i] - sorted[i - 1] > 1) result.add(-1);
-      result.add(sorted[i]);
-    }
-    return result;
-  }
-
   @override
   Widget build(BuildContext context) {
     final from = currentPage * pageSize + 1;
     final to = math.min((currentPage + 1) * pageSize, totalItems);
+    final hasPrev = currentPage > 0;
+    final hasNext = currentPage < totalPages - 1;
 
     return Column(
       children: [
@@ -1988,43 +1971,68 @@ class _PaginationBar extends StatelessWidget {
           style: TextStyle(
             fontSize: 12.5,
             fontWeight: FontWeight.w700,
-            color: Palette.ink.withOpacity(0.55),
+            color: Palette.ink.withValues(alpha: 0.55),
           ),
         ),
-        const SizedBox(height: 10),
-        Wrap(
-          alignment: WrapAlignment.center,
-          crossAxisAlignment: WrapCrossAlignment.center,
-          spacing: 6,
-          runSpacing: 6,
+        const SizedBox(height: 14),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            _PageArrow(
+            _PillNavButton(
+              label: 'Anterior',
               icon: Icons.chevron_left_rounded,
-              enabled: currentPage > 0,
+              iconLeading: true,
+              enabled: hasPrev,
               onTap: () => onChanged(currentPage - 1),
             ),
-            ..._visiblePages().map((p) {
-              if (p == -1) {
-                return const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 4),
-                  child: Text(
-                    '…',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w900,
-                      color: Palette.ink,
+            // Dots: tap para ir directo a esa página
+            if (totalPages <= 8)
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: List.generate(totalPages, (i) {
+                  final active = i == currentPage;
+                  return GestureDetector(
+                    onTap: () => onChanged(i),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 220),
+                      curve: Curves.easeOut,
+                      margin: const EdgeInsets.symmetric(horizontal: 3),
+                      height: 8,
+                      width: active ? 22 : 8,
+                      decoration: BoxDecoration(
+                        color: active
+                            ? Palette.button
+                            : Palette.ink.withValues(alpha: 0.18),
+                        borderRadius: BorderRadius.circular(99),
+                      ),
                     ),
+                  );
+                }),
+              )
+            else
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                decoration: BoxDecoration(
+                  color: Palette.white,
+                  borderRadius: BorderRadius.circular(99),
+                  border: Border.all(
+                    color: Palette.ink.withValues(alpha: 0.10),
                   ),
-                );
-              }
-              return _PageNumber(
-                page: p + 1,
-                selected: p == currentPage,
-                onTap: () => onChanged(p),
-              );
-            }),
-            _PageArrow(
+                ),
+                child: Text(
+                  '${currentPage + 1} / $totalPages',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w900,
+                    fontSize: 13,
+                    color: Palette.ink,
+                  ),
+                ),
+              ),
+            _PillNavButton(
+              label: 'Siguiente',
               icon: Icons.chevron_right_rounded,
-              enabled: currentPage < totalPages - 1,
+              iconLeading: false,
+              enabled: hasNext,
               onTap: () => onChanged(currentPage + 1),
             ),
           ],
@@ -2034,85 +2042,64 @@ class _PaginationBar extends StatelessWidget {
   }
 }
 
-class _PageNumber extends StatelessWidget {
-  const _PageNumber({
-    required this.page,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final int page;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(10),
-      child: Container(
-        height: 36,
-        constraints: const BoxConstraints(minWidth: 36),
-        padding: const EdgeInsets.symmetric(horizontal: 10),
-        decoration: BoxDecoration(
-          color: selected ? Palette.button : Palette.white,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: selected
-                ? Palette.button
-                : Palette.ink.withOpacity(0.12),
-          ),
-          boxShadow: selected
-              ? [
-                  BoxShadow(
-                    color: Palette.button.withOpacity(0.25),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ]
-              : null,
-        ),
-        alignment: Alignment.center,
-        child: Text(
-          '$page',
-          style: TextStyle(
-            fontWeight: FontWeight.w900,
-            fontSize: 13,
-            color: selected ? Palette.white : Palette.ink,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _PageArrow extends StatelessWidget {
-  const _PageArrow({
+class _PillNavButton extends StatelessWidget {
+  const _PillNavButton({
+    required this.label,
     required this.icon,
+    required this.iconLeading,
     required this.enabled,
     required this.onTap,
   });
 
+  final String label;
   final IconData icon;
+  final bool iconLeading;
   final bool enabled;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Opacity(
-      opacity: enabled ? 1.0 : 0.35,
+    final iconWidget = Icon(
+      icon,
+      size: 18,
+      color: enabled ? Palette.white : Palette.ink.withValues(alpha: 0.35),
+    );
+    final labelWidget = Text(
+      label,
+      style: TextStyle(
+        fontWeight: FontWeight.w800,
+        fontSize: 13,
+        color: enabled ? Palette.white : Palette.ink.withValues(alpha: 0.35),
+      ),
+    );
+
+    return AnimatedOpacity(
+      opacity: enabled ? 1.0 : 0.5,
+      duration: const Duration(milliseconds: 180),
       child: InkWell(
         onTap: enabled ? onTap : null,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(99),
         child: Container(
-          height: 36,
-          width: 36,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           decoration: BoxDecoration(
-            color: Palette.white,
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: Palette.ink.withOpacity(0.12)),
+            color: enabled ? Palette.button : Palette.ink.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(99),
+            boxShadow: enabled
+                ? [
+                    BoxShadow(
+                      color: Palette.button.withValues(alpha: 0.30),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ]
+                : null,
           ),
-          child: Icon(icon, color: Palette.ink, size: 20),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: iconLeading
+                ? [iconWidget, const SizedBox(width: 4), labelWidget]
+                : [labelWidget, const SizedBox(width: 4), iconWidget],
+          ),
         ),
       ),
     );

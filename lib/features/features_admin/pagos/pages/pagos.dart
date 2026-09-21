@@ -230,7 +230,7 @@ class _PagosPageState extends State<PagosPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Text(
-            'Imagen QR guardada correctamente en Storage y Firestore.',
+            'Imagen QR guardada correctamente.',
           ),
           backgroundColor: Colors.green.shade600,
         ),

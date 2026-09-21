@@ -1,7 +1,8 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:quimisol_movil/core/theme/palette.dart';
 
-class LaboratorioClienteDetalleParte3Page extends StatelessWidget {
+class LaboratorioClienteDetalleParte3Page extends StatefulWidget {
   final String laboratorioId;
   final Map<String, dynamic> laboratorioData;
   final String clienteNombre;
@@ -14,16 +15,44 @@ class LaboratorioClienteDetalleParte3Page extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
-    final encabezado = Map<String, dynamic>.from(
-      laboratorioData['encabezado'] ?? {},
-    );
-    final descripcionMuestras = Map<String, dynamic>.from(
-      laboratorioData['descripcionMuestras'] ?? {},
-    );
-    final muestras = (descripcionMuestras['muestras'] as List?) ?? [];
+  State<LaboratorioClienteDetalleParte3Page> createState() =>
+      _LaboratorioClienteDetalleParte3PageState();
+}
 
-    final codigo = (encabezado['codigo'] ?? 'Sin código').toString();
+class _LaboratorioClienteDetalleParte3PageState
+    extends State<LaboratorioClienteDetalleParte3Page> {
+  late Future<List<dynamic>> _muestrasFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _muestrasFuture = _fetchMuestras();
+  }
+
+  Future<List<dynamic>> _fetchMuestras() async {
+    final doc = await FirebaseFirestore.instance
+        .collection('laboratorios')
+        .doc(widget.laboratorioId)
+        .collection('formulario_2')
+        .doc('data')
+        .get();
+
+    if (!doc.exists) return [];
+
+    final data = doc.data() ?? {};
+    final descripcionMuestras = Map<String, dynamic>.from(
+      data['descripcionMuestras'] ?? {},
+    );
+    return (descripcionMuestras['muestras'] as List?) ?? [];
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final parte2 = Map<String, dynamic>.from(
+      widget.laboratorioData['parte2InformacionMuestra'] ?? {},
+    );
+    final codigo =
+        (parte2['identificacionLaboratorio'] ?? 'Sin código').toString();
 
     return Scaffold(
       backgroundColor: const Color(0xFFF6F8FC),
@@ -42,59 +71,71 @@ class LaboratorioClienteDetalleParte3Page extends StatelessWidget {
           ),
         ),
       ),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
-        children: [
-          _Parte3Header(
-            clienteNombre: clienteNombre,
-            codigo: codigo,
-            totalMuestras: muestras.length,
-          ),
+      body: FutureBuilder<List<dynamic>>(
+        future: _muestrasFuture,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
 
-          const SizedBox(height: 16),
-          _SectionCard(
-            title: 'Descripción de las muestras',
-            subtitle:
-                'Consulta el detalle registrado para cada muestra del laboratorio.',
-            child: muestras.isEmpty
-                ? const _EmptyMuestrasState()
-                : Column(
-                    children: List.generate(muestras.length, (index) {
-                      final item = Map<String, dynamic>.from(muestras[index]);
+          final muestras = snapshot.data ?? [];
 
-                      final no = (item['no'] ?? index + 1).toString();
-                      final codigoMuestra = (item['codigoMuestra'] ?? '-')
-                          .toString();
-                      final tipoMuestra = (item['tipoMuestra'] ?? '-')
-                          .toString();
-                      final cantidad = (item['cantidad'] ?? '-').toString();
-                      final volumenPeso = (item['volumenPeso'] ?? '-')
-                          .toString();
-                      final tipoEnvase = (item['tipoEnvase'] ?? '-').toString();
-                      final descripcion = (item['descripcion'] ?? '-')
-                          .toString();
-                      final numeroLab = (item['numeroLaboratorio'] ?? '-')
-                          .toString();
+          return ListView(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 24),
+            children: [
+              _Parte3Header(
+                clienteNombre: widget.clienteNombre,
+                codigo: codigo,
+                totalMuestras: muestras.length,
+              ),
+              const SizedBox(height: 16),
+              _SectionCard(
+                title: 'Descripción de las muestras',
+                subtitle:
+                    'Consulta el detalle registrado para cada muestra del laboratorio.',
+                child: muestras.isEmpty
+                    ? const _EmptyMuestrasState()
+                    : Column(
+                        children: List.generate(muestras.length, (index) {
+                          final item =
+                              Map<String, dynamic>.from(muestras[index]);
 
-                      return Padding(
-                        padding: EdgeInsets.only(
-                          bottom: index == muestras.length - 1 ? 0 : 14,
-                        ),
-                        child: _MuestraCard(
-                          no: no,
-                          codigoMuestra: codigoMuestra,
-                          tipoMuestra: tipoMuestra,
-                          cantidad: cantidad,
-                          volumenPeso: volumenPeso,
-                          tipoEnvase: tipoEnvase,
-                          descripcion: descripcion,
-                          numeroLaboratorio: numeroLab,
-                        ),
-                      );
-                    }),
-                  ),
-          ),
-        ],
+                          final no = (item['no'] ?? index + 1).toString();
+                          final codigoMuestra =
+                              (item['codigoMuestra'] ?? '-').toString();
+                          final tipoMuestra =
+                              (item['tipoMuestra'] ?? '-').toString();
+                          final cantidad = (item['cantidad'] ?? '-').toString();
+                          final volumenPeso =
+                              (item['volumenPeso'] ?? '-').toString();
+                          final tipoEnvase =
+                              (item['tipoEnvase'] ?? '-').toString();
+                          final descripcion =
+                              (item['descripcion'] ?? '-').toString();
+                          final numeroLab =
+                              (item['numeroLaboratorio'] ?? '-').toString();
+
+                          return Padding(
+                            padding: EdgeInsets.only(
+                              bottom: index == muestras.length - 1 ? 0 : 14,
+                            ),
+                            child: _MuestraCard(
+                              no: no,
+                              codigoMuestra: codigoMuestra,
+                              tipoMuestra: tipoMuestra,
+                              cantidad: cantidad,
+                              volumenPeso: volumenPeso,
+                              tipoEnvase: tipoEnvase,
+                              descripcion: descripcion,
+                              numeroLaboratorio: numeroLab,
+                            ),
+                          );
+                        }),
+                      ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -196,79 +237,6 @@ class _Parte3Header extends StatelessWidget {
                 label: 'Solo lectura',
               ),
             ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _MiniStatCard extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String value;
-  final bool compactText;
-
-  const _MiniStatCard({
-    required this.icon,
-    required this.title,
-    required this.value,
-    this.compactText = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: Palette.primary.withValues(alpha: 0.08)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 14,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: Palette.button.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Icon(icon, color: Palette.primary, size: 22),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: TextStyle(
-                    color: Colors.black.withValues(alpha: 0.55),
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  value,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: Colors.black87,
-                    fontWeight: FontWeight.w900,
-                    fontSize: compactText ? 13 : 18,
-                  ),
-                ),
-              ],
-            ),
           ),
         ],
       ),

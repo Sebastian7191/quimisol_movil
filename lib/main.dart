@@ -13,6 +13,7 @@ import 'package:intl/intl.dart';
 import 'app_module.dart';
 import 'app_widget.dart';
 import 'firebase_options.dart';
+import 'core/config/mapbox_config.dart';
 
 // ⚠️ Mapbox: IMPORTA SOLO si vas a usarlo (móvil). En web está causando crash.
 // Si lo dejas importado no pasa nada siempre, pero la llamada sí rompe.
@@ -175,8 +176,15 @@ Future<void> main() async {
   Intl.defaultLocale = 'es_BO';
 
   // ✅ Mapbox token (SOLO móvil/desktop nativo, NO web)
+  // El token llega por --dart-define, no vive en el código.
   if (!kIsWeb) {
-    MapboxOptions.setAccessToken("TOKEN_MAPBOX");
+    if (!MapboxConfig.estaConfigurado) {
+      debugPrint(
+        'MAPBOX_TOKEN no definido: los mapas no van a cargar. '
+        'Compila con --dart-define=MAPBOX_TOKEN=pk.xxxxx',
+      );
+    }
+    MapboxOptions.setAccessToken(MapboxConfig.accessToken);
   }
 
   // ✅ Fullscreen (mejor solo en móvil; en web no aplica)

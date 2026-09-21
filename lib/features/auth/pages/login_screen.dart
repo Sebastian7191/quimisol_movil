@@ -10,6 +10,7 @@ import '../../../../../shared/buttons/app_button.dart';
 
 import 'package:quimisol_movil/shared/services/auth_service.dart';
 import 'package:quimisol_movil/shared/stores/guest_store.dart';
+import 'package:quimisol_movil/shared/stores/user_store.dart';
 import 'package:quimisol_movil/core/services/notifications/fcm_token_service.dart';
 import 'package:quimisol_movil/core/utils/form_validators.dart';
 
@@ -42,6 +43,23 @@ class _LoginScreenState extends State<LoginScreen> {
   void initState() {
     super.initState();
     _authService = Modular.get<AuthService>();
+
+    final userStore = Modular.get<UserStore>();
+    if (userStore.wasKicked) {
+      userStore.resetKicked();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Tu sesión fue cerrada porque iniciaste sesión en otro dispositivo.',
+            ),
+            backgroundColor: Colors.orange,
+            duration: Duration(seconds: 5),
+          ),
+        );
+      });
+    }
   }
 
   @override
@@ -249,7 +267,7 @@ class _LoginScreenState extends State<LoginScreen> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: const [
-            Icon(FontAwesomeIcons.google, size: 18, color: Palette.primary),
+            FaIcon(FontAwesomeIcons.google, size: 18, color: Palette.primary),
             SizedBox(width: 12),
             Text(
               'Continuar con Google',
