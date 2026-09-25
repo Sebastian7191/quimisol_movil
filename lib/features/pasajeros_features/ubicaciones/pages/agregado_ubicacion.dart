@@ -29,10 +29,7 @@ import 'package:quimisol_movil/core/config/mapbox_config.dart';
 class AgregadoUbicacionPage extends StatefulWidget {
   final UbicDraft? initialUbicacion;
 
-  const AgregadoUbicacionPage({
-    super.key,
-    this.initialUbicacion,
-  });
+  const AgregadoUbicacionPage({super.key, this.initialUbicacion});
 
   bool get isEdit => initialUbicacion != null;
 
@@ -47,6 +44,7 @@ class _AgregadoUbicacionPageState extends State<AgregadoUbicacionPage> {
 
   final MapController _mapCtrl = MapController();
 
+  // prueba
   LatLng? _center;
   Timer? _debounce;
 
@@ -526,7 +524,8 @@ class _AgregadoUbicacionPageState extends State<AgregadoUbicacionPage> {
             subtitle: subtitle,
             mapboxId: null,
             sourceType:
-                (m['place_type'] is List && (m['place_type'] as List).isNotEmpty)
+                (m['place_type'] is List &&
+                    (m['place_type'] as List).isNotEmpty)
                 ? ((m['place_type'] as List).first as String?) ?? ''
                 : '',
             point: LatLng(lat, lng),
@@ -1187,14 +1186,14 @@ class UbicDraft {
   double get longitud => lng;
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'nombre': nombre,
-        'direccion': direccion,
-        'departamento': departamento,
-        'lat': lat,
-        'lng': lng,
-        'uid': uid,
-      };
+    'id': id,
+    'nombre': nombre,
+    'direccion': direccion,
+    'departamento': departamento,
+    'lat': lat,
+    'lng': lng,
+    'uid': uid,
+  };
 }
 
 String _newSessionToken() {
