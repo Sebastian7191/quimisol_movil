@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:quimisol_movil/core/constants/pedido_estado.dart';
 import 'package:quimisol_movil/core/theme/palette.dart';
+import 'package:quimisol_movil/shared/widgets/pagination_bar.dart';
 import '../../data/dashboard_models.dart';
 
 final _bsFmt = NumberFormat('#,##0.00', 'es_BO');
@@ -44,6 +45,7 @@ class _DetailDialog extends StatelessWidget {
     final dialogWidth = (w * 0.72).clamp(360.0, 780.0);
 
     return Dialog(
+      clipBehavior: Clip.antiAlias,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: SizedBox(
         width: dialogWidth,
@@ -109,13 +111,11 @@ class PedidosDetailContent extends StatelessWidget {
   Widget build(BuildContext context) {
     if (pedidos.isEmpty) return _emptyState('No hay pedidos en este rango.');
 
-    return ListView.separated(
-      shrinkWrap: true,
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      itemCount: pedidos.length,
-      separatorBuilder: (_, __) => const Divider(height: 1, indent: 16, endIndent: 16),
-      itemBuilder: (_, i) {
-        final p = pedidos[i];
+    return _PagedSearchList<PedidoMini>(
+      items: pedidos,
+      hint: 'Buscar por código, dirección, estado…',
+      matches: (p, q) => _has(q, [p.codigo, p.direccion, p.departamento, p.estado, p.repartidorNombre]),
+      itemBuilder: (p) {
         final estadoColor = _estadoColor(p.estado);
         final monto = showEnvio ? p.costoEnvio : p.total;
         return ListTile(
@@ -165,13 +165,11 @@ class ProductosDetailContent extends StatelessWidget {
   Widget build(BuildContext context) {
     if (productos.isEmpty) return _emptyState('No hay productos registrados.');
 
-    return ListView.separated(
-      shrinkWrap: true,
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      itemCount: productos.length,
-      separatorBuilder: (_, __) => const Divider(height: 1, indent: 16, endIndent: 16),
-      itemBuilder: (_, i) {
-        final p = productos[i];
+    return _PagedSearchList<ProductoMini>(
+      items: productos,
+      hint: 'Buscar por nombre, tipo o almacén…',
+      matches: (p, q) => _has(q, [p.nombre, p.tipo, p.almacenNombre]),
+      itemBuilder: (p) {
         final isLow = p.stock <= 5;
         final isCero = p.stock <= 0;
         final Color badgeBg = isCero
@@ -235,13 +233,11 @@ class UsuariosDetailContent extends StatelessWidget {
   Widget build(BuildContext context) {
     if (usuarios.isEmpty) return _emptyState('No hay usuarios registrados.');
 
-    return ListView.separated(
-      shrinkWrap: true,
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      itemCount: usuarios.length,
-      separatorBuilder: (_, __) => const Divider(height: 1, indent: 16, endIndent: 16),
-      itemBuilder: (_, i) {
-        final u = usuarios[i];
+    return _PagedSearchList<UsuarioMini>(
+      items: usuarios,
+      hint: 'Buscar por nombre, email o rol…',
+      matches: (u, q) => _has(q, [u.nombre, u.email, u.rol]),
+      itemBuilder: (u) {
         final nombre = u.nombre.isNotEmpty ? u.nombre : u.email.isNotEmpty ? u.email : u.id.substring(0, 8);
         return ListTile(
           dense: true,
@@ -278,13 +274,11 @@ class RepartidoresDetailContent extends StatelessWidget {
   Widget build(BuildContext context) {
     if (repartidores.isEmpty) return _emptyState('No hay repartidores registrados.');
 
-    return ListView.separated(
-      shrinkWrap: true,
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      itemCount: repartidores.length,
-      separatorBuilder: (_, __) => const Divider(height: 1, indent: 16, endIndent: 16),
-      itemBuilder: (_, i) {
-        final r = repartidores[i];
+    return _PagedSearchList<RepartidorMini>(
+      items: repartidores,
+      hint: 'Buscar por nombre o almacén…',
+      matches: (r, q) => _has(q, [r.nombre, r.almacenNombre]),
+      itemBuilder: (r) {
         final nombre = r.nombre.isNotEmpty ? r.nombre : r.id.substring(0, 8);
         return ListTile(
           dense: true,
@@ -336,13 +330,11 @@ class BannersDetailContent extends StatelessWidget {
   Widget build(BuildContext context) {
     if (banners.isEmpty) return _emptyState('No hay banners registrados.');
 
-    return ListView.separated(
-      shrinkWrap: true,
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      itemCount: banners.length,
-      separatorBuilder: (_, __) => const Divider(height: 1, indent: 16, endIndent: 16),
-      itemBuilder: (_, i) {
-        final b = banners[i];
+    return _PagedSearchList<BannerMini>(
+      items: banners,
+      hint: 'Buscar por título o estado…',
+      matches: (b, q) => _has(q, [b.titulo, b.estado]),
+      itemBuilder: (b) {
         final isActivo = b.estado.toUpperCase() == 'ACTIVO';
         final titulo = b.titulo.isNotEmpty ? b.titulo : b.id.substring(0, 8);
 
@@ -396,6 +388,115 @@ class BannersDetailContent extends StatelessWidget {
 // ─────────────────────────────────────────────
 //  HELPERS INTERNOS
 // ─────────────────────────────────────────────
+
+bool _has(String q, List<String> fields) =>
+    fields.any((f) => f.toLowerCase().contains(q));
+
+/// Lista del detalle con buscador y paginación.
+class _PagedSearchList<T> extends StatefulWidget {
+  const _PagedSearchList({
+    super.key,
+    required this.items,
+    required this.hint,
+    required this.matches,
+    required this.itemBuilder,
+  });
+
+  final List<T> items;
+  final String hint;
+  // q llega en minúsculas y sin espacios en los extremos
+  final bool Function(T item, String q) matches;
+  final Widget Function(T item) itemBuilder;
+
+  @override
+  State<_PagedSearchList<T>> createState() => _PagedSearchListState<T>();
+}
+
+class _PagedSearchListState<T> extends State<_PagedSearchList<T>> {
+  static const int _pageSize = 10;
+  final _searchCtrl = TextEditingController();
+  String _q = '';
+  int _page = 0;
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final filtered = _q.isEmpty
+        ? widget.items
+        : widget.items.where((e) => widget.matches(e, _q)).toList();
+    final totalPages = (filtered.length / _pageSize).ceil().clamp(1, 99999);
+    final page = _page.clamp(0, totalPages - 1);
+    final pageItems = filtered.skip(page * _pageSize).take(_pageSize).toList();
+
+    // Material propio: sin él los ListTile lanzan una excepción en cada frame
+    return Material(
+      type: MaterialType.transparency,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 4),
+            child: TextField(
+              controller: _searchCtrl,
+              onChanged: (v) => setState(() {
+                _q = v.trim().toLowerCase();
+                _page = 0;
+              }),
+              decoration: InputDecoration(
+                hintText: widget.hint,
+                isDense: true,
+                prefixIcon: const Icon(Icons.search_rounded),
+                suffixIcon: _q.isEmpty
+                    ? null
+                    : IconButton(
+                        icon: const Icon(Icons.close_rounded),
+                        onPressed: () => setState(() {
+                          _searchCtrl.clear();
+                          _q = '';
+                          _page = 0;
+                        }),
+                      ),
+                filled: true,
+                fillColor: Palette.fieldBg,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+            ),
+          ),
+          Flexible(
+            child: filtered.isEmpty
+                ? _emptyState('Sin resultados para "${_searchCtrl.text.trim()}".')
+                : ListView.separated(
+                    shrinkWrap: true,
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    itemCount: pageItems.length,
+                    separatorBuilder: (_, __) =>
+                        const Divider(height: 1, indent: 16, endIndent: 16),
+                    itemBuilder: (_, i) => widget.itemBuilder(pageItems[i]),
+                  ),
+          ),
+          if (filtered.length > _pageSize)
+            AdminPaginationBar(
+              currentPage: page,
+              totalItems: filtered.length,
+              pageSize: _pageSize,
+              onPrev: page > 0 ? () => setState(() => _page = page - 1) : null,
+              onNext: page < totalPages - 1
+                  ? () => setState(() => _page = page + 1)
+                  : null,
+            ),
+        ],
+      ),
+    );
+  }
+}
 
 Widget _emptyState(String msg) => Padding(
       padding: const EdgeInsets.all(32),

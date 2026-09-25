@@ -539,7 +539,6 @@ class DashboardExportService {
     required String rangeLabel,
   }) async {
     final excel = Excel.createExcel();
-    excel.delete('Sheet1');
 
     _buildResumenSheet(excel, stats, rangeLabel);
     _buildPedidosSheet(excel, stats.pedidosTodos);
@@ -547,6 +546,10 @@ class DashboardExportService {
     _buildUsuariosSheet(excel, stats.usuariosTodos);
     _buildRepartidoresSheet(excel, stats.repartidoresTodos);
     _buildBannersSheet(excel, stats.bannersTodos);
+
+    // Sheet1 solo puede borrarse una vez existe otra hoja (la librería
+    // no permite dejar el workbook sin hojas).
+    excel.delete('Sheet1');
 
     final bytes = excel.encode();
     if (bytes == null) return;
@@ -561,40 +564,90 @@ class DashboardExportService {
   static void _buildResumenSheet(
       Excel excel, DashboardStats stats, String rangeLabel) {
     final sheet = excel['Resumen'];
-    _xlsHeader(sheet, ['Métrica', 'Valor']);
-    final rows = <List<dynamic>>[
-      ['Período', rangeLabel],
-      ['Generado', _dtFmt.format(DateTime.now())],
-      ['—', '—'],
-      ['Pedidos total', stats.pedidosTotal],
-      ['  Pendientes', stats.pedidosPendientes],
-      ['  Aceptados', stats.pedidosAceptados],
-      ['  En camino', stats.pedidosEnCamino],
-      ['  Entregados', stats.pedidosEntregados],
-      ['  Cancelados', stats.pedidosCancelados],
-      ['Ventas total (Bs)', stats.ventasTotal],
-      ['Costo envío total (Bs)', stats.costoEnvioTotal],
-      ['—', '—'],
-      ['Productos total', stats.productosTotal],
-      ['  Stock bajo (≤ 5)', stats.productosStockBajo],
-      ['  Sin stock', stats.productosStockCero],
-      ['—', '—'],
-      ['Usuarios registrados', stats.usuariosTotal],
-      ['Repartidores', stats.repartidoresTotal],
-      ['—', '—'],
-      ['Banners total', stats.bannersTotal],
-      ['  Banners activos', stats.bannersActivos],
-    ];
-    for (final r in rows) {
-      sheet.appendRow([
-        TextCellValue(r[0].toString()),
-        r[1] is num
-            ? DoubleCellValue((r[1] as num).toDouble())
-            : TextCellValue(r[1].toString()),
-      ]);
+    _xlsHeader(sheet, ['Métrica', 'Valor', '% del total']);
+
+    void blank() => sheet.appendRow([
+          TextCellValue(''),
+          TextCellValue(''),
+          TextCellValue(''),
+        ]);
+
+    void info(String label, String value) {
+      sheet.appendRow([TextCellValue(label), TextCellValue(value), TextCellValue('')]);
     }
-    sheet.setColumnWidth(0, 34);
-    sheet.setColumnWidth(1, 18);
+
+    void section(String title) {
+      final row = sheet.maxRows;
+      sheet.appendRow([TextCellValue(title), TextCellValue(''), TextCellValue('')]);
+      final style = CellStyle(
+        bold: true,
+        backgroundColorHex: ExcelColor.fromHexString('#16324A'),
+        fontColorHex: ExcelColor.fromHexString('#FFFFFF'),
+      );
+      for (var i = 0; i < 3; i++) {
+        sheet
+            .cell(CellIndex.indexByColumnRow(columnIndex: i, rowIndex: row))
+            .cellStyle = style;
+      }
+      sheet.merge(
+        CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: row),
+        CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: row),
+      );
+    }
+
+    void metric(String label, num value, {int? pctOf, bool bold = false}) {
+      final row = sheet.maxRows;
+      final pct = (pctOf != null && pctOf > 0)
+          ? '${(value / pctOf * 100).toStringAsFixed(1)}%'
+          : '';
+      sheet.appendRow([
+        TextCellValue(label),
+        value is double ? DoubleCellValue(value) : IntCellValue(value.toInt()),
+        TextCellValue(pct),
+      ]);
+      if (bold) {
+        final style = CellStyle(bold: true);
+        for (var i = 0; i < 3; i++) {
+          sheet
+              .cell(CellIndex.indexByColumnRow(columnIndex: i, rowIndex: row))
+              .cellStyle = style;
+        }
+      }
+    }
+
+    info('Período', rangeLabel);
+    info('Generado', _dtFmt.format(DateTime.now()));
+    blank();
+
+    section('PEDIDOS');
+    metric('Total pedidos', stats.pedidosTotal, bold: true);
+    metric('  Pendientes', stats.pedidosPendientes, pctOf: stats.pedidosTotal);
+    metric('  Aceptados', stats.pedidosAceptados, pctOf: stats.pedidosTotal);
+    metric('  En camino', stats.pedidosEnCamino, pctOf: stats.pedidosTotal);
+    metric('  Entregados', stats.pedidosEntregados, pctOf: stats.pedidosTotal);
+    metric('  Cancelados', stats.pedidosCancelados, pctOf: stats.pedidosTotal);
+    metric('Ventas total (Bs)', stats.ventasTotal, bold: true);
+    metric('Costo envío total (Bs)', stats.costoEnvioTotal);
+    blank();
+
+    section('PRODUCTOS');
+    metric('Total productos', stats.productosTotal, bold: true);
+    metric('  Stock bajo (≤ 5)', stats.productosStockBajo, pctOf: stats.productosTotal);
+    metric('  Sin stock', stats.productosStockCero, pctOf: stats.productosTotal);
+    blank();
+
+    section('USUARIOS Y REPARTIDORES');
+    metric('Usuarios registrados', stats.usuariosTotal, bold: true);
+    metric('Repartidores', stats.repartidoresTotal, bold: true);
+    blank();
+
+    section('BANNERS');
+    metric('Total banners', stats.bannersTotal, bold: true);
+    metric('  Activos', stats.bannersActivos, pctOf: stats.bannersTotal);
+
+    sheet.setColumnWidth(0, 32);
+    sheet.setColumnWidth(1, 16);
+    sheet.setColumnWidth(2, 14);
   }
 
   static void _buildPedidosSheet(Excel excel, List<PedidoMini> pedidos) {

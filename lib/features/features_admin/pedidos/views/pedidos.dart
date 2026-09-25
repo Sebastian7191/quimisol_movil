@@ -1,6 +1,7 @@
 ﻿import 'dart:math' as math;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:quimisol_movil/core/constants/pedido_estado.dart';
 import 'package:quimisol_movil/core/theme/palette.dart';
@@ -28,6 +29,9 @@ class _PedidosPageState extends State<PedidosPage> with TickerProviderStateMixin
   final _searchCtrl = TextEditingController();
   String _q = '';
   String _estado = 'Todos';
+  String _depto = 'Todos';
+  // Departamentos presentes en los pedidos activos (se recalcula con el stream)
+  final _deptos = ValueNotifier<List<String>>(const []);
   int _currentPage = 0;
   static const int _pageSize = 10;
 
@@ -57,12 +61,11 @@ class _PedidosPageState extends State<PedidosPage> with TickerProviderStateMixin
   void dispose() {
     _bgCtrl.dispose();
     _searchCtrl.dispose();
+    _deptos.dispose();
     super.dispose();
   }
 
   Future<void> _openEstadoSheet() async {
-    final ink = Palette.ink;
-
     const items = <String>[
       'Todos',
       kEstadoPendiente,
@@ -71,30 +74,54 @@ class _PedidosPageState extends State<PedidosPage> with TickerProviderStateMixin
       kEstadoCancelado,
     ];
 
-    String labelFor(String v) {
-      switch (v) {
-        case kEstadoPendiente:
-          return 'Pendiente';
-        case kEstadoAceptado:
-          return 'Aceptado';
-        case kEstadoEnCamino:
-          return 'En camino';
-        case kEstadoEntregado:
-          return 'Entregado';
-        case kEstadoCancelado:
-          return 'Cancelado';
-        default:
-          return 'Todos';
-      }
-    }
+    final res = await _openOptionsSheet(
+      title: 'Filtrar por estado',
+      items: items,
+      selected: _estado,
+      labelFor: _estadoLabel,
+    );
 
-    final res = await showModalBottomSheet<String>(
+    if (res == null) return;
+    setState(() { _estado = res; _currentPage = 0; });
+  }
+
+  Future<void> _openDeptoSheet() async {
+    final res = await _openOptionsSheet(
+      title: 'Filtrar por departamento',
+      items: _deptoOptions(_deptos.value),
+      selected: _depto,
+      labelFor: (v) => v,
+    );
+
+    if (res == null) return;
+    setState(() { _depto = res; _currentPage = 0; });
+  }
+
+  // 'Todos' + departamentos; conserva el seleccionado aunque ya no tenga pedidos
+  List<String> _deptoOptions(List<String> deptos) => [
+        'Todos',
+        ...deptos,
+        if (_depto != 'Todos' && !deptos.contains(_depto)) _depto,
+      ];
+
+  Future<String?> _openOptionsSheet({
+    required String title,
+    required List<String> items,
+    required String selected,
+    required String Function(String) labelFor,
+  }) {
+    final ink = Palette.ink;
+
+    return showModalBottomSheet<String>(
       context: context,
       backgroundColor: Colors.transparent,
-      isScrollControlled: false,
+      isScrollControlled: true,
       builder: (_) {
         return SafeArea(
           child: Container(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.sizeOf(context).height * 0.7,
+            ),
             margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
             padding: const EdgeInsets.fromLTRB(14, 14, 14, 10),
             decoration: BoxDecoration(
@@ -127,7 +154,7 @@ class _PedidosPageState extends State<PedidosPage> with TickerProviderStateMixin
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
-                        'Filtrar por estado',
+                        title,
                         style: TextStyle(
                           color: ink,
                           fontWeight: FontWeight.w900,
@@ -146,8 +173,12 @@ class _PedidosPageState extends State<PedidosPage> with TickerProviderStateMixin
                   ],
                 ),
                 const SizedBox(height: 10),
-                ...items.map((e) {
-                  final selected = e == _estado;
+                Flexible(
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: items.map((e) {
+                  final isSelected = e == selected;
                   return InkWell(
                     onTap: () => Navigator.pop(context, e),
                     borderRadius: BorderRadius.circular(14),
@@ -156,12 +187,12 @@ class _PedidosPageState extends State<PedidosPage> with TickerProviderStateMixin
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                       margin: const EdgeInsets.only(bottom: 8),
                       decoration: BoxDecoration(
-                        color: selected
+                        color: isSelected
                             ? Palette.button.withValues(alpha: 0.14)
                             : Palette.fieldBg,
                         borderRadius: BorderRadius.circular(14),
                         border: Border.all(
-                          color: selected
+                          color: isSelected
                               ? Palette.button.withValues(alpha: 0.45)
                               : Palette.ink.withValues(alpha: 0.06),
                         ),
@@ -169,8 +200,8 @@ class _PedidosPageState extends State<PedidosPage> with TickerProviderStateMixin
                       child: Row(
                         children: [
                           Icon(
-                            selected ? Icons.check_circle_rounded : Icons.circle_outlined,
-                            color: selected
+                            isSelected ? Icons.check_circle_rounded : Icons.circle_outlined,
+                            color: isSelected
                                 ? Palette.primary
                                 : ink.withValues(alpha: 0.35),
                             size: 20,
@@ -189,16 +220,16 @@ class _PedidosPageState extends State<PedidosPage> with TickerProviderStateMixin
                       ),
                     ),
                   );
-                }),
+                      }).toList(),
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
         );
       },
     );
-
-    if (res == null) return;
-    setState(() { _estado = res; _currentPage = 0; });
   }
 
   String _estadoLabel(String v) {
@@ -243,7 +274,12 @@ class _PedidosPageState extends State<PedidosPage> with TickerProviderStateMixin
               estado: _estado,
               onEstado: (v) => setState(() { _estado = v; _currentPage = 0; }),
               onOpenEstadoSheet: _openEstadoSheet,
-              onEntregados: () => Navigator.push(
+              depto: _depto,
+              deptoOptions: _deptos,
+              deptoOptionsOf: _deptoOptions,
+              onDepto: (v) => setState(() { _depto = v; _currentPage = 0; }),
+              onOpenDeptoSheet: _openDeptoSheet,
+              onEntregados:() => Navigator.push(
                 context,
                 MaterialPageRoute(
                   builder: (_) => const PedidosEntregadosPage(),
@@ -291,10 +327,18 @@ class _PedidosPageState extends State<PedidosPage> with TickerProviderStateMixin
                       .where((p) => p.estado.toLowerCase() != 'entregado')
                       .toList();
 
+                  final deptos = controller.departamentosDe(pedidos);
+                  if (!listEquals(deptos, _deptos.value)) {
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      if (mounted) _deptos.value = deptos;
+                    });
+                  }
+
                   final filtered = controller.filterPedidos(
                     pedidos: pedidos,
                     query: _q,
                     estado: _estado,
+                    departamento: _depto,
                   );
 
                   if (filtered.isEmpty) {
@@ -451,6 +495,11 @@ class _PedidosHeader extends StatelessWidget {
     required this.estado,
     required this.onEstado,
     required this.onOpenEstadoSheet,
+    required this.depto,
+    required this.deptoOptions,
+    required this.deptoOptionsOf,
+    required this.onDepto,
+    required this.onOpenDeptoSheet,
     required this.onEntregados,
   });
 
@@ -460,6 +509,11 @@ class _PedidosHeader extends StatelessWidget {
   final String estado;
   final ValueChanged<String> onEstado;
   final VoidCallback onOpenEstadoSheet;
+  final String depto;
+  final ValueListenable<List<String>> deptoOptions;
+  final List<String> Function(List<String>) deptoOptionsOf;
+  final ValueChanged<String> onDepto;
+  final VoidCallback onOpenDeptoSheet;
   final VoidCallback onEntregados;
 
   @override
@@ -587,7 +641,24 @@ class _PedidosHeader extends StatelessWidget {
                     const SizedBox(width: 8),
 
                     // ✅ En móvil: mejor botón (abre bottom sheet)
-                    if (compact)
+                    if (compact) ...[
+                      InkWell(
+                        onTap: onOpenDeptoSheet,
+                        borderRadius: BorderRadius.circular(14),
+                        child: Container(
+                          height: 42,
+                          padding: const EdgeInsets.symmetric(horizontal: 10),
+                          decoration: BoxDecoration(
+                            color: depto == 'Todos'
+                                ? Colors.white.withValues(alpha: 0.18)
+                                : Colors.white.withValues(alpha: 0.34),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: Colors.white, width: 2),
+                          ),
+                          child: const Icon(Icons.map_rounded, color: Colors.white, size: 18),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
                       InkWell(
                         onTap: onOpenEstadoSheet,
                         borderRadius: BorderRadius.circular(14),
@@ -608,9 +679,20 @@ class _PedidosHeader extends StatelessWidget {
                             ],
                           ),
                         ),
-                      )
-                    else
+                      ),
+                    ] else ...[
+                      ValueListenableBuilder<List<String>>(
+                        valueListenable: deptoOptions,
+                        builder: (_, deptos, __) => _FilterMini(
+                          value: depto,
+                          items: deptoOptionsOf(deptos),
+                          labelFor: (v) => v == 'Todos' ? 'Todos los deptos' : v,
+                          onChanged: onDepto,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
                       _EstadoFilterMini(value: estado, onChanged: onEstado),
+                    ],
                   ],
                 ),
                 const SizedBox(height: 12),
@@ -695,8 +777,6 @@ class _EstadoFilterMini extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ink = Palette.ink;
-
     const items = <String>[
       'Todos',
       kEstadoPendiente,
@@ -719,6 +799,31 @@ class _EstadoFilterMini extends StatelessWidget {
           return 'Todos';
       }
     }
+
+    return _FilterMini(
+      value: value,
+      items: items,
+      labelFor: labelFor,
+      onChanged: onChanged,
+    );
+  }
+}
+
+class _FilterMini extends StatelessWidget {
+  const _FilterMini({
+    required this.value,
+    required this.items,
+    required this.labelFor,
+    required this.onChanged,
+  });
+  final String value;
+  final List<String> items;
+  final String Function(String) labelFor;
+  final ValueChanged<String> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final ink = Palette.ink;
 
     return Container(
       height: 42,

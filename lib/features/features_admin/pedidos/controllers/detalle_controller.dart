@@ -139,6 +139,11 @@ class PedidoDetalleController {
     final data = pedidoSnap.data() ?? <String, dynamic>{};
     final uid = (data['uid'] ?? '').toString().trim();
 
+    final estadoActual = (data['estado'] ?? '').toString().trim().toLowerCase();
+    if (estadoActual.contains('entreg')) {
+      throw Exception('El pedido ya fue entregado y no puede modificarse.');
+    }
+
     final subtotalRaw = data['subtotal'];
     final subtotal = subtotalRaw is num
         ? subtotalRaw.toDouble()

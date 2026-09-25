@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:quimisol_movil/core/utils/user_name_resolver.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_modular/flutter_modular.dart';
 
@@ -36,7 +37,7 @@ class UsuariosController {
     required String query,
     required String roleFilter,
   }) {
-    final name = (data['name'] ?? '').toString().toLowerCase();
+    final name = UserNameResolver.display(data, fallback: '').toLowerCase();
     final email = (data['email'] ?? '').toString().toLowerCase();
     final role = (data['role'] ?? '').toString().toLowerCase();
 

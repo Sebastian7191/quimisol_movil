@@ -25,7 +25,8 @@ class ImageViewerDialog extends StatelessWidget {
     }
     return Image.network(
       url,
-      fit: BoxFit.cover,
+      fit: BoxFit.contain,
+      filterQuality: FilterQuality.high,
       errorBuilder: (_, __, ___) => Center(
         child: Text(
           'No se pudo cargar la imagen',
@@ -65,7 +66,10 @@ class ImageViewerDialog extends StatelessWidget {
                 borderRadius: BorderRadius.circular(14),
                 child: AspectRatio(
                   aspectRatio: 16 / 9,
-                  child: _buildImageContent(imagenUrl),
+                  child: ColoredBox(
+                    color: Palette.fieldBg,
+                    child: _buildImageContent(imagenUrl),
+                  ),
                 ),
               ),
               const SizedBox(height: 14),

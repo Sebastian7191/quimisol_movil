@@ -64,81 +64,88 @@ class _DashboardPageState extends State<DashboardPage> {
                   ),
                   const SizedBox(height: 14),
 
-                  // Filtros (almacenes desde Firestore)
+                  // Filtros + Datos principales (comparten almacenes desde Firestore,
+                  // necesarios para resolver el nombre de almacén de los repartidores)
                   StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
                     stream: repo.almacenesStream(),
                     builder: (context, snapAlm) {
                       final almacenes = snapAlm.data?.docs ?? const [];
-                      return DashboardFilters(
-                        controller: c,
-                        almacenes: almacenes,
-                      );
-                    },
-                  ),
 
-                  const SizedBox(height: 14),
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          DashboardFilters(
+                            controller: c,
+                            almacenes: almacenes,
+                          ),
+                          const SizedBox(height: 14),
 
-                  // Datos principales
-                  StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                    stream: repo.pedidosStream(
-                      from: from,
-                      estado: c.estado,
-                      departamento: c.departamento,
-                    ),
-                    builder: (context, pedidosSnap) {
-                      final pedidosDocs = pedidosSnap.data?.docs ?? const [];
-
-                      return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                        stream: repo.productosStream(almacenId: c.almacenId),
-                        builder: (context, prodSnap) {
-                          final prodDocs = prodSnap.data?.docs ?? const [];
-
-                          return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                            stream: repo.usuariosStream(),
-                            builder: (context, userSnap) {
-                              final userDocs = userSnap.data?.docs ?? const [];
+                          StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                            stream: repo.pedidosStream(
+                              from: from,
+                              estado: c.estado,
+                              departamento: c.departamento,
+                              almacenId: c.almacenId,
+                            ),
+                            builder: (context, pedidosSnap) {
+                              final pedidosDocs = pedidosSnap.data?.docs ?? const [];
 
                               return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                                stream: repo.repartidoresStream(almacenId: c.almacenId),
-                                builder: (context, repSnap) {
-                                  final repDocs = repSnap.data?.docs ?? const [];
+                                stream: repo.productosStream(almacenId: c.almacenId),
+                                builder: (context, prodSnap) {
+                                  final prodDocs = prodSnap.data?.docs ?? const [];
 
                                   return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                                    stream: repo.bannersStream(),
-                                    builder: (context, banSnap) {
-                                      final banDocs = banSnap.data?.docs ?? const [];
+                                    stream: repo.usuariosStream(),
+                                    builder: (context, userSnap) {
+                                      final userDocs = userSnap.data?.docs ?? const [];
 
-                                      final stats = DashboardStats.build(
-                                        pedidos: pedidosDocs,
-                                        productos: prodDocs,
-                                        usuarios: userDocs,
-                                        repartidores: repDocs,
-                                        banners: banDocs,
-                                        rangeStart: from,
-                                      );
+                                      return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                                        stream: repo.repartidoresStream(almacenId: c.almacenId),
+                                        builder: (context, repSnap) {
+                                          final repDocs = repSnap.data?.docs ?? const [];
 
-                                      // Propaga stats al header sin llamar setState en build
-                                      WidgetsBinding.instance.addPostFrameCallback((_) {
-                                        if (mounted) _statsNotifier.value = stats;
-                                      });
+                                          return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                                            stream: repo.bannersStream(),
+                                            builder: (context, banSnap) {
+                                              final banDocs = banSnap.data?.docs ?? const [];
 
-                                      return Column(
-                                        children: [
-                                          DashboardStatCards(width: w, stats: stats),
-                                          const SizedBox(height: 14),
-                                          DashboardSections(width: w, stats: stats, range: c.range),
-                                          const SizedBox(height: 14),
-                                          ResenasDashboardSection(width: w),
-                                          const SizedBox(height: 22),
-                                        ],
+                                              final stats = DashboardStats.build(
+                                                pedidos: pedidosDocs,
+                                                productos: prodDocs,
+                                                usuarios: userDocs,
+                                                repartidores: repDocs,
+                                                banners: banDocs,
+                                                almacenes: almacenes,
+                                                rangeStart: from,
+                                              );
+
+                                              // Propaga stats al header sin llamar setState en build
+                                              WidgetsBinding.instance.addPostFrameCallback((_) {
+                                                if (mounted) _statsNotifier.value = stats;
+                                              });
+
+                                              return Column(
+                                                children: [
+                                                  DashboardStatCards(width: w, stats: stats),
+                                                  const SizedBox(height: 14),
+                                                  DashboardSections(width: w, stats: stats, range: c.range),
+                                                  const SizedBox(height: 14),
+                                                  ResenasDashboardSection(width: w),
+                                                  const SizedBox(height: 22),
+                                                ],
+                                              );
+                                            },
+                                          );
+                                        },
                                       );
                                     },
                                   );
                                 },
                               );
                             },
-                          );
-                        },
+                          ),
+                        ],
                       );
                     },
                   ),

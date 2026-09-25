@@ -3,7 +3,7 @@ import '../../core/theme/palette.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 class SocialButton extends StatelessWidget {
-  final IconData icon;
+  final FaIconData icon;
   final VoidCallback onPressed;
 
   const SocialButton({super.key, required this.icon, required this.onPressed});

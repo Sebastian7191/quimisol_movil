@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:quimisol_movil/core/utils/user_name_resolver.dart';
 import 'package:flutter/material.dart';
 import 'package:quimisol_movil/core/theme/palette.dart';
 import 'package:quimisol_movil/features/features_admin/soporte/pages/admin_chat_page.dart';
@@ -115,9 +116,11 @@ class _AdminChatFooterPanelState extends State<AdminChatFooterPanel>
         .orderBy('updatedAt', descending: true)
         .limit(100)
         .snapshots()
-        .map((snap) {
-      final items = snap.docs
-          .map((d) => _AdminChatPreview.fromFirestore(d))
+        .asyncMap((snap) async {
+      final previews = await Future.wait(
+        snap.docs.map((d) => _AdminChatPreview.resolve(d)),
+      );
+      final items = previews
           .where((c) {
             if (c.status == 'draft') return false;
             if (c.status == 'cancelled_by_client') return false;
@@ -786,12 +789,33 @@ class _AdminChatPreview {
     required this.lastMessageAt,
   });
 
-  factory _AdminChatPreview.fromFirestore(
+  /// Si el chat guardó un nombre genérico ("Cliente"), usa el nombre real
+  /// del documento `usuarios/{clientUid}`.
+  static Future<_AdminChatPreview> resolve(
     QueryDocumentSnapshot<Map<String, dynamic>> doc,
-  ) {
+  ) async {
     final d = doc.data();
+    final stored = (d['clientName'] ?? '').toString().trim();
+    if (!UserNameResolver.isGeneric(stored)) {
+      return _AdminChatPreview.fromFirestore(doc, clientName: stored);
+    }
 
-    final clientName = (d['clientName'] ?? 'Cliente').toString();
+    final chatId = (d['chatId'] ?? doc.id).toString();
+    final uid = (d['clientUid'] ?? '').toString().trim().isNotEmpty
+        ? d['clientUid'].toString().trim()
+        : (chatId.startsWith('chat_') ? chatId.substring(5) : '');
+
+    final resolved = await UserNameResolver.byUid(uid) ??
+        UserNameResolver.fromEmail(d['clientEmail']?.toString());
+
+    return _AdminChatPreview.fromFirestore(doc, clientName: resolved);
+  }
+
+  factory _AdminChatPreview.fromFirestore(
+    QueryDocumentSnapshot<Map<String, dynamic>> doc, {
+    String? clientName,
+  }) {
+    final d = doc.data();
     final lastMessageRaw = d['lastMessage'];
     final lastMessageType = (d['lastMessageType'] ?? '').toString();
     final unreadCountSupport = (d['unreadCountSupport'] ?? 0) is int
@@ -814,7 +838,7 @@ class _AdminChatPreview {
 
     return _AdminChatPreview(
       chatId: (d['chatId'] ?? doc.id).toString(),
-      userName: clientName,
+      userName: clientName ?? 'Cliente',
       lastMessage: lastMessage,
       time: _formatChatTime(lastAt),
       unread: unreadCountSupport,

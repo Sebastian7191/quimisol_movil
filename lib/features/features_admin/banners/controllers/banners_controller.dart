@@ -100,6 +100,13 @@ class BannersController {
     );
   }
 
+  Future<void> cambiarEstado(String docId, bool activo) {
+    return firestore.actualizarEstado(
+      id: docId,
+      estado: activo ? 'ACTIVO' : 'INACTIVO',
+    );
+  }
+
   Future<void> eliminarBanner(String docId) {
     return firestore.eliminarBanner(docId);
   }

@@ -1,3 +1,4 @@
+import 'package:quimisol_movil/core/utils/user_name_resolver.dart';
 
 class UserRow {
   final String uid;
@@ -19,7 +20,7 @@ class UserRow {
   factory UserRow.fromFirestore(String uid, Map<String, dynamic> data) {
     return UserRow(
       uid: uid,
-      name: (data['name'] ?? 'Usuario').toString(),
+      name: UserNameResolver.display(data),
       email: (data['email'] ?? '').toString(),
       photo: (data['photo'] ?? '').toString(),
       role: (data['role'] ?? 'cliente').toString().toLowerCase(),

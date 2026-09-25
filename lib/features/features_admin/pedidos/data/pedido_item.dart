@@ -1,10 +1,12 @@
 class PedidoItemData {
+  final String productId;
   final String nombre;
   final String imageUrl;
   final int cantidad;
   final double precio;
 
   PedidoItemData({
+    this.productId = '',
     required this.nombre,
     required this.imageUrl,
     required this.cantidad,
@@ -15,6 +17,7 @@ class PedidoItemData {
 
   factory PedidoItemData.fromMap(Map<String, dynamic> map) {
     return PedidoItemData(
+      productId: (map['productId'] ?? map['productoId'] ?? '').toString(),
       nombre: (map['name'] ?? map['nombre'] ?? '—').toString(),
       imageUrl: (map['imageUrl'] ?? '').toString(),
       cantidad: _asInt(map['qty'] ?? map['cantidad'], fallback: 1),

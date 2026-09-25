@@ -1,7 +1,20 @@
 {
   "permissions": {
     "allow": [
-      "Bash(dart format *)"
+      "Bash(dart format *)",
+      "Bash(powershell -Command \"Get-ChildItem -Path 'C:\\\\Users\\\\SEBASTIAN-BUENO\\\\AppData\\\\Local\\\\Pub\\\\Cache\\\\hosted\\\\pub.dev' -Filter 'excel-*' -Directory -ErrorAction SilentlyContinue | Select-Object Name\")",
+      "Read(//c/Users/SEBASTIAN-BUENO/AppData/Local/Pub/Cache/hosted/pub.dev/excel-4.0.6/**)",
+      "Read(//c/Users/SEBASTIAN-BUENO/AppData/Local/Pub/Cache/hosted/pub.dev/excel-4.0.6/lib/**)",
+      "Read(//c/Users/SEBASTIAN-BUENO/AppData/Local/Pub/Cache/hosted/pub.dev/excel-4.0.6/lib/src/**)",
+      "Read(//c//**)",
+      "Bash(grep -i \"excel.dart$\")",
+      "Read(//c/Users/SEBASTIAN-BUENO/**)",
+      "Read(//c/Users/**)",
+      "Bash(find \"/c/Users/SEBASTIAN-BUENO/AppData/Local/Pub\" -maxdepth 3 -iname \"excel*\" 2>/dev/null)",
+      "Read(//c/Users/SEBASTIAN-BUENO/AppData/Local/Pub/**)",
+      "Bash(find \"/c/Users/SEBASTIAN-BUENO/AppData/Local/Pub\" -maxdepth 4 2>/dev/null | head -30)",
+      "Bash(find \"/c/Users/SEBASTIAN-BUENO/AppData/Local/Pub/Cache/hosted/pub.dev\" -maxdepth 1 -iname \"excel-*\" 2>/dev/null)",
+      "Read(//c/Users/SEBASTIAN-BUENO/AppData/Local/Pub/Cache/hosted/pub.dev/**)"
     ]
   }
 }

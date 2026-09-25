@@ -44,6 +44,16 @@ class BannersFirestore {
     });
   }
 
+  Future<void> actualizarEstado({
+    required String id,
+    required String estado, // ACTIVO / INACTIVO
+  }) async {
+    await _ref.doc(id).update({
+      'estado': estado.trim(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
   Future<void> eliminarBanner(String id) async {
     await _ref.doc(id).delete();
   }

@@ -9,6 +9,7 @@ class DashboardFirestore {
     DateTime? from,
     String? estado,
     String? departamento,
+    String? almacenId,
   }) {
     Query<Map<String, dynamic>> q = _db.collection('pedidos');
 
@@ -17,6 +18,9 @@ class DashboardFirestore {
     }
     if (departamento != null) {
       q = q.where('departamento', isEqualTo: departamento);
+    }
+    if (almacenId != null) {
+      q = q.where('almacenId', isEqualTo: almacenId);
     }
 
     // Estado: tu BD guarda "En camino" con mayúsculas.

@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:quimisol_movil/core/theme/palette.dart';
+import 'package:quimisol_movil/features/features_admin/productos/views/widgets/dialogs/promo_banner_preview.dart';
 
 /// Resultado (UI-only). No toca data.
 /// Ajusta/expande a lo que tú ya retornas si necesitas más campos.
@@ -303,21 +304,10 @@ class _BannerDialogState extends State<BannerDialog> {
     );
   }
 
-  // Preview simple (no toca data)
+  // Preview: mismo banner promocional que se usa en productos
   Widget _previewBox() {
-    Widget image;
-    if (_pickedBytes != null) {
-      image = Image.memory(_pickedBytes!, fit: BoxFit.cover);
-    } else if ((widget.initialImageUrl ?? '').trim().isNotEmpty) {
-      image = Image.network(
-        widget.initialImageUrl!.trim(),
-        fit: BoxFit.cover,
-        gaplessPlayback: true,
-        errorBuilder: (_, __, ___) => const Icon(Icons.image_not_supported_outlined),
-      );
-    } else {
-      image = Icon(Icons.image_outlined, color: Palette.ink.withValues(alpha: 0.25), size: 36);
-    }
+    final titulo = _tituloCtrl.text.trim();
+    final subtitulo = _subtituloCtrl.text.trim();
 
     return _card(
       child: Column(
@@ -333,7 +323,7 @@ class _BannerDialogState extends State<BannerDialog> {
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: Palette.button.withValues(alpha: 0.25)),
                 ),
-                child: const Icon(Icons.phone_iphone_rounded, color: Palette.primary),
+                child: const Icon(Icons.view_carousel_rounded, color: Palette.primary),
               ),
               const SizedBox(width: 12),
               const Expanded(
@@ -346,110 +336,46 @@ class _BannerDialogState extends State<BannerDialog> {
                   ),
                 ),
               ),
+              _statusChip(),
             ],
           ),
-          const SizedBox(height: 12),
-
-          // Marco tipo “móvil”
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: const Color(0xFF111111),
-              borderRadius: BorderRadius.circular(34),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.20),
-                  blurRadius: 24,
-                  offset: const Offset(0, 14),
-                ),
-              ],
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(28),
-              child: AspectRatio(
-                aspectRatio: 9 / 19.5,
-                child: Container(
-                  color: Palette.fieldBg,
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(14, 20, 14, 16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        // Banner preview
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Palette.button.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(18),
-                            border: Border.all(color: Palette.button.withValues(alpha: 0.18)),
-                          ),
-                          child: Row(
-                            children: [
-                              ClipRRect(
-                                borderRadius: BorderRadius.circular(14),
-                                child: SizedBox(
-                                  width: 64,
-                                  height: 64,
-                                  child: ColoredBox(
-                                    color: Palette.white,
-                                    child: Center(child: image),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      (_tituloCtrl.text.trim().isEmpty)
-                                          ? 'Título del banner'
-                                          : _tituloCtrl.text.trim(),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.w900,
-                                        color: Palette.ink,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      (_subtituloCtrl.text.trim().isEmpty)
-                                          ? 'Subtítulo del banner'
-                                          : _subtituloCtrl.text.trim(),
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.w700,
-                                        color: Palette.ink.withValues(alpha: 0.65),
-                                        fontSize: 13.7,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const Spacer(),
-                        Text(
-                          _activo ? 'ACTIVO' : 'INACTIVO',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontWeight: FontWeight.w900,
-                            color: _activo
-                                ? Palette.statsSuccess
-                                : Palette.ink.withValues(alpha: 0.45),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
+          const SizedBox(height: 14),
+          PromoBannerPreview(
+            productTitle: titulo.isEmpty ? 'Título del banner' : titulo,
+            discountSubtitle: subtitulo.isEmpty ? 'Subtítulo del banner' : subtitulo,
+            imageBytes: _pickedBytes,
+            imageUrl: widget.initialImageUrl,
+          ),
+          const SizedBox(height: 10),
+          Text(
+            'Así se verá el banner en la app móvil.',
+            style: TextStyle(
+              fontWeight: FontWeight.w700,
+              fontSize: 12.5,
+              color: Palette.ink.withValues(alpha: 0.5),
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _statusChip() {
+    final color = _activo ? Palette.statsSuccess : Palette.ink.withValues(alpha: 0.45);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withValues(alpha: 0.35)),
+      ),
+      child: Text(
+        _activo ? 'ACTIVO' : 'INACTIVO',
+        style: TextStyle(
+          fontWeight: FontWeight.w900,
+          fontSize: 11.5,
+          color: color,
+        ),
       ),
     );
   }

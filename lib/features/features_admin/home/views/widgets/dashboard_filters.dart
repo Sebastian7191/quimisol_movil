@@ -91,7 +91,7 @@ class DashboardFilters extends StatelessWidget {
             onChanged: (v) => controller.setDepartamento(v),
           ),
           _drop(
-            label: 'Almacén (productos/repartidores)',
+            label: 'Almacén',
             value: controller.almacenId,
             items: itemsAlm,
             onChanged: (v) => controller.setAlmacen(v),

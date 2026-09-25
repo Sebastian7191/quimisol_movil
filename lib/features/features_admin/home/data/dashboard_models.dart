@@ -81,9 +81,15 @@ class DashboardStats {
     required List<QueryDocumentSnapshot<Map<String, dynamic>>> usuarios,
     required List<QueryDocumentSnapshot<Map<String, dynamic>>> repartidores,
     required List<QueryDocumentSnapshot<Map<String, dynamic>>> banners,
+    List<QueryDocumentSnapshot<Map<String, dynamic>>> almacenes = const [],
     DateTime? rangeStart,
     int recentLimit = 6,
   }) {
+    // Los repartidores solo guardan `almacenId`, no el nombre del almacén,
+    // así que lo resolvemos aquí contra la colección `almacenes`.
+    final almacenNombrePorId = <String, String>{
+      for (final a in almacenes) a.id: (a.data()['nombre'] ?? '').toString(),
+    };
     // ===== pedidos =====
     int pend = 0, acept = 0, enc = 0, entr = 0, canc = 0;
     double ventas = 0, envio = 0;
@@ -202,10 +208,14 @@ class DashboardStats {
     final allRepartidores = <RepartidorMini>[];
     for (final d in repartidores) {
       final m = d.data();
+      final almacenId = (m['almacenId'] ?? '').toString().trim();
+      final almacenNombre = (m['almacenNombre'] ?? '').toString().trim().isNotEmpty
+          ? (m['almacenNombre']).toString()
+          : (almacenNombrePorId[almacenId] ?? '');
       allRepartidores.add(RepartidorMini(
         id: d.id,
         nombre: (m['nombre'] ?? m['name'] ?? '').toString(),
-        almacenNombre: (m['almacenNombre'] ?? '').toString(),
+        almacenNombre: almacenNombre,
         disponible: m['disponible'] == true,
       ));
     }

@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart' as fb;
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:quimisol_movil/core/utils/user_name_resolver.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -94,6 +95,27 @@ class _AdminSupportChatPageState extends State<AdminSupportChatPage>
     _setSupportChatPresence(true);
 
     _markSupportRead(); // una vez al abrir
+  }
+
+  bool _resolvingName = false;
+
+  /// El chat guardó un nombre genérico: busca el real en `usuarios`.
+  Future<void> _resolveClientName(Map<String, dynamic> chatData) async {
+    if (_resolvingName || !UserNameResolver.isGeneric(_clientName)) return;
+    _resolvingName = true;
+
+    final chatId = (chatData['chatId'] ?? widget.chatId).toString();
+    final uid = (chatData['clientUid'] ?? '').toString().trim().isNotEmpty
+        ? chatData['clientUid'].toString().trim()
+        : (chatId.startsWith('chat_') ? chatId.substring(5) : '');
+
+    final name = await UserNameResolver.byUid(uid) ??
+        UserNameResolver.fromEmail(chatData['clientEmail']?.toString());
+
+    if (!mounted || name == null) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) setState(() => _clientName = name);
+    });
   }
 
   @override
@@ -493,7 +515,12 @@ class _AdminSupportChatPageState extends State<AdminSupportChatPage>
             (chatData['assignedSupportName'] ?? '').toString().trim().isEmpty
                 ? null
                 : chatData['assignedSupportName'].toString();
-        _clientName = (chatData['clientName'] ?? _clientName).toString();
+        final storedName = (chatData['clientName'] ?? '').toString().trim();
+        if (!UserNameResolver.isGeneric(storedName)) {
+          _clientName = storedName;
+        } else {
+          _resolveClientName(chatData);
+        }
 
         final bool assignedToOther = _assignedSupportUid != null &&
             _assignedSupportUid!.isNotEmpty &&

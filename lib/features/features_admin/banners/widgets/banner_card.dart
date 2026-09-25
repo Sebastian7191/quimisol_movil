@@ -10,6 +10,8 @@ class BannerCard extends StatelessWidget {
 
   final VoidCallback onEdit;
   final VoidCallback onDelete;
+  // null = switch deshabilitado (p. ej. mientras se guarda)
+  final ValueChanged<bool>? onToggleEstado;
 
   const BannerCard({
     super.key,
@@ -19,6 +21,7 @@ class BannerCard extends StatelessWidget {
     required this.estado,
     required this.onEdit,
     required this.onDelete,
+    this.onToggleEstado,
   });
 
   @override
@@ -116,6 +119,17 @@ class BannerCard extends StatelessWidget {
                       child: Row(
                         children: [
                           _EstadoChip(isActivo: isActivo),
+                          const SizedBox(width: 8),
+                          Tooltip(
+                            message: isActivo ? 'Desactivar banner' : 'Activar banner',
+                            child: Switch(
+                              value: isActivo,
+                              onChanged: onToggleEstado,
+                              activeThumbColor: Colors.white,
+                              activeTrackColor: Palette.statsSuccess,
+                              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            ),
+                          ),
                           const Spacer(),
                           AdminActionButton(
                             tooltip: 'Editar',

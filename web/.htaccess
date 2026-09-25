@@ -1,0 +1,24 @@
+# MIME types correctos para assets de Flutter Web (sin esto, Apache/Hostinger
+# puede servir fuentes de iconos y wasm sin Content-Type, y CanvasKit las descarta
+# renderizando los iconos como cuadros vacios).
+AddType application/wasm wasm
+AddType font/ttf ttf
+AddType font/otf otf
+AddType font/woff woff
+AddType font/woff2 woff2
+AddType application/json json
+AddType application/javascript js
+AddType application/manifest+json webmanifest
+
+Options -MultiViews
+
+RewriteEngine On
+RewriteBase /
+
+# Servir archivos y carpetas existentes directamente (assets, fuentes, etc.)
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
+
+# Cualquier otra ruta (rutas internas de la app) cae a index.html
+RewriteRule ^ index.html [L]

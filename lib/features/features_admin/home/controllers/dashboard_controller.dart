@@ -7,7 +7,7 @@ class DashboardController extends ChangeNotifier {
 
   String? estado;        // Ej: "pendiente", "aceptado", "en camino", "entregado"
   String? departamento;  // Ej: "Cochabamba"
-  String? almacenId;     // Para productos/repartidores
+  String? almacenId;
 
   void setRange(DashboardRange v) {
     range = v;

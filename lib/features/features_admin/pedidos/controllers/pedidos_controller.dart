@@ -18,11 +18,15 @@ class PedidosController {
     required List<PedidoRow> pedidos,
     required String query,
     required String estado,
+    String departamento = 'Todos',
   }) {
     final q = query.trim().toLowerCase();
 
     return pedidos.where((p) {
       if (estado != 'Todos' && normalizeEstado(p.estado) != estado) {
+        return false;
+      }
+      if (departamento != 'Todos' && _deptoKey(p) != departamento) {
         return false;
       }
       if (q.isEmpty) return true;
@@ -35,23 +39,29 @@ class PedidosController {
     }).toList();
   }
 
+  String _deptoKey(PedidoRow p) =>
+      p.departamento.trim().isEmpty ? 'Sin departamento' : p.departamento;
+
+  int _compareDeptos(String a, String b) {
+    if (a == 'Sin departamento') return 1;
+    if (b == 'Sin departamento') return -1;
+    return a.toLowerCase().compareTo(b.toLowerCase());
+  }
+
+  // Departamentos distintos (ordenados) para el filtro
+  List<String> departamentosDe(List<PedidoRow> pedidos) {
+    return pedidos.map(_deptoKey).toSet().toList()..sort(_compareDeptos);
+  }
+
   // Agrupar por depa
   List<DeptoSection> groupByDepartamento(List<PedidoRow> pedidos) {
     final Map<String, List<PedidoRow>> map = {};
 
     for (final p in pedidos) {
-      final key = p.departamento.trim().isEmpty
-          ? 'Sin departamento'
-          : p.departamento;
-      (map[key] ??= []).add(p);
+      (map[_deptoKey(p)] ??= []).add(p);
     }
 
-    final keys = map.keys.toList()
-      ..sort((a, b) {
-        if (a == 'Sin departamento') return 1;
-        if (b == 'Sin departamento') return -1;
-        return a.toLowerCase().compareTo(b.toLowerCase());
-      });
+    final keys = map.keys.toList()..sort(_compareDeptos);
 
     return keys
         .map((k) => DeptoSection(departamento: k, pedidos: map[k]!))

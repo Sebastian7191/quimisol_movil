@@ -150,6 +150,35 @@ class _BannersPageState extends State<BannersPage> {
     }
   }
 
+  // Banners con cambio de estado en curso (evita dobles toques)
+  final Set<String> _togglingIds = {};
+
+  Future<void> _toggleEstado(String docId, bool activo) async {
+    setState(() => _togglingIds.add(docId));
+    try {
+      await controller.cambiarEstado(docId, activo);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(activo ? 'Banner activado' : 'Banner desactivado'),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al cambiar estado: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _togglingIds.remove(docId));
+    }
+  }
+
   Future<void> _deleteBanner(String docId, String titulo) async {
     FocusManager.instance.primaryFocus?.unfocus();
 
@@ -434,6 +463,9 @@ class _BannersPageState extends State<BannersPage> {
                                     data: r,
                                   ),
                                   onDelete: () => _deleteBanner(docId, titulo),
+                                  onToggleEstado: _togglingIds.contains(docId)
+                                      ? null
+                                      : (v) => _toggleEstado(docId, v),
                                 );
                               },
                             );

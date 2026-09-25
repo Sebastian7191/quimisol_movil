@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:quimisol_movil/core/constants/pedido_estado.dart';
@@ -108,6 +109,13 @@ class _PedidoDetalleFormState extends State<_PedidoDetalleForm> {
   bool get _esEfectivo =>
       widget.pedido.tipoPago.trim().toLowerCase().contains('efect');
 
+  // Se basa en el estado guardado, no en el editado: un pedido entregado
+  // queda bloqueado aunque se cambie el dropdown.
+  bool get _yaEntregado =>
+      normalizeEstado(widget.pedido.estado) == kEstadoEntregado;
+
+  bool get _locked => _saving || _yaEntregado;
+
   @override
   void initState() {
     super.initState();
@@ -181,6 +189,7 @@ class _PedidoDetalleFormState extends State<_PedidoDetalleForm> {
   }
 
   Future<void> _saveChanges() async {
+    if (_yaEntregado) return;
     _applyCostoFromText();
 
     if (!_esEfectivo &&
@@ -293,21 +302,22 @@ class _PedidoDetalleFormState extends State<_PedidoDetalleForm> {
                   title: 'Gestión',
                   icon: Icons.tune_rounded,
                   child: _GestionSection(
+                    readOnly: _yaEntregado,
                     pedido: pedido,
                     estadoEdit: _estadoEdit,
                     onEstadoChanged:
-                        (_saving ||
+                        (_locked ||
                             (!_esEfectivo && _estadoPagoEdit == 'rechazado'))
                         ? null
                         : (v) => setState(() => _estadoEdit = v),
                     fechaEnvioEdit: _fechaEnvioEdit,
-                    onPickFecha: _saving ? null : _pickFechaEnvio,
+                    onPickFecha: _locked ? null : _pickFechaEnvio,
                     costoCtrl: _costoCtrl,
                     costoEnvioEdit: _costoEnvioEdit,
-                    onCostoChanged: _saving ? null : (_) => _applyCostoFromText(),
+                    onCostoChanged: _locked ? null : (_) => _applyCostoFromText(),
                     repartidorUidEdit: _repartidorUidEdit,
                     repartidorNombreEdit: _repartidorNombreEdit,
-                    onRepartidorChanged: _saving
+                    onRepartidorChanged: _locked
                         ? null
                         : (uid, nombre) {
                             setState(() {
@@ -323,10 +333,11 @@ class _PedidoDetalleFormState extends State<_PedidoDetalleForm> {
                   title: 'Pago',
                   icon: Icons.payments_rounded,
                   child: _PagoInfoWidget(
+                    readOnly: _yaEntregado,
                     pedido: pedido,
                     estadoPagoEdit: _estadoPagoEdit,
                     motivoRechazoCtrl: _motivoRechazoCtrl,
-                    onEstadoPagoChanged: _saving || _esEfectivo
+                    onEstadoPagoChanged: _locked || _esEfectivo
                         ? null
                         : (v) {
                             setState(() {
@@ -397,9 +408,9 @@ class _PedidoDetalleFormState extends State<_PedidoDetalleForm> {
         ),
         Footer(
           isSaving: _saving,
-          readOnly: _estadoEdit == kEstadoEntregado,
+          readOnly: _yaEntregado,
           onClose: _saving ? null : () => Navigator.pop(context),
-          onSave: _saving ? null : _saveChanges,
+          onSave: _locked ? null : _saveChanges,
         ),
       ],
     );
@@ -479,8 +490,10 @@ class _GestionSection extends StatelessWidget {
     required this.repartidorNombreEdit,
     required this.onRepartidorChanged,
     required this.controller,
+    this.readOnly = false,
   });
 
+  final bool readOnly;
   final PedidoDetalleData pedido;
   final String estadoEdit;
   final ValueChanged<String>? onEstadoChanged;
@@ -496,6 +509,24 @@ class _GestionSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (readOnly) {
+      final repartidor = (repartidorNombreEdit ?? '').trim();
+      return _KeyValueList(
+        rows: [
+          const _KV('Estado', 'Entregado', isStrong: true),
+          _KV(
+            'Fecha envío',
+            fechaEnvioEdit == null
+                ? '—'
+                : DateFormat('dd/MM/yyyy HH:mm', 'es_BO')
+                    .format(fechaEnvioEdit!),
+          ),
+          _KV('Costo envío', _money(costoEnvioEdit ?? pedido.costoEnvio)),
+          _KV('Repartidor', repartidor.isEmpty ? '—' : repartidor),
+        ],
+      );
+    }
+
     return LayoutBuilder(
       builder: (context, c) {
         final isMobile = c.maxWidth < 640;
@@ -623,8 +654,10 @@ class _PagoInfoWidget extends StatelessWidget {
     required this.estadoPagoEdit,
     required this.motivoRechazoCtrl,
     required this.onEstadoPagoChanged,
+    this.readOnly = false,
   });
 
+  final bool readOnly;
   final PedidoDetalleData pedido;
   final String estadoPagoEdit;
   final TextEditingController motivoRechazoCtrl;
@@ -687,17 +720,21 @@ class _PagoInfoWidget extends StatelessWidget {
         _KeyValueList(
           rows: [
             _KV('Tipo de pago', _tipoPagoLabel(pedido.tipoPago), isStrong: true),
+            if (readOnly)
+              _KV('Estado pago', _estadoPagoLabel(pedido.estadoPago)),
           ],
         ),
-        const SizedBox(height: 10),
-        EditRow(
-          label: 'Estado pago',
-          child: _EstadoPagoDropdown(
-            value: estadoPagoEdit,
-            onChanged: onEstadoPagoChanged,
+        if (!readOnly) ...[
+          const SizedBox(height: 10),
+          EditRow(
+            label: 'Estado pago',
+            child: _EstadoPagoDropdown(
+              value: estadoPagoEdit,
+              onChanged: onEstadoPagoChanged,
+            ),
           ),
-        ),
-        if (estadoPagoEdit == 'rechazado') ...[
+        ],
+        if (!readOnly && estadoPagoEdit == 'rechazado') ...[
           const SizedBox(height: 12),
           EditRow(
             label: 'Motivo rechazo',
@@ -1187,7 +1224,7 @@ class _ItemTile extends StatelessWidget {
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _Thumb(url: item.imageUrl),
+                    _Thumb(url: item.imageUrl, productId: item.productId),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Column(
@@ -1260,7 +1297,7 @@ class _ItemTile extends StatelessWidget {
           padding: const EdgeInsets.all(10),
           child: Row(
             children: [
-              _Thumb(url: item.imageUrl),
+              _Thumb(url: item.imageUrl, productId: item.productId),
               const SizedBox(width: 10),
               Expanded(
                 child: Column(
@@ -1322,12 +1359,95 @@ class _ItemTile extends StatelessWidget {
   }
 }
 
-class _Thumb extends StatelessWidget {
-  const _Thumb({required this.url});
+class _Thumb extends StatefulWidget {
+  const _Thumb({required this.url, required this.productId});
   final String url;
+  final String productId;
+
+  @override
+  State<_Thumb> createState() => _ThumbState();
+}
+
+class _ThumbState extends State<_Thumb> {
+  // Cache compartido: productId -> imagen actual del producto
+  static final Map<String, Future<String>> _cache = {};
+
+  // La URL guardada en el pedido puede quedar vieja si se cambió la imagen
+  // del producto; en ese caso se usa la imagen actual de `productos`.
+  bool _useFallback = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _useFallback = widget.url.trim().isEmpty;
+  }
+
+  Future<String> _currentProductImage() {
+    final id = widget.productId.trim();
+    if (id.isEmpty) return Future.value('');
+    return _cache.putIfAbsent(id, () async {
+      try {
+        final doc = await FirebaseFirestore.instance
+            .collection('productos')
+            .doc(id)
+            .get();
+        final data = doc.data() ?? {};
+        return (data['imagenUrl'] ?? data['imageUrl'] ?? data['imagen'] ?? '')
+            .toString()
+            .trim();
+      } catch (_) {
+        _cache.remove(id);
+        return '';
+      }
+    });
+  }
+
+  Widget _icon(IconData icon) =>
+      Icon(icon, color: Palette.primary.withValues(alpha: 0.6));
+
+  Widget _network(String url, {required VoidCallback? onError}) {
+    return Image.network(
+      url,
+      fit: BoxFit.contain,
+      errorBuilder: (_, __, ___) {
+        if (onError != null) {
+          WidgetsBinding.instance.addPostFrameCallback((_) => onError());
+        }
+        return _icon(Icons.broken_image_rounded);
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
+    final Widget content;
+    if (!_useFallback) {
+      content = _network(
+        widget.url.trim(),
+        onError: () {
+          if (mounted && !_useFallback) setState(() => _useFallback = true);
+        },
+      );
+    } else {
+      content = FutureBuilder<String>(
+        future: _currentProductImage(),
+        builder: (context, snap) {
+          if (snap.connectionState != ConnectionState.done) {
+            return const Center(
+              child: SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            );
+          }
+          final url = snap.data ?? '';
+          if (url.isEmpty) return _icon(Icons.image_not_supported_rounded);
+          return _network(url, onError: null);
+        },
+      );
+    }
+
     return Container(
       width: 56,
       height: 56,
@@ -1338,21 +1458,7 @@ class _Thumb extends StatelessWidget {
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(16),
-        child: url.isEmpty
-            ? Icon(
-                Icons.image_not_supported_rounded,
-                color: Palette.primary.withValues(alpha: 0.6),
-              )
-            : Image.network(
-                url,
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) {
-                  return Icon(
-                    Icons.broken_image_rounded,
-                    color: Palette.primary.withValues(alpha: 0.6),
-                  );
-                },
-              ),
+        child: content,
       ),
     );
   }
