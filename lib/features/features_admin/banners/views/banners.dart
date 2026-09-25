@@ -25,6 +25,10 @@ class BannersPage extends StatefulWidget {
 
 class _BannersPageState extends State<BannersPage> {
   final controller = BannersController();
+  // Se crea una sola vez: si se recrea en build, cada setState vuelve a
+  // suscribirse, pasa por "cargando" y la página parpadea.
+  late final Stream<QuerySnapshot<Map<String, dynamic>>> _bannersStream =
+      controller.bannersStream();
 
   @override
   void initState() {
@@ -37,9 +41,6 @@ class _BannersPageState extends State<BannersPage> {
     controller.dispose();
     super.dispose();
   }
-
-  Stream<QuerySnapshot<Map<String, dynamic>>> _bannersStream() =>
-      controller.bannersStream();
 
   Future<BannerDialogResult?> _showBannerDialog(Widget dialog) {
     FocusManager.instance.primaryFocus?.unfocus();
@@ -396,7 +397,7 @@ class _BannersPageState extends State<BannersPage> {
               // ================= GRID =================
               Expanded(
                 child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                  stream: _bannersStream(),
+                  stream: _bannersStream,
                   builder: (context, snapshot) {
                     if (snapshot.hasError) {
                       return BannerErrorBox(
