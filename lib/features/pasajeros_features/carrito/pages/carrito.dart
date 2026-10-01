@@ -8,7 +8,44 @@ import 'package:flutter/material.dart';
 
 import 'package:quimisol_movil/core/theme/palette.dart';
 import 'package:quimisol_movil/features/pasajeros_features/carrito/pages/carrito_store.dart';
+import 'package:quimisol_movil/features/pasajeros_features/navbar/pages/nav_bar_pasajeros.dart';
 import 'package:quimisol_movil/features/pasajeros_features/pagos/pages/metodo_pago_page.dart';
+import 'package:quimisol_movil/shared/widgets/cantidad_dialog.dart';
+
+/// Normaliza un departamento para comparar el del almacén con el de la
+/// ubicación: las ubicaciones viejas pueden tener tildes, mayúsculas o el
+/// prefijo "Departamento de" que devolvía Mapbox.
+String _normDepto(String s) {
+  const acentos = <String, String>{
+    'á': 'a',
+    'é': 'e',
+    'í': 'i',
+    'ó': 'o',
+    'ú': 'u',
+    'ü': 'u',
+    'ñ': 'n',
+  };
+
+  var out = s.trim().toLowerCase();
+  acentos.forEach((con, sin) => out = out.replaceAll(con, sin));
+  out = out.replaceAll(RegExp(r'\s+'), ' ');
+
+  for (final prefijo in const [
+    'departamento de ',
+    'departamento ',
+    'depto. ',
+    'depto ',
+    'region de ',
+    'region ',
+  ]) {
+    if (out.startsWith(prefijo)) {
+      out = out.substring(prefijo.length).trim();
+      break;
+    }
+  }
+
+  return out;
+}
 
 class CarritoPage extends StatefulWidget {
   const CarritoPage({super.key});
@@ -100,7 +137,7 @@ class _CarritoPageState extends State<CarritoPage> {
   CollectionReference<Map<String, dynamic>> get _ubicRef =>
       _fire.collection('usuarios').doc(_uid).collection('ubicaciones');
 
-  String _norm(String s) => s.trim().toLowerCase();
+  String _norm(String s) => _normDepto(s);
 
   String _currentProductsKey() {
     final ids = _items.map((e) => e.id).toSet().toList()..sort();
@@ -110,6 +147,10 @@ class _CarritoPageState extends State<CarritoPage> {
   /// ✅ FIX PARPADEO:
   /// - NO crea Stream nuevo en cada build
   /// - SOLO cambia cuando cambia _allowedDeptos
+  ///
+  /// Trae todas las ubicaciones y el filtro por departamento lo hace
+  /// [_UbicacionDropdown] normalizando: un `whereIn` de Firestore compara el
+  /// texto exacto y dejaba fuera "santa cruz" o "Departamento de Santa Cruz".
   Stream<QuerySnapshot<Map<String, dynamic>>> _ubicStreamFiltered() {
     final keyList = _allowedDeptos.toList()..sort();
     final key = keyList.join('|');
@@ -119,18 +160,6 @@ class _CarritoPageState extends State<CarritoPage> {
     }
 
     _ubicStreamKey = key;
-
-    if (_allowedDeptos.isEmpty) {
-      _ubicStream = _ubicRef.snapshots();
-      return _ubicStream!;
-    }
-
-    final list = keyList;
-    if (list.length <= 10) {
-      _ubicStream = _ubicRef.where('departamento', whereIn: list).snapshots();
-      return _ubicStream!;
-    }
-
     _ubicStream = _ubicRef.snapshots();
     return _ubicStream!;
   }
@@ -292,6 +321,9 @@ class _CarritoPageState extends State<CarritoPage> {
     final ink = Palette.ink;
 
     return Scaffold(
+      // La página no tiene campos de texto: si se achica con el teclado
+      // (del diálogo de cantidad) el contenido desborda.
+      resizeToAvoidBottomInset: false,
       backgroundColor: Palette.fieldBg,
       body: SafeArea(
         child: Column(
@@ -508,6 +540,30 @@ class _CarritoPageState extends State<CarritoPage> {
             ),
 
             Padding(
+              padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+              child: SizedBox(
+                height: 50,
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: primary,
+                    side: BorderSide(color: primary, width: 1.6),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(18),
+                    ),
+                  ),
+                  // Cierra carrito (y detalle) y deja la pestaña Principal.
+                  onPressed: _paying ? null : () => Navbar.irAPestana(context, 0),
+                  icon: const Icon(Icons.storefront_rounded),
+                  label: const Text(
+                    'Seguir comprando',
+                    style: TextStyle(fontWeight: FontWeight.w900, fontSize: 15),
+                  ),
+                ),
+              ),
+            ),
+
+            Padding(
               padding: const EdgeInsets.fromLTRB(16, 10, 16, 18),
               child: SizedBox(
                 height: 58,
@@ -576,7 +632,7 @@ class _UbicacionDropdown extends StatelessWidget {
   final ValueChanged<UbicacionSeleccionada?> onChanged;
   final Set<String> allowedDeptos;
 
-  String _norm(String s) => s.trim().toLowerCase();
+  String _norm(String s) => _normDepto(s);
 
   @override
   Widget build(BuildContext context) {
@@ -1064,6 +1120,9 @@ class _CartCard extends StatelessWidget {
                               onMinus: onMinus,
                               onPlus: onPlus,
                               onSetQty: onSetQty,
+                              stock: prod?['stock'] == null
+                                  ? null
+                                  : _toDouble(prod?['stock']).toInt(),
                             ),
                           ],
                         ),
@@ -1089,6 +1148,7 @@ class _QtyPill extends StatelessWidget {
     required this.onMinus,
     required this.onPlus,
     required this.onSetQty,
+    this.stock,
   });
 
   final int qty;
@@ -1096,6 +1156,20 @@ class _QtyPill extends StatelessWidget {
   final VoidCallback onMinus;
   final VoidCallback onPlus;
   final ValueChanged<int> onSetQty;
+
+  /// Stock del producto; null si todavía no se cargó.
+  final int? stock;
+
+  /// Abre un diálogo para escribir la cantidad. El diálogo no deja aceptar
+  /// más que [stock]; [CartStore.setQty] igual vuelve a validar.
+  Future<void> _editarCantidad(BuildContext context) async {
+    final nueva = await showCantidadDialog(
+      context,
+      inicial: qty,
+      disponible: stock,
+    );
+    if (nueva != null && nueva != qty) onSetQty(nueva);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1115,15 +1189,24 @@ class _QtyPill extends StatelessWidget {
             onTap: onMinus,
             color: primary,
           ),
-          SizedBox(
-            width: 36,
-            child: Text(
-              '$qty',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Palette.ink,
-                fontWeight: FontWeight.w900,
-                fontSize: 15,
+          InkWell(
+            onTap: () => _editarCantidad(context),
+            borderRadius: BorderRadius.circular(8),
+            child: Container(
+              constraints: const BoxConstraints(minWidth: 36),
+              height: 34,
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              alignment: Alignment.center,
+              child: Text(
+                '$qty',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Palette.ink,
+                  fontWeight: FontWeight.w900,
+                  fontSize: 15,
+                  decoration: TextDecoration.underline,
+                  decorationColor: Palette.ink.withValues(alpha: 0.35),
+                ),
               ),
             ),
           ),

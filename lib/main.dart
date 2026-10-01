@@ -176,7 +176,7 @@ Future<void> main() async {
   Intl.defaultLocale = 'es_BO';
 
   // ✅ Mapbox token (SOLO móvil/desktop nativo, NO web)
-  // El token llega por --dart-define, no vive en el código.
+  // El token se define en core/config/mapbox_config.dart.
   if (!kIsWeb) {
     if (!MapboxConfig.estaConfigurado) {
       debugPrint(

@@ -36,6 +36,26 @@ class FirebaseAuthService implements AuthService {
   }
 
   @override
+  Future<bool> needsProfileCompletion() async {
+    final uid = _auth.currentUser?.uid;
+    if (uid == null) return false;
+
+    try {
+      final doc = await _db.collection('usuarios').doc(uid).get();
+      final data = doc.data();
+      if (data == null) return false;
+
+      // Admin y repartidores los crea el admin: no pasan por este paso.
+      final role = (data['role'] ?? '').toString();
+      if (role != 'cliente' && role != 'cliente_mayorista') return false;
+
+      return data['profile_completed'] == false;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  @override
   Future<void> signInWithEmail(String email, String password) async {
     try {
       await _auth.signInWithEmailAndPassword(

@@ -148,6 +148,14 @@ class _LoginScreenState extends State<LoginScreen> {
       Modular.get<GuestStore>().exitGuest();
     } catch (_) {}
 
+    // Registro nuevo (o que quedó a medias): pide nombre, teléfono y
+    // ubicación antes de entrar.
+    if (await _authService.needsProfileCompletion()) {
+      if (!mounted) return;
+      Modular.to.navigate('/auth/perfil-completar');
+      return;
+    }
+
     final role = await _authService.getUserRole();
     if (!mounted) return;
 

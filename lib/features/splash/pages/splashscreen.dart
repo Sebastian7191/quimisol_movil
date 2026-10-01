@@ -94,6 +94,13 @@ class _SplashPageState extends State<SplashPage> with TickerProviderStateMixin {
       Modular.get<GuestStore>().exitGuest();
     } catch (_) {}
 
+    // Si cerró la app sin completar el perfil tras registrarse, lo retoma.
+    if (await _authService.needsProfileCompletion()) {
+      if (!mounted) return;
+      await _navigateWithFade('/auth/perfil-completar');
+      return;
+    }
+
     final role = await _authService.getUserRole();
     if (!mounted) return;
 

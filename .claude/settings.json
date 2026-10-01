@@ -11,7 +11,24 @@
       "Bash(xargs grep -l \"FirebaseFirestore\\\\|collectionGroup\\\\|formulario_2\\\\|formulario_3\")",
       "Bash(find \"c:/Users/SEBASTIAN-BUENO/Downloads/quimisol\" -name \"firebase.json\" 2>/dev/null | head -5)",
       "Read(//c/Users/SEBASTIAN-BUENO/Downloads/quimisol/**)",
-      "Bash(npx eslint *)"
+      "Bash(npx eslint *)",
+      "Bash(node poblar_productos.mjs:*)",
+      "Bash(node:*)",
+      "Bash(node poblar_usuarios_pedidos.mjs)",
+      "Bash(node poblar_usuarios_pedidos.mjs --commit)",
+      "Bash(node -e ' *)",
+      "Bash(gcloud auth *)",
+      "Bash(curl -s -o /tmp/auth_test.json -w 'HTTP %{http_code}\\\\n' -X POST -H 'Authorization: Bearer __TRACKED_VAR__' -H 'Content-Type: application/json' -d '{\"returnUserInfo\":false}' https://identitytoolkit.googleapis.com/v1/projects/quimisol-4f159/accounts:query)",
+      "Bash(curl -s -o /tmp/auth2.json -w 'HTTP %{http_code}\\\\n' -X POST -H 'Authorization: Bearer __TRACKED_VAR__' -H 'x-goog-user-project: quimisol-4f159' -H 'Content-Type: application/json' -d '{\"returnUserInfo\":false}' https://identitytoolkit.googleapis.com/v1/projects/quimisol-4f159/accounts:query)",
+      "Bash(node crear_auth.mjs)",
+      "Bash(node crear_auth.mjs --commit)",
+      "Bash(awk '/^COPY public\\\\.productos /{f=1;next} f&&/^\\\\\\\\\\\\.$/{f=0} f{split\\($0,a,\"\\\\t\"\\); printf \"  %-14s -> %.70s\\\\n\", a[2], a[10]}' base_oficial.sql)",
+      "Bash(node subir_imagenes.mjs)",
+      "Bash(node subir_imagenes.mjs --commit)",
+      "PowerShell(flutter analyze lib/features/pasajeros_features/carrito/pages/carrito.dart)"
+    ],
+    "additionalDirectories": [
+      "C:\\Users\\SEBASTIAN-BUENO\\Downloads\\quimisol\\export_quimisol_2026-09-28"
     ]
   }
 }

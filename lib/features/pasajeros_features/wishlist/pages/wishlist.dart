@@ -8,6 +8,9 @@ import 'package:quimisol_movil/core/theme/palette.dart';
 import 'package:quimisol_movil/features/pasajeros_features/carrito/pages/carrito.dart';
 import 'package:quimisol_movil/features/pasajeros_features/carrito/widgets/depto_conflicto_dialog.dart';
 import 'package:quimisol_movil/features/pasajeros_features/carrito/pages/carrito_store.dart';
+import 'package:quimisol_movil/features/pasajeros_features/homepage/pages/detalle_producto.dart';
+import 'package:quimisol_movil/features/pasajeros_features/homepage/pages/home_page_clientes.dart';
+import 'package:quimisol_movil/shared/widgets/cart_count_badge.dart';
 
 import 'wishlist_store.dart';
 
@@ -83,8 +86,10 @@ class _WishlistPageState extends State<WishlistPage> {
     if (!res.agregado) {
       if (!mounted) return;
 
-      final aceptado =
-          await confirmarCambioDeDepartamento(context, res.conflicto!);
+      final aceptado = await confirmarCambioDeDepartamento(
+        context,
+        res.conflicto!,
+      );
       if (!aceptado) return;
 
       await _cart.addFromWishlist(fixed, vaciarCarrito: true);
@@ -94,10 +99,43 @@ class _WishlistPageState extends State<WishlistPage> {
 
     // El producto sigue en favoritos, así que sin este aviso no se nota
     // que pasó algo al tocar el botón.
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Agregado al carrito 🛒')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Agregado al carrito 🛒')));
     // ❌ no navegación automática
+  }
+
+  /// Abre el detalle con los datos actuales del producto (stock, precio),
+  /// no con la copia guardada en favoritos.
+  Future<void> _openDetalle(WishItem item) async {
+    try {
+      final snap = await FirebaseFirestore.instance
+          .collection('productos')
+          .doc(item.id)
+          .get();
+
+      if (!mounted) return;
+
+      if (!snap.exists) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Este producto ya no está disponible')),
+        );
+        return;
+      }
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) =>
+              DetalleProductoPage(product: ProductModel.fromFirestore(snap)),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No se pudo abrir el producto: $e')),
+      );
+    }
   }
 
   @override
@@ -132,33 +170,37 @@ class _WishlistPageState extends State<WishlistPage> {
                     ),
                   ),
                   const Spacer(),
-                  InkWell(
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const CarritoPage()),
-                      );
-                    },
-                    borderRadius: BorderRadius.circular(14),
-                    child: Container(
-                      height: 38,
-                      width: 38,
-                      decoration: BoxDecoration(
-                        color: Palette.white,
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: ink.withOpacity(0.06)),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.04),
-                            blurRadius: 16,
-                            offset: const Offset(0, 10),
+                  CartCountBadge(
+                    child: InkWell(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const CarritoPage(),
                           ),
-                        ],
-                      ),
-                      child: Icon(
-                        Icons.shopping_cart_outlined,
-                        color: ink.withOpacity(0.75),
-                        size: 20,
+                        );
+                      },
+                      borderRadius: BorderRadius.circular(14),
+                      child: Container(
+                        height: 38,
+                        width: 38,
+                        decoration: BoxDecoration(
+                          color: Palette.white,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: ink.withOpacity(0.06)),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.04),
+                              blurRadius: 16,
+                              offset: const Offset(0, 10),
+                            ),
+                          ],
+                        ),
+                        child: Icon(
+                          Icons.shopping_cart_outlined,
+                          color: ink.withOpacity(0.75),
+                          size: 20,
+                        ),
                       ),
                     ),
                   ),
@@ -234,22 +276,43 @@ class _WishlistPageState extends State<WishlistPage> {
                         ),
                       ),
                     )
+                  // Filas de 2 como en la home: cada fila mide lo que su
+                  // card más alta, y las dos quedan del mismo alto.
                   : ListView.builder(
                       padding: const EdgeInsets.fromLTRB(16, 6, 16, 18),
-                      itemCount: _filtered.length,
-                      itemBuilder: (_, i) {
-                        final it = _filtered[i];
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 14),
-                          child: _WishCard(
+                      itemCount: (_filtered.length + 1) ~/ 2,
+                      itemBuilder: (_, row) {
+                        Widget card(int i) {
+                          final it = _filtered[i];
+                          return _WishCard(
                             item: it,
                             primary: primary,
                             cardBg: cardBg,
                             ink: ink,
                             onRemove: () => _removeAt(i),
+                            onTap: () => _openDetalle(it),
                             onAddToCart: it.stock <= 0
                                 ? null
                                 : (priceToUse) => _addToCart(it, priceToUse),
+                          );
+                        }
+
+                        final i = row * 2;
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 14),
+                          child: IntrinsicHeight(
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                Expanded(child: card(i)),
+                                const SizedBox(width: 14),
+                                Expanded(
+                                  child: i + 1 < _filtered.length
+                                      ? card(i + 1)
+                                      : const SizedBox.shrink(),
+                                ),
+                              ],
+                            ),
                           ),
                         );
                       },
@@ -263,6 +326,41 @@ class _WishlistPageState extends State<WishlistPage> {
 }
 
 /* ---------------- UI ---------------- */
+
+/// Foto completa a todo el ancho de la card: el alto sigue la proporción de
+/// cada imagen (una botella alta da una imagen alta), así no se recorta ni
+/// quedan franjas. Mientras carga, o si falla, ocupa un cuadrado.
+class _ImagenCompleta extends StatelessWidget {
+  const _ImagenCompleta({required this.url, required this.ink});
+
+  final String url;
+  final Color ink;
+
+  @override
+  Widget build(BuildContext context) {
+    Widget cuadro({bool error = false}) => AspectRatio(
+      aspectRatio: 1,
+      child: Container(
+        color: ink.withValues(alpha: 0.06),
+        alignment: Alignment.center,
+        child: error
+            ? Icon(Icons.image_outlined, color: ink.withValues(alpha: 0.35))
+            : null,
+      ),
+    );
+
+    if (url.trim().isEmpty) return cuadro(error: true);
+
+    return Image.network(
+      url,
+      width: double.infinity,
+      fit: BoxFit.fitWidth,
+      frameBuilder: (_, child, frame, wasSyncLoaded) =>
+          (frame == null && !wasSyncLoaded) ? cuadro() : child,
+      errorBuilder: (_, __, ___) => cuadro(error: true),
+    );
+  }
+}
 
 class _FilterChipX extends StatelessWidget {
   const _FilterChipX({
@@ -314,6 +412,7 @@ class _WishCard extends StatelessWidget {
     required this.cardBg,
     required this.ink,
     required this.onRemove,
+    required this.onTap,
     required this.onAddToCart,
   });
 
@@ -322,6 +421,7 @@ class _WishCard extends StatelessWidget {
   final Color cardBg;
   final Color ink;
   final VoidCallback onRemove;
+  final VoidCallback onTap;
 
   final Future<void> Function(double priceToUse)? onAddToCart;
 
@@ -382,163 +482,183 @@ class _WishCard extends StatelessWidget {
 
         final double priceToShow = hasDescuento ? finalPrice : base;
 
-        return Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: cardBg,
+        return Material(
+          color: cardBg,
+          borderRadius: BorderRadius.circular(18),
+          // Recorta la imagen con las esquinas superiores de la card.
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: onTap,
             borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: ink.withOpacity(0.06)),
-          ),
-          child: Column(
-            children: [
-              Stack(
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: ink.withOpacity(0.06)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(14),
-                    child: AspectRatio(
-                      aspectRatio: 16 / 10,
-                      child: Image.network(
-                        item.imageUrl,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => Container(
-                          color: ink.withOpacity(0.06),
-                          child: Icon(
-                            Icons.image_outlined,
-                            color: ink.withOpacity(0.35),
+                  // Imagen de borde a borde en la parte superior.
+                  Stack(
+                    children: [
+                      SizedBox(
+                        width: double.infinity,
+                        child: _ImagenCompleta(url: item.imageUrl, ink: ink),
+                      ),
+
+                      if (hasDescuento)
+                        Positioned(
+                          left: 6,
+                          top: 6,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.red,
+                              borderRadius: BorderRadius.circular(12),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.14),
+                                  blurRadius: 12,
+                                  offset: const Offset(0, 8),
+                                ),
+                              ],
+                            ),
+                            child: Text(
+                              badge,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w900,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ),
+                        ),
+
+                      Positioned(
+                        top: 6,
+                        right: 6,
+                        child: Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            onTap: onRemove,
+                            borderRadius: BorderRadius.circular(999),
+                            child: Container(
+                              width: 32,
+                              height: 32,
+                              decoration: BoxDecoration(
+                                color: Colors.black.withOpacity(0.45),
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: Colors.white.withOpacity(0.18),
+                                ),
+                              ),
+                              child: const Icon(
+                                Icons.delete_outline_rounded,
+                                color: Colors.white,
+                                size: 18,
+                              ),
+                            ),
                           ),
                         ),
                       ),
-                    ),
+                    ],
                   ),
 
-                  if (hasDescuento)
-                    Positioned(
-                      left: 8,
-                      top: 8,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.red,
-                          borderRadius: BorderRadius.circular(12),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.14),
-                              blurRadius: 12,
-                              offset: const Offset(0, 8),
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            item.name,
+                            maxLines: 3,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: ink,
+                              fontWeight: FontWeight.w900,
+                              fontSize: 14,
                             ),
-                          ],
-                        ),
-                        child: Text(
-                          badge,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w900,
-                            fontSize: 12,
                           ),
-                        ),
-                      ),
-                    ),
 
-                  Positioned(
-                    top: 8,
-                    right: 8,
-                    child: Material(
-                      color: Colors.transparent,
-                      child: InkWell(
-                        onTap: onRemove,
-                        borderRadius: BorderRadius.circular(999),
-                        child: Container(
-                          width: 38,
-                          height: 38,
-                          decoration: BoxDecoration(
-                            color: Colors.black.withOpacity(0.45),
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: Colors.white.withOpacity(0.18),
+                          const SizedBox(height: 6),
+
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 2,
+                            crossAxisAlignment: WrapCrossAlignment.end,
+                            children: [
+                              Text(
+                                'Bs. ${priceToShow.toStringAsFixed(2)}',
+                                style: TextStyle(
+                                  color: soldOut
+                                      ? ink.withOpacity(0.35)
+                                      : (hasDescuento ? Colors.red : primary),
+                                  fontWeight: FontWeight.w900,
+                                  fontSize: 15,
+                                ),
+                              ),
+                              if (hasDescuento)
+                                Text(
+                                  'Bs. ${base.toStringAsFixed(2)}',
+                                  style: TextStyle(
+                                    color: ink.withOpacity(0.45),
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 12.5,
+                                    decoration: TextDecoration.lineThrough,
+                                  ),
+                                ),
+                            ],
+                          ),
+
+                          const SizedBox(height: 10),
+                          // Empuja el botón al fondo: alineado entre las dos cards.
+                          const Spacer(),
+
+                          SizedBox(
+                            height: 40,
+                            width: double.infinity,
+                            child: ElevatedButton(
+                              onPressed: (soldOut || onAddToCart == null)
+                                  ? null
+                                  : () => onAddToCart!(priceToShow),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: soldOut
+                                    ? ink.withOpacity(0.10)
+                                    : primary,
+                                elevation: 0,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                              ),
+                              child: FittedBox(
+                                fit: BoxFit.scaleDown,
+                                child: Text(
+                                  soldOut ? 'Agotado' : 'Agregar al carrito',
+                                  style: TextStyle(
+                                    color: soldOut
+                                        ? ink.withOpacity(0.75)
+                                        : Colors.white,
+                                    fontWeight: FontWeight.w900,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ),
                             ),
                           ),
-                          child: const Icon(
-                            Icons.delete_outline_rounded,
-                            color: Colors.white,
-                            size: 20,
-                          ),
-                        ),
+                        ],
                       ),
                     ),
                   ),
                 ],
               ),
-
-              const SizedBox(height: 10),
-
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  item.name,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: ink, fontWeight: FontWeight.w900),
-                ),
-              ),
-
-              const SizedBox(height: 6),
-
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    'Bs. ${priceToShow.toStringAsFixed(2)}',
-                    style: TextStyle(
-                      color: soldOut
-                          ? ink.withOpacity(0.35)
-                          : (hasDescuento ? Colors.red : primary),
-                      fontWeight: FontWeight.w900,
-                      fontSize: 16,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  if (hasDescuento)
-                    Text(
-                      'Bs. ${base.toStringAsFixed(2)}',
-                      style: TextStyle(
-                        color: ink.withOpacity(0.45),
-                        fontWeight: FontWeight.w800,
-                        fontSize: 12.5,
-                        decoration: TextDecoration.lineThrough,
-                      ),
-                    ),
-                ],
-              ),
-
-              const SizedBox(height: 10),
-
-              SizedBox(
-                height: 44,
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: (soldOut || onAddToCart == null)
-                      ? null
-                      : () => onAddToCart!(priceToShow),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: soldOut ? ink.withOpacity(0.10) : primary,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                  ),
-                  child: Text(
-                    soldOut ? 'Agotado' : 'Agregar al carrito',
-                    style: TextStyle(
-                      color: soldOut ? ink.withOpacity(0.75) : Colors.white,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                ),
-              ),
-            ],
+            ),
           ),
         );
       },

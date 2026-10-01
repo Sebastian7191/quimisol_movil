@@ -12,6 +12,7 @@ import 'package:quimisol_movil/features/pasajeros_features/carrito/pages/carrito
 import 'package:quimisol_movil/features/pasajeros_features/carrito/pages/carrito_store.dart';
 import 'package:quimisol_movil/features/pasajeros_features/carrito/widgets/depto_conflicto_dialog.dart';
 import 'package:quimisol_movil/shared/stores/guest_store.dart';
+import 'package:quimisol_movil/shared/widgets/cantidad_dialog.dart';
 import 'package:quimisol_movil/shared/widgets/guest_lock_view.dart';
 
 class DetalleProductoPage extends StatefulWidget {
@@ -295,6 +296,25 @@ class _DetalleProductoPageState extends State<DetalleProductoPage> {
     });
   }
 
+  /// Cantidad escrita a mano: se recorta al stock disponible con aviso.
+  void _setQty(int value) {
+    final stock = widget.product.stock;
+    var v = value < 1 ? 1 : value;
+
+    if (stock > 0 && v > stock) {
+      v = stock;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Solo hay $stock unidad${stock == 1 ? '' : 'es'} disponibles.',
+          ),
+        ),
+      );
+    }
+
+    setState(() => qty = v);
+  }
+
   @override
   Widget build(BuildContext context) {
     final p = widget.product;
@@ -387,11 +407,15 @@ class _DetalleProductoPageState extends State<DetalleProductoPage> {
                 final int totalReviews = reviewDocs.length;
 
                 return Scaffold(
+                  // La página no tiene campos de texto: si se achica con el
+                  // teclado (del diálogo de cantidad) el contenido desborda.
+                  resizeToAvoidBottomInset: false,
                   backgroundColor: Palette.fieldBg,
                   bottomSheet: _SlidingCartBar(
                     qty: qty,
                     onMinus: _decreaseQty,
                     onPlus: _increaseQty,
+                    onSetQty: _setQty,
                     adding: _adding,
                     hasDescuento: hasDescuento,
                     basePrice: base,
@@ -575,8 +599,7 @@ class _DetalleProductoPageState extends State<DetalleProductoPage> {
                                     Expanded(
                                       child: Text(
                                         p.name,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
+                                        softWrap: true,
                                         style: TextStyle(
                                           fontSize: 26,
                                           fontWeight: FontWeight.w900,
@@ -1183,6 +1206,7 @@ class _SlidingCartBar extends StatefulWidget {
     required this.qty,
     required this.onMinus,
     required this.onPlus,
+    required this.onSetQty,
     required this.adding,
     required this.hasDescuento,
     required this.basePrice,
@@ -1194,11 +1218,12 @@ class _SlidingCartBar extends StatefulWidget {
   }) : super(key: key);
 
   static const double kMinHeight = 96.0;
-  static const double kMaxHeight = 240.0;
+  static const double kMaxHeight = 260.0;
 
   final int qty;
   final VoidCallback onMinus;
   final VoidCallback onPlus;
+  final ValueChanged<int> onSetQty;
   final bool adding;
   final bool hasDescuento;
   final double basePrice;
@@ -1215,23 +1240,34 @@ class _SlidingCartBar extends StatefulWidget {
 class _SlidingCartBarState extends State<_SlidingCartBar> {
   double _h = _SlidingCartBar.kMinHeight;
 
+  bool get _hayAviso =>
+      widget.stock <= 0 || (widget.qty > widget.stock && widget.stock > 0);
+
+  /// Alto expandido según lo que se muestra: con descuento hay 3 filas más
+  /// en el resumen y con aviso de stock una línea más.
+  double get _maxH =>
+      _SlidingCartBar.kMaxHeight +
+      (widget.hasDescuento ? 84.0 : 0.0) +
+      (_hayAviso ? 44.0 : 0.0);
+
   double _clamp(double v) {
-    final num c = v.clamp(
-      _SlidingCartBar.kMinHeight,
-      _SlidingCartBar.kMaxHeight,
-    );
+    final num c = v.clamp(_SlidingCartBar.kMinHeight, _maxH);
     return c.toDouble();
   }
 
   bool get _expanded => _h > (_SlidingCartBar.kMinHeight + 20.0);
 
+  @override
+  void didUpdateWidget(covariant _SlidingCartBar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Si aparece/desaparece el aviso de stock estando abierto, ajusta el alto.
+    if (_expanded) _h = _maxH;
+  }
+
   void _snap() {
-    final double mid =
-        (_SlidingCartBar.kMinHeight + _SlidingCartBar.kMaxHeight) / 2.0;
+    final double mid = (_SlidingCartBar.kMinHeight + _maxH) / 2.0;
     setState(() {
-      _h = (_h >= mid)
-          ? _SlidingCartBar.kMaxHeight
-          : _SlidingCartBar.kMinHeight;
+      _h = (_h >= mid) ? _maxH : _SlidingCartBar.kMinHeight;
     });
   }
 
@@ -1278,7 +1314,10 @@ class _SlidingCartBarState extends State<_SlidingCartBar> {
           },
           onVerticalDragEnd: (_) => _snap(),
           onTap: _snap,
-          child: Padding(
+          // Sin scroll real: solo recorta durante la animación de alto en vez
+          // de mostrar la franja de overflow.
+          child: SingleChildScrollView(
+            physics: const NeverScrollableScrollPhysics(),
             padding: const EdgeInsets.fromLTRB(16, 10, 16, 14),
             child: Column(
               children: <Widget>[
@@ -1297,6 +1336,8 @@ class _SlidingCartBarState extends State<_SlidingCartBar> {
                       qty: widget.qty,
                       onMinus: widget.onMinus,
                       onPlus: widget.onPlus,
+                      onSetQty: widget.onSetQty,
+                      stock: widget.stock,
                     ),
                     const SizedBox(width: 12),
                     Expanded(
@@ -1554,11 +1595,24 @@ class _QtyStepper extends StatelessWidget {
     required this.qty,
     required this.onMinus,
     required this.onPlus,
+    required this.onSetQty,
+    required this.stock,
   }) : super(key: key);
 
   final int qty;
   final VoidCallback onMinus;
   final VoidCallback onPlus;
+  final ValueChanged<int> onSetQty;
+  final int stock;
+
+  Future<void> _editarCantidad(BuildContext context) async {
+    final nueva = await showCantidadDialog(
+      context,
+      inicial: qty,
+      disponible: stock,
+    );
+    if (nueva != null && nueva != qty) onSetQty(nueva);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1572,15 +1626,24 @@ class _QtyStepper extends StatelessWidget {
       child: Row(
         children: <Widget>[
           _QtyBtn(icon: Icons.remove_rounded, onTap: onMinus),
-          SizedBox(
-            width: 38,
-            child: Text(
-              '$qty',
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontWeight: FontWeight.w900,
-                color: Palette.ink,
-                fontSize: 16,
+          InkWell(
+            onTap: () => _editarCantidad(context),
+            borderRadius: BorderRadius.circular(8),
+            child: Container(
+              constraints: const BoxConstraints(minWidth: 38),
+              height: 40,
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              alignment: Alignment.center,
+              child: Text(
+                '$qty',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontWeight: FontWeight.w900,
+                  color: Palette.ink,
+                  fontSize: 16,
+                  decoration: TextDecoration.underline,
+                  decorationColor: Palette.ink.withValues(alpha: 0.35),
+                ),
               ),
             ),
           ),

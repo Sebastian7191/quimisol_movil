@@ -93,7 +93,8 @@ class _MisPedidosPageState extends State<MisPedidosPage> {
         final yyyy = d.year.toString();
         final hh = d.hour.toString().padLeft(2, '0');
         final mi = d.minute.toString().padLeft(2, '0');
-        return '$dd/$mm/$yyyy • $hh:$mi';
+        // Fecha y hora en dos líneas: la card de fecha ocupa media fila.
+        return '$dd/$mm/$yyyy\n$hh:$mi';
       }
     } catch (_) {}
     return '—';
@@ -295,6 +296,9 @@ class _MisPedidosPageState extends State<MisPedidosPage> {
                           final total = _asDouble(data['total']);
                           final createdAt = data['createdAt'];
                           final dateText = _formatDate(createdAt);
+                          // fecha_envio = entrega programada por el admin;
+                          // null hasta que la asigne.
+                          final entregaText = _formatDate(data['fecha_envio']);
 
                           final items = data['items'];
                           final itemsCount =
@@ -315,6 +319,7 @@ class _MisPedidosPageState extends State<MisPedidosPage> {
                             code: code,
                             total: total,
                             dateText: dateText,
+                            entregaText: entregaText,
                             itemsCount: itemsCount,
                             status: st,
                             rawEstado: rawStatus,
@@ -538,10 +543,23 @@ class _PedidoCard extends StatelessWidget {
                         children: [
                           Expanded(
                             child: _InfoMiniCard(
-                              label: 'Fecha',
+                              label: 'Fecha de pedido',
                               value: pedido.dateText,
                               icon: Icons.schedule_rounded,
                               valueColor: purpleText,
+                              maxLines: 2,
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: _InfoMiniCard(
+                              label: 'Fecha de entrega',
+                              value: pedido.entregaText == '—'
+                                  ? 'Por confirmar'
+                                  : pedido.entregaText,
+                              icon: Icons.local_shipping_outlined,
+                              valueColor: purpleText,
+                              maxLines: 2,
                             ),
                           ),
                         ],
@@ -677,12 +695,16 @@ class _InfoMiniCard extends StatelessWidget {
     required this.value,
     required this.icon,
     required this.valueColor,
+    this.maxLines = 1,
   });
 
   final String label;
   final String value;
   final IconData icon;
   final Color valueColor;
+
+  /// Líneas para label y valor (las fechas van en media fila y necesitan 2).
+  final int maxLines;
 
   @override
   Widget build(BuildContext context) {
@@ -717,7 +739,7 @@ class _InfoMiniCard extends StatelessWidget {
               children: [
                 Text(
                   label,
-                  maxLines: 1,
+                  maxLines: maxLines,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: valueColor.withOpacity(0.55),
@@ -728,7 +750,7 @@ class _InfoMiniCard extends StatelessWidget {
                 const SizedBox(height: 3),
                 Text(
                   value,
-                  maxLines: 1,
+                  maxLines: maxLines,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: valueColor,
@@ -888,6 +910,7 @@ class _PedidoModel {
   final String code;
   final double total;
   final String dateText;
+  final String entregaText;
   final int itemsCount;
   final _PedidoStatus status;
   final String rawEstado;
@@ -900,6 +923,7 @@ class _PedidoModel {
     required this.code,
     required this.total,
     required this.dateText,
+    required this.entregaText,
     required this.itemsCount,
     required this.status,
     required this.rawEstado,

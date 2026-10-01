@@ -12,6 +12,7 @@
 // ✅ NUEVO: Card muestra promedio real + total de reseñas
 // ✅ NUEVO: Buscador funcional por nombre, descripción, categoría, departamento, stock y precio
 
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -25,9 +26,11 @@ import 'package:geolocator/geolocator.dart';
 import 'package:quimisol_movil/core/theme/palette.dart';
 import 'package:quimisol_movil/features/conductores_features/notificaciones/pages/notificaciones_page.dart';
 import 'package:quimisol_movil/features/pasajeros_features/carrito/pages/carrito.dart';
+import 'package:quimisol_movil/features/pasajeros_features/carrito/pages/carrito_store.dart';
 import 'package:quimisol_movil/features/pasajeros_features/wishlist/pages/wishlist_store.dart';
 import 'package:quimisol_movil/shared/services/auth_service.dart';
 import 'package:quimisol_movil/shared/stores/guest_store.dart';
+import 'package:quimisol_movil/shared/widgets/cart_count_badge.dart';
 import 'package:quimisol_movil/shared/widgets/guest_lock_view.dart';
 
 import 'detalle_producto.dart';
@@ -74,6 +77,8 @@ class _HomeClienteState extends State<HomeCliente> {
     super.initState();
     _authService = Modular.get<AuthService>();
     _wishlist.bind();
+    // Escucha el carrito desde el inicio para la burbuja del ícono.
+    CartStore.I.init();
 
     _almacenes$ = FirebaseFirestore.instance
         .collection('almacenes')
@@ -201,7 +206,12 @@ class _HomeClienteState extends State<HomeCliente> {
         'quillacollo',
         'sacaba',
       ],
-      'Santa Cruz': ['santa cruz', 'scz', 'santa cruz de la sierra'],
+      'Santa Cruz': [
+        'santa cruz',
+        'scz',
+        'santa cruz de la sierra',
+        'Santa Cruz de la Sierra',
+      ],
       'Oruro': ['oruro', 'oru'],
       'Potosí': ['potosi', 'pts'],
       'Chuquisaca': ['chuquisaca', 'sucre', 'chq'],
@@ -328,6 +338,19 @@ class _HomeClienteState extends State<HomeCliente> {
     Modular.to.navigate('/auth/login');
   }
 
+  Widget _productTile(ProductModel prod) {
+    return InkWell(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => DetalleProductoPage(product: prod)),
+        );
+      },
+      borderRadius: BorderRadius.circular(24),
+      child: _ProductCard(product: prod, wishlist: _wishlist),
+    );
+  }
+
   void _openDeptoPicker(List<String> deptos) async {
     final chosen = await showModalBottomSheet<String>(
       context: context,
@@ -423,6 +446,7 @@ class _HomeClienteState extends State<HomeCliente> {
                 _PinkPedidosHeader(
                   deptos: deptos,
                   selectedDepto: _selectedDepto,
+                  almacenDeptoById: almacenDeptoById,
                   onPickDepto: () => _openDeptoPicker(deptos),
                   onLogout: _logout,
                   isGuest: _isGuest,
@@ -470,7 +494,9 @@ class _HomeClienteState extends State<HomeCliente> {
                   bottom: false,
                   child: Padding(
                     padding: EdgeInsets.fromLTRB(
-                      18, 18, 18,
+                      18,
+                      18,
+                      18,
                       MediaQuery.of(context).padding.bottom + 16,
                     ),
                     child: Column(
@@ -489,7 +515,6 @@ class _HomeClienteState extends State<HomeCliente> {
                                 ),
                               ),
                             ),
-                            
                           ],
                         ),
                         const SizedBox(height: 12),
@@ -686,10 +711,9 @@ class _HomeClienteState extends State<HomeCliente> {
                             }
 
                             // 📄 Paginación: corta `filtered` a la página actual.
-                            final totalPages =
-                                (filtered.length / _pageSize).ceil();
-                            if (totalPages > 0 &&
-                                _currentPage >= totalPages) {
+                            final totalPages = (filtered.length / _pageSize)
+                                .ceil();
+                            if (totalPages > 0 && _currentPage >= totalPages) {
                               WidgetsBinding.instance.addPostFrameCallback((_) {
                                 if (!mounted) return;
                                 setState(() => _currentPage = totalPages - 1);
@@ -710,39 +734,34 @@ class _HomeClienteState extends State<HomeCliente> {
 
                             return Column(
                               children: [
-                                GridView.builder(
-                                  shrinkWrap: true,
-                                  physics:
-                                      const NeverScrollableScrollPhysics(),
-                                  itemCount: pageItems.length,
-                                  gridDelegate:
-                                      const SliverGridDelegateWithFixedCrossAxisCount(
-                                        crossAxisCount: 2,
-                                        crossAxisSpacing: 14,
-                                        mainAxisSpacing: 14,
-                                        childAspectRatio: 0.50,
-                                      ),
-                                  itemBuilder: (_, i) {
-                                    final prod = pageItems[i];
-                                    return InkWell(
-                                      onTap: () {
-                                        Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                            builder: (_) => DetalleProductoPage(
-                                              product: prod,
-                                            ),
-                                          ),
-                                        );
-                                      },
-                                      borderRadius: BorderRadius.circular(24),
-                                      child: _ProductCard(
-                                        product: prod,
-                                        wishlist: _wishlist,
-                                      ),
-                                    );
-                                  },
-                                ),
+                                // Grilla de 2 columnas armada por filas: cada
+                                // fila mide lo que su card más alta (nombre
+                                // largo, descuento), en vez de un alto fijo
+                                // que desborda o deja cards vacías.
+                                for (
+                                  var r = 0;
+                                  r < pageItems.length;
+                                  r += 2
+                                ) ...[
+                                  if (r > 0) const SizedBox(height: 14),
+                                  IntrinsicHeight(
+                                    child: Row(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.stretch,
+                                      children: [
+                                        Expanded(
+                                          child: _productTile(pageItems[r]),
+                                        ),
+                                        const SizedBox(width: 14),
+                                        Expanded(
+                                          child: r + 1 < pageItems.length
+                                              ? _productTile(pageItems[r + 1])
+                                              : const SizedBox.shrink(),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
                                 if (totalPages > 1) ...[
                                   const SizedBox(height: 18),
                                   _PaginationBar(
@@ -803,6 +822,34 @@ class ProductModel {
     this.categoriaId = '',
     this.categoriaNombre = '',
   });
+
+  /// Arma el modelo desde `productos/{id}` (mismos campos que la lista).
+  factory ProductModel.fromFirestore(
+    DocumentSnapshot<Map<String, dynamic>> snap,
+  ) {
+    final data = snap.data() ?? {};
+    String s(dynamic v) => (v ?? '').toString().trim();
+    double d(dynamic v) =>
+        v is num ? v.toDouble() : double.tryParse(v?.toString() ?? '') ?? 0.0;
+
+    final stockRaw = data['stock'];
+    final stock = (stockRaw is num)
+        ? stockRaw.toInt()
+        : int.tryParse(stockRaw?.toString() ?? '') ?? 0;
+
+    return ProductModel(
+      id: snap.id,
+      name: s(data['nombre'] ?? data['name']),
+      description: s(data['description'] ?? data['descripcion']),
+      price: d(data['precio']),
+      rating: d(data['rating']),
+      imageUrl: s(data['imagenUrl'] ?? data['imageUrl']),
+      almacenId: s(data['almacenId']),
+      stock: stock,
+      categoriaId: s(data['categoriaId']),
+      categoriaNombre: s(data['categoriaNombre']),
+    );
+  }
 }
 
 class _BannerModel {
@@ -827,6 +874,7 @@ class _PinkPedidosHeader extends StatefulWidget {
   const _PinkPedidosHeader({
     required this.deptos,
     required this.selectedDepto,
+    required this.almacenDeptoById,
     required this.onPickDepto,
     required this.onLogout,
     required this.onBell,
@@ -841,6 +889,10 @@ class _PinkPedidosHeader extends StatefulWidget {
   final List<String> deptos;
   final String selectedDepto;
   final VoidCallback onPickDepto;
+
+  /// almacenId -> departamento, para mostrar solo los banners cuyo producto
+  /// está en un almacén del departamento elegido.
+  final Map<String, String> almacenDeptoById;
 
   final Future<void> Function() onLogout;
   final VoidCallback onBell;
@@ -863,6 +915,10 @@ class _PinkPedidosHeaderState extends State<_PinkPedidosHeader> {
 
   late final Stream<QuerySnapshot<Map<String, dynamic>>> _banners$;
 
+  // productoId -> almacenId, para saber de qué departamento es cada banner.
+  final Map<String, String> _almacenByProducto = {};
+  StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _productosSub;
+
   @override
   void initState() {
     super.initState();
@@ -872,20 +928,47 @@ class _PinkPedidosHeaderState extends State<_PinkPedidosHeader> {
         .collection('banners')
         .where('estado', isEqualTo: 'ACTIVO')
         .snapshots();
+
+    _productosSub = FirebaseFirestore.instance
+        .collection('productos')
+        .snapshots()
+        .listen((snap) {
+          if (!mounted) return;
+          setState(() {
+            _almacenByProducto
+              ..clear()
+              ..addEntries(
+                snap.docs.map((d) => MapEntry(d.id, _s(d.data()['almacenId']))),
+              );
+          });
+        });
+  }
+
+  @override
+  void didUpdateWidget(covariant _PinkPedidosHeader oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Al cambiar de departamento el carrusel vuelve al primer banner.
+    if (oldWidget.selectedDepto != widget.selectedDepto && _page != 0) {
+      _page = 0;
+      if (_pageController.hasClients) _pageController.jumpToPage(0);
+    }
   }
 
   @override
   void dispose() {
+    _productosSub?.cancel();
     _pageController.dispose();
     super.dispose();
   }
 
-  String _s(dynamic v) => (v ?? '').toString().trim();
-
-  double _toDouble(dynamic v) {
-    if (v is num) return v.toDouble();
-    return double.tryParse(v?.toString() ?? '') ?? 0.0;
+  bool _bannerEnDepto(String productId) {
+    final depto = widget.selectedDepto;
+    if (depto.isEmpty || depto == 'Todos') return true;
+    final almacenId = _almacenByProducto[productId] ?? '';
+    return (widget.almacenDeptoById[almacenId] ?? '') == depto;
   }
+
+  String _s(dynamic v) => (v ?? '').toString().trim();
 
   Future<void> _openBannerProduct(_BannerModel banner) async {
     if (banner.productId.trim().isEmpty) return;
@@ -904,25 +987,7 @@ class _PinkPedidosHeaderState extends State<_PinkPedidosHeader> {
         return;
       }
 
-      final data = snap.data() ?? {};
-
-      final stockRaw = data['stock'];
-      final stock = (stockRaw is num)
-          ? stockRaw.toInt()
-          : int.tryParse(stockRaw?.toString() ?? '') ?? 0;
-
-      final product = ProductModel(
-        id: snap.id,
-        name: _s(data['nombre'] ?? data['name']),
-        description: _s(data['description'] ?? data['descripcion']),
-        price: _toDouble(data['precio']),
-        rating: _toDouble(data['rating']),
-        imageUrl: _s(data['imagenUrl'] ?? data['imageUrl']),
-        almacenId: _s(data['almacenId']),
-        stock: stock,
-        categoriaId: _s(data['categoriaId']),
-        categoriaNombre: _s(data['categoriaNombre']),
-      );
+      final product = ProductModel.fromFirestore(snap);
 
       if (!mounted) return;
 
@@ -1006,9 +1071,12 @@ class _PinkPedidosHeaderState extends State<_PinkPedidosHeader> {
                     onTap: widget.onBell,
                   ),
                   const SizedBox(width: 8),
-                  _TopIconButton(
-                    icon: Icons.shopping_cart_outlined,
-                    onTap: widget.onCart,
+                  // Burbuja = productos distintos en el carrito.
+                  CartCountBadge(
+                    child: _TopIconButton(
+                      icon: Icons.shopping_cart_outlined,
+                      onTap: widget.onCart,
+                    ),
                   ),
                   const SizedBox(width: 10),
                   if (widget.isGuest)
@@ -1201,7 +1269,9 @@ class _PinkPedidosHeaderState extends State<_PinkPedidosHeader> {
                         })
                         .where(
                           (b) =>
-                              b.imageUrl.isNotEmpty && b.productId.isNotEmpty,
+                              b.imageUrl.isNotEmpty &&
+                              b.productId.isNotEmpty &&
+                              _bannerEnDepto(b.productId),
                         )
                         .toList();
 
@@ -1731,7 +1801,7 @@ class _ProductCardState extends State<_ProductCard>
                     const SizedBox(height: 10),
                     Text(
                       product.name.isEmpty ? 'Producto' : product.name,
-                      maxLines: 1,
+                      maxLines: 3,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         fontSize: 15,
@@ -2011,7 +2081,10 @@ class _PaginationBar extends StatelessWidget {
               )
             else
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 7,
+                ),
                 decoration: BoxDecoration(
                   color: Palette.white,
                   borderRadius: BorderRadius.circular(99),
@@ -2082,7 +2155,9 @@ class _PillNavButton extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           decoration: BoxDecoration(
-            color: enabled ? Palette.button : Palette.ink.withValues(alpha: 0.08),
+            color: enabled
+                ? Palette.button
+                : Palette.ink.withValues(alpha: 0.08),
             borderRadius: BorderRadius.circular(99),
             boxShadow: enabled
                 ? [

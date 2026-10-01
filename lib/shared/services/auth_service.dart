@@ -13,6 +13,11 @@ class GoogleLoginResult {
 abstract class AuthService {
   Future<bool> isLoggedIn();
   Future<String?> getUserRole();
+
+  /// true si el usuario se registró pero no completó su perfil (nombre,
+  /// teléfono, ubicación). Solo cuenta `profile_completed == false`
+  /// explícito: cuentas viejas sin el campo no se fuerzan.
+  Future<bool> needsProfileCompletion();
   Future<String?> getUserId();
   Future<void> logout();
 

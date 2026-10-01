@@ -26,6 +26,16 @@ class Navbar extends StatefulWidget {
     this.initialPedidosTab = 0,
   });
 
+  /// Permite a pantallas apiladas encima (p. ej. el carrito) pedir que la
+  /// barra cambie de pestaña al volver. Se usa con [irAPestana].
+  static final ValueNotifier<int?> _pestanaPedida = ValueNotifier<int?>(null);
+
+  /// Vuelve a la raíz (esta barra) y selecciona la pestaña [index].
+  static void irAPestana(BuildContext context, int index) {
+    Navigator.of(context).popUntil((route) => route.isFirst);
+    _pestanaPedida.value = index;
+  }
+
   @override
   State<Navbar> createState() => _NavbarState();
 }
@@ -48,6 +58,7 @@ class _NavbarState extends State<Navbar> {
   void initState() {
     super.initState();
     _currentIndex = widget.initialIndex.clamp(0, 4);
+    Navbar._pestanaPedida.addListener(_onPestanaPedida);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _startReviewListener();
@@ -55,8 +66,16 @@ class _NavbarState extends State<Navbar> {
     });
   }
 
+  void _onPestanaPedida() {
+    final index = Navbar._pestanaPedida.value;
+    if (index == null || !mounted) return;
+    Navbar._pestanaPedida.value = null;
+    setState(() => _currentIndex = index.clamp(0, 4));
+  }
+
   @override
   void dispose() {
+    Navbar._pestanaPedida.removeListener(_onPestanaPedida);
     _pedidosSub?.cancel();
     _pagoSub?.cancel();
     super.dispose();
