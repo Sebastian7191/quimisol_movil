@@ -9,6 +9,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:quimisol_movil/core/theme/palette.dart';
 import 'package:quimisol_movil/features/conductores_features/home_screen/pages/repartidor_viajes_page.dart';
 import 'package:quimisol_movil/shared/services/auth_service.dart';
+import 'package:quimisol_movil/shared/widgets/logout_dialog.dart';
 
 class HomeScreenConductor extends StatefulWidget {
   const HomeScreenConductor({super.key});
@@ -94,14 +95,20 @@ class _HomeScreenConductorState extends State<HomeScreenConductor> {
   }
 
   Future<void> _logout() async {
-    try {
-      await _setEstadoInFirestore(false);
-    } catch (_) {
-      // Ignorar para no bloquear logout
-    }
+    final salio = await confirmarCerrarSesion(
+      context,
+      onLogout: () async {
+        try {
+          await _setEstadoInFirestore(false);
+        } catch (_) {
+          // Ignorar para no bloquear logout
+        }
 
-    await _authService.logout();
-    if (!mounted) return;
+        await _authService.logout();
+      },
+    );
+
+    if (!salio || !mounted) return;
     Modular.to.navigate('/auth/login');
   }
 

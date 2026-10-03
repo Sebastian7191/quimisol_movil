@@ -7,6 +7,7 @@ import 'package:flutter_modular/flutter_modular.dart';
 import 'package:quimisol_movil/core/theme/palette.dart';
 import 'package:quimisol_movil/features/conductores_features/historial/pages/historial_entregas_page.dart';
 import 'package:quimisol_movil/features/conductores_features/perfil/pages/conductor_perfil_form.dart';
+import 'package:quimisol_movil/shared/widgets/logout_dialog.dart';
 
 class ConductorProfilePage extends StatefulWidget {
   final Future<void> Function() onLogout;
@@ -170,8 +171,11 @@ class _ConductorProfilePageState extends State<ConductorProfilePage> {
                     label: 'Cerrar sesión',
                     accent: const Color(0xFFFF3B30),
                     onTap: () async {
-                      await widget.onLogout();
-                      if (!mounted) return;
+                      final salio = await confirmarCerrarSesion(
+                        context,
+                        onLogout: widget.onLogout,
+                      );
+                      if (!salio || !mounted) return;
                       Modular.to.navigate('/auth/login');
                     },
                   ),

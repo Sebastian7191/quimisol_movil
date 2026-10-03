@@ -768,8 +768,10 @@ class _MetodoPagoPageState extends State<MetodoPagoPage> {
                                 const SizedBox(height: 10),
                                 _SummaryLine(
                                   label: 'Envío',
+                                  // Sin costo cargado todavía: lo define
+                                  // la entrega, no es gratis.
                                   value: widget.shipping == 0
-                                      ? 'Gratis'
+                                      ? 'Pendiente'
                                       : 'Bs. ${widget.shipping.toStringAsFixed(2)}',
                                 ),
                                 const SizedBox(height: 14),

@@ -1,17 +1,25 @@
 // lib/features/pasajeros_features/pedidos/pages/lista_pedidos.dart
 
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:quimisol_movil/core/theme/palette.dart';
 import 'package:quimisol_movil/features/pasajeros_features/pedidos/pages/detalle_producto.dart';
+import 'package:quimisol_movil/features/pasajeros_features/pedidos/services/pedidos_novedades_store.dart';
 
 class MisPedidosPage extends StatefulWidget {
   final int initialTab;
 
+  /// Si la lista está en pantalla (en el navbar vive en un IndexedStack).
+  /// Solo estando visible marca como vistos los pedidos actualizados.
+  final bool visible;
+
   const MisPedidosPage({
     super.key,
     this.initialTab = 0,
+    this.visible = true,
   });
 
   @override
@@ -24,6 +32,13 @@ class _MisPedidosPageState extends State<MisPedidosPage> {
   final _auth = FirebaseAuth.instance;
   final _fire = FirebaseFirestore.instance;
 
+  final _novedades = PedidosNovedadesStore.I;
+
+  /// Tras unos segundos con la lista visible, los avisos de "actualizado"
+  /// se dan por leídos.
+  static const _tiempoLectura = Duration(seconds: 4);
+  Timer? _lecturaTimer;
+
   String get _uid => _auth.currentUser?.uid ?? '';
 
   Query<Map<String, dynamic>> get _pedidosQuery => _fire
@@ -35,6 +50,42 @@ class _MisPedidosPageState extends State<MisPedidosPage> {
   void initState() {
     super.initState();
     _tab = widget.initialTab;
+    _novedades.init();
+    _novedades.addListener(_onNovedades);
+  }
+
+  @override
+  void didUpdateWidget(covariant MisPedidosPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!widget.visible) {
+      _lecturaTimer?.cancel();
+      _lecturaTimer = null;
+    }
+  }
+
+  @override
+  void dispose() {
+    _lecturaTimer?.cancel();
+    _novedades.removeListener(_onNovedades);
+    super.dispose();
+  }
+
+  void _onNovedades() {
+    if (mounted) setState(() {});
+  }
+
+  /// Programa marcar como vistos los pedidos con novedad que se están
+  /// mostrando, si la lista está visible.
+  void _programarLectura(List<String> ids) {
+    if (!widget.visible || ids.isEmpty || _lecturaTimer != null) return;
+
+    _lecturaTimer = Timer(_tiempoLectura, () {
+      _lecturaTimer = null;
+      if (!mounted || !widget.visible) return;
+      for (final id in ids) {
+        _novedades.marcarVisto(id);
+      }
+    });
   }
 
   String _norm(String s) => s
@@ -358,6 +409,14 @@ class _MisPedidosPageState extends State<MisPedidosPage> {
                           );
                         }
 
+                        final conNovedad = filtered
+                            .where((p) => _novedades.tieneNovedad(p.id))
+                            .map((p) => p.id)
+                            .toList();
+                        WidgetsBinding.instance.addPostFrameCallback(
+                          (_) => _programarLectura(conNovedad),
+                        );
+
                         return ListView.builder(
                           padding: const EdgeInsets.fromLTRB(16, 4, 16, 18),
                           itemCount: filtered.length,
@@ -368,6 +427,7 @@ class _MisPedidosPageState extends State<MisPedidosPage> {
                               child: _PedidoCard(
                                 pedido: p,
                                 purpleText: purpleText,
+                                novedad: _novedades.tieneNovedad(p.id),
                                 onTap: () {
                                   Navigator.push(
                                     context,
@@ -445,11 +505,15 @@ class _PedidoCard extends StatelessWidget {
     required this.pedido,
     required this.purpleText,
     required this.onTap,
+    this.novedad = false,
   });
 
   final _PedidoModel pedido;
   final Color purpleText;
   final VoidCallback onTap;
+
+  /// El estado cambió y el cliente aún no lo vio.
+  final bool novedad;
 
   @override
   Widget build(BuildContext context) {
@@ -458,12 +522,14 @@ class _PedidoCard extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(24),
-      child: Container(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 400),
         decoration: BoxDecoration(
           color: Palette.white,
           borderRadius: BorderRadius.circular(24),
           border: Border.all(
-            color: purpleText.withOpacity(0.06),
+            color: novedad ? Palette.button : purpleText.withOpacity(0.06),
+            width: novedad ? 2 : 1,
           ),
           boxShadow: [
             BoxShadow(
@@ -523,13 +589,21 @@ class _PedidoCard extends StatelessWidget {
                                   ),
                                 ),
                                 const SizedBox(height: 4),
-                                Text(
-                                  'Toca para abrir el detalle',
-                                  style: TextStyle(
-                                    color: purpleText.withOpacity(0.55),
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 11.5,
-                                  ),
+                                AnimatedSwitcher(
+                                  duration: const Duration(milliseconds: 350),
+                                  child: novedad
+                                      ? const _AvisoActualizado(
+                                          key: ValueKey('novedad'),
+                                        )
+                                      : Text(
+                                          'Toca para abrir el detalle',
+                                          key: const ValueKey('normal'),
+                                          style: TextStyle(
+                                            color: purpleText.withOpacity(0.55),
+                                            fontWeight: FontWeight.w700,
+                                            fontSize: 11.5,
+                                          ),
+                                        ),
                                 ),
                               ],
                             ),
@@ -679,6 +753,57 @@ class _StatusBadge extends StatelessWidget {
             status.label,
             style: const TextStyle(
               color: Colors.white,
+              fontWeight: FontWeight.w900,
+              fontSize: 11.5,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// "¡Pedido actualizado!" latiendo, para que se note en la lista.
+class _AvisoActualizado extends StatefulWidget {
+  const _AvisoActualizado({super.key});
+
+  @override
+  State<_AvisoActualizado> createState() => _AvisoActualizadoState();
+}
+
+class _AvisoActualizadoState extends State<_AvisoActualizado>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 700),
+  )..repeat(reverse: true);
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: Tween<double>(begin: 0.55, end: 1).animate(_ctrl),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(
+              color: Palette.button,
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            '¡Pedido actualizado!',
+            style: TextStyle(
+              color: Palette.button,
               fontWeight: FontWeight.w900,
               fontSize: 11.5,
             ),

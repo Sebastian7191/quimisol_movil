@@ -10,6 +10,7 @@ import 'package:quimisol_movil/features/pasajeros_features/perfil/pages/perfil.d
 import 'package:quimisol_movil/features/pasajeros_features/wishlist/pages/wishlist.dart';
 import 'package:quimisol_movil/features/pasajeros_features/soporte/pages/soporte_chat_page.dart';
 import 'package:quimisol_movil/features/pasajeros_features/pedidos/services/pedido_review_service.dart';
+import 'package:quimisol_movil/features/pasajeros_features/pedidos/services/pedidos_novedades_store.dart';
 import 'package:quimisol_movil/features/pasajeros_features/pedidos/widgets/review_entrega_sheet.dart';
 import 'package:quimisol_movil/features/pasajeros_features/pedidos/widgets/review_productos_sheet.dart';
 import 'package:quimisol_movil/shared/stores/guest_store.dart';
@@ -59,6 +60,7 @@ class _NavbarState extends State<Navbar> {
     super.initState();
     _currentIndex = widget.initialIndex.clamp(0, 4);
     Navbar._pestanaPedida.addListener(_onPestanaPedida);
+    PedidosNovedadesStore.I.init();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _startReviewListener();
@@ -315,7 +317,12 @@ class _NavbarState extends State<Navbar> {
                   message:
                       'Inicia sesión para realizar pedidos y ver el historial de tus compras.',
                 )
-              : MisPedidosPage(initialTab: widget.initialPedidosTab),
+              : MisPedidosPage(
+                  initialTab: widget.initialPedidosTab,
+                  // Vive en el IndexedStack: solo cuenta como "vista"
+                  // cuando su pestaña está seleccionada.
+                  visible: _currentIndex == 2,
+                ),
           isGuest
               ? const GuestLockView(
                   icon: Icons.support_agent_rounded,
@@ -448,12 +455,46 @@ class _BottomPillNavbarAnimated extends StatelessWidget {
                                 child: Column(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
-                                    Icon(
-                                      items[i].icon,
-                                      size: 24,
-                                      color: isSelected
-                                          ? iconSelected
-                                          : iconUnselected,
+                                    Stack(
+                                      clipBehavior: Clip.none,
+                                      children: [
+                                        Icon(
+                                          items[i].icon,
+                                          size: 24,
+                                          color: isSelected
+                                              ? iconSelected
+                                              : iconUnselected,
+                                        ),
+                                        // Punto rojo: pedidos actualizados
+                                        // que el cliente aún no vio.
+                                        if (i == 2)
+                                          Positioned(
+                                            top: -2,
+                                            right: -4,
+                                            child: AnimatedBuilder(
+                                              animation:
+                                                  PedidosNovedadesStore.I,
+                                              builder: (_, __) =>
+                                                  PedidosNovedadesStore
+                                                          .I
+                                                          .cantidad >
+                                                      0
+                                                  ? Container(
+                                                      width: 10,
+                                                      height: 10,
+                                                      decoration: BoxDecoration(
+                                                        color: Colors.red,
+                                                        shape: BoxShape.circle,
+                                                        border: Border.all(
+                                                          color: Colors.white,
+                                                          width: 1.5,
+                                                        ),
+                                                      ),
+                                                    )
+                                                  : const SizedBox.shrink(),
+                                            ),
+                                          ),
+                                      ],
                                     ),
                                     const SizedBox(height: 4),
                                     AnimatedDefaultTextStyle(

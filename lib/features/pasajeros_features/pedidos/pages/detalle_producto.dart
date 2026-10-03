@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -10,6 +11,7 @@ import 'package:image_gallery_saver_plus/image_gallery_saver_plus.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:quimisol_movil/core/theme/palette.dart';
+import 'package:quimisol_movil/features/pasajeros_features/pedidos/services/pedidos_novedades_store.dart';
 import 'package:share_plus/share_plus.dart';
 
 class DetallePedidoPage extends StatefulWidget {
@@ -47,10 +49,71 @@ class _DetallePedidoPageState extends State<DetallePedidoPage> {
   DocumentReference<Map<String, dynamic>> get _pedidoDoc =>
       _fire.collection('pedidos').doc(widget.pedidoId);
 
+  // Stream fijo: si se creara en cada build, cada setState lo reiniciaría
+  // (parpadeo de carga).
+  late final Stream<DocumentSnapshot<Map<String, dynamic>>> _pedidoStream =
+      _pedidoDoc.snapshots();
+
+  // ── Aviso de avance en el seguimiento ──
+  final _novedades = PedidosNovedadesStore.I;
+
+  /// Último estado que el cliente vio antes de abrir esta pantalla.
+  String? _vistoAlAbrir;
+
+  /// Paso mostrado en el último build y desde dónde animar al nuevo.
+  int? _ultimoPaso;
+  int _animarDesde = 0;
+
+  bool _mostrarAviso = false;
+  Timer? _avisoTimer;
+
   @override
   void initState() {
     super.initState();
     _loadQrConfig();
+
+    _novedades.init();
+    _vistoAlAbrir = _novedades.estadoVisto(widget.pedidoId);
+    // Con la pantalla abierta, todo cambio del pedido queda visto.
+    _novedades.addListener(_marcarVisto);
+  }
+
+  @override
+  void dispose() {
+    _avisoTimer?.cancel();
+    _novedades.removeListener(_marcarVisto);
+    super.dispose();
+  }
+
+  void _marcarVisto() => _novedades.marcarVisto(widget.pedidoId);
+
+  /// Detecta si el pedido avanzó de paso (desde lo último que vio el cliente
+  /// o mientras tiene la pantalla abierta) para animar el seguimiento.
+  void _registrarPaso(int paso) {
+    if (_ultimoPaso == paso) return;
+
+    int desde;
+    if (_ultimoPaso == null) {
+      final visto = _vistoAlAbrir;
+      desde = visto == null ? paso : _stepIndex(_stepFromRaw(visto));
+    } else {
+      desde = _ultimoPaso!;
+    }
+
+    _ultimoPaso = paso;
+    final avanzo = desde < paso && paso <= 3;
+    _animarDesde = avanzo ? desde.clamp(0, 3) : paso;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _marcarVisto();
+      if (!avanzo || !mounted) return;
+
+      setState(() => _mostrarAviso = true);
+      _avisoTimer?.cancel();
+      _avisoTimer = Timer(const Duration(seconds: 5), () {
+        if (mounted) setState(() => _mostrarAviso = false);
+      });
+    });
   }
 
   double _asDouble(dynamic v) {
@@ -671,7 +734,7 @@ class _DetallePedidoPageState extends State<DetallePedidoPage> {
                       ),
                     )
                   : StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-                      stream: _pedidoDoc.snapshots(),
+                      stream: _pedidoStream,
                       builder: (context, snap) {
                         if (snap.connectionState == ConnectionState.waiting) {
                           return const Center(
@@ -710,6 +773,7 @@ class _DetallePedidoPageState extends State<DetallePedidoPage> {
                         final estadoRaw = _asString(data['estado']);
                         final step = _stepFromRaw(estadoRaw);
                         final badge = _badgeFromStep(step);
+                        _registrarPaso(_stepIndex(step));
 
                         final repartidorNombre = _repartidorNombreFromData(data);
 
@@ -966,12 +1030,19 @@ class _DetallePedidoPageState extends State<DetallePedidoPage> {
                                               'Bs. ${totalProductos.toStringAsFixed(2)}',
                                         ),
                                         const SizedBox(height: 8),
+                                        // Mientras el admin no acepta el pedido
+                                        // el envío aún no está definido.
                                         _ResumenRow(
                                           label: 'Envío',
-                                          value: costoEnvio <= 0
+                                          value: step == _TrackStep.pendiente
+                                              ? 'Pendiente'
+                                              : costoEnvio <= 0
                                               ? 'Gratis'
                                               : 'Bs. ${costoEnvio.toStringAsFixed(2)}',
-                                          valueColor: costoEnvio <= 0
+                                          valueColor:
+                                              step == _TrackStep.pendiente
+                                              ? const Color(0xFFF59E0B)
+                                              : costoEnvio <= 0
                                               ? Palette.statsSuccess
                                               : purple,
                                         ),
@@ -1484,6 +1555,45 @@ class _DetallePedidoPageState extends State<DetallePedidoPage> {
                                           fontWeight: FontWeight.w900,
                                         ),
                                       ),
+                                      const SizedBox(width: 8),
+                                      // Aviso de que el pedido avanzó.
+                                      AnimatedSwitcher(
+                                        duration: const Duration(
+                                          milliseconds: 300,
+                                        ),
+                                        transitionBuilder: (child, anim) =>
+                                            ScaleTransition(
+                                              scale: anim,
+                                              child: child,
+                                            ),
+                                        child: _mostrarAviso
+                                            ? Container(
+                                                key: const ValueKey('aviso'),
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                      horizontal: 8,
+                                                      vertical: 3,
+                                                    ),
+                                                decoration: BoxDecoration(
+                                                  color: Palette.statsSuccess,
+                                                  borderRadius:
+                                                      BorderRadius.circular(
+                                                        999,
+                                                      ),
+                                                ),
+                                                child: const Text(
+                                                  '¡Actualizado!',
+                                                  style: TextStyle(
+                                                    color: Colors.white,
+                                                    fontWeight: FontWeight.w900,
+                                                    fontSize: 10.5,
+                                                  ),
+                                                ),
+                                              )
+                                            : const SizedBox.shrink(
+                                                key: ValueKey('nada'),
+                                              ),
+                                      ),
                                       const Spacer(),
                                       Text(
                                         badge.label,
@@ -1505,6 +1615,7 @@ class _DetallePedidoPageState extends State<DetallePedidoPage> {
                                   else
                                     _TrackingRow(
                                       activeIndex: _stepIndex(step).clamp(0, 3),
+                                      desde: _animarDesde,
                                       purple: purple,
                                     ),
                                 ],
@@ -1961,13 +2072,39 @@ class _Pill extends StatelessWidget {
 }
 
 class _TrackingRow extends StatelessWidget {
-  const _TrackingRow({required this.activeIndex, required this.purple});
+  const _TrackingRow({
+    required this.activeIndex,
+    required this.purple,
+    this.desde,
+  });
 
   final int activeIndex;
   final Color purple;
 
+  /// Paso desde el que se anima el avance; null o igual a [activeIndex]
+  /// = sin animación.
+  final int? desde;
+
   @override
   Widget build(BuildContext context) {
+    final from = (desde ?? activeIndex).clamp(0, activeIndex);
+    final anima = from < activeIndex;
+
+    // p avanza de `from` a `activeIndex`: llena las líneas una a una y los
+    // pasos se van marcando a medida que la línea llega a ellos.
+    return TweenAnimationBuilder<double>(
+      key: ValueKey('$from-$activeIndex'),
+      tween: Tween(begin: from.toDouble(), end: activeIndex.toDouble()),
+      duration: anima
+          ? Duration(milliseconds: 700 * (activeIndex - from) + 300)
+          : Duration.zero,
+      curve: Curves.easeInOutCubic,
+      builder: (context, p, _) => _row(p, anima),
+    );
+  }
+
+  Widget _row(double p, bool anima) {
+    const eps = 0.001;
     final steps = const <_TrackNode>[
       _TrackNode('Pendiente', Icons.receipt_long_rounded),
       _TrackNode('Aceptado', Icons.verified_outlined),
@@ -1976,7 +2113,8 @@ class _TrackingRow extends StatelessWidget {
     ];
 
     final lastIndex = steps.length - 1;
-    final isFinished = activeIndex >= lastIndex;
+    final llego = p >= activeIndex - eps;
+    final isFinished = activeIndex >= lastIndex && llego;
 
     return Row(
       children: [
@@ -1985,8 +2123,10 @@ class _TrackingRow extends StatelessWidget {
             child: _TrackDot(
               label: steps[i].label,
               icon: steps[i].icon,
-              done: isFinished ? (i <= activeIndex) : (i < activeIndex),
-              active: isFinished ? false : (i == activeIndex),
+              done: isFinished ? (i <= p + eps) : (i < p - eps),
+              active: !isFinished && i == activeIndex && llego,
+              // El paso nuevo "rebota" al llegar la línea.
+              pop: anima && i == activeIndex && llego,
             ),
           ),
           if (i != steps.length - 1)
@@ -1995,10 +2135,18 @@ class _TrackingRow extends StatelessWidget {
                 height: 3,
                 margin: const EdgeInsets.only(bottom: 18),
                 decoration: BoxDecoration(
-                  color: (isFinished ? (i <= activeIndex) : (i < activeIndex))
-                      ? Palette.statsSuccess.withOpacity(0.85)
-                      : purple.withOpacity(0.12),
+                  color: purple.withOpacity(0.12),
                   borderRadius: BorderRadius.circular(999),
+                ),
+                alignment: Alignment.centerLeft,
+                child: FractionallySizedBox(
+                  widthFactor: (p - i).clamp(0.0, 1.0),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Palette.statsSuccess.withOpacity(0.85),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -2014,12 +2162,16 @@ class _TrackDot extends StatelessWidget {
     required this.icon,
     required this.done,
     required this.active,
+    this.pop = false,
   });
 
   final String label;
   final IconData icon;
   final bool done;
   final bool active;
+
+  /// Anima un rebote (escala) al aparecer como paso actual.
+  final bool pop;
 
   @override
   Widget build(BuildContext context) {
@@ -2038,26 +2190,39 @@ class _TrackDot extends StatelessWidget {
       fg = purple.withOpacity(0.70);
     }
 
+    final circulo = Container(
+      height: 38,
+      width: 38,
+      decoration: BoxDecoration(
+        color: bg,
+        shape: BoxShape.circle,
+        border: Border.all(color: purple.withOpacity(0.12)),
+        boxShadow: [
+          BoxShadow(
+            color: pop
+                ? Palette.button.withOpacity(0.45)
+                : Colors.black.withOpacity(0.05),
+            blurRadius: pop ? 16 : 12,
+            offset: pop ? Offset.zero : const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Icon(icon, size: 18, color: fg),
+    );
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Container(
-          height: 38,
-          width: 38,
-          decoration: BoxDecoration(
-            color: bg,
-            shape: BoxShape.circle,
-            border: Border.all(color: purple.withOpacity(0.12)),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.05),
-                blurRadius: 12,
-                offset: const Offset(0, 8),
-              ),
-            ],
-          ),
-          child: Icon(icon, size: 18, color: fg),
-        ),
+        pop
+            ? TweenAnimationBuilder<double>(
+                tween: Tween(begin: 0.6, end: 1),
+                duration: const Duration(milliseconds: 700),
+                curve: Curves.elasticOut,
+                builder: (_, s, child) =>
+                    Transform.scale(scale: s, child: child),
+                child: circulo,
+              )
+            : circulo,
         const SizedBox(height: 6),
         Text(
           label,
