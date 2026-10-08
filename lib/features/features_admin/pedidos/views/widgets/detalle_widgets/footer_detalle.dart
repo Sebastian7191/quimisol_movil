@@ -9,12 +9,14 @@ class Footer extends StatelessWidget {
     required this.onClose,
     required this.onSave,
     this.readOnly = false,
+    this.faltaRepartidor = false,
   });
 
   final bool isSaving;
   final VoidCallback? onClose;
   final VoidCallback? onSave;
   final bool readOnly;
+  final bool faltaRepartidor;
 
   @override
   Widget build(BuildContext context) {
@@ -32,13 +34,17 @@ class Footer extends StatelessWidget {
             child: Text(
               readOnly
                   ? 'Este pedido ya fue entregado y no puede modificarse.'
-                  : 'Asigna repartidor y fecha antes de guardar.',
+                  : faltaRepartidor
+                      ? 'Asigna un repartidor para poder guardar.'
+                      : 'Asigna repartidor y fecha antes de guardar.',
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 color: readOnly
                     ? Palette.statsWarning
-                    : Palette.ink.withValues(alpha: 0.62),
+                    : faltaRepartidor
+                        ? Palette.statsDanger
+                        : Palette.ink.withValues(alpha: 0.62),
                 fontWeight: FontWeight.w700,
                 fontSize: 14,
               ),

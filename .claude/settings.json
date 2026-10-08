@@ -14,7 +14,14 @@
       "Read(//c/Users/SEBASTIAN-BUENO/AppData/Local/Pub/**)",
       "Bash(find \"/c/Users/SEBASTIAN-BUENO/AppData/Local/Pub\" -maxdepth 4 2>/dev/null | head -30)",
       "Bash(find \"/c/Users/SEBASTIAN-BUENO/AppData/Local/Pub/Cache/hosted/pub.dev\" -maxdepth 1 -iname \"excel-*\" 2>/dev/null)",
-      "Read(//c/Users/SEBASTIAN-BUENO/AppData/Local/Pub/Cache/hosted/pub.dev/**)"
+      "Read(//c/Users/SEBASTIAN-BUENO/AppData/Local/Pub/Cache/hosted/pub.dev/**)",
+      "PowerShell(flutter build apk --debug 2>&1)",
+      "Read(//c/Users/SEBASTIAN-BUENO/Downloads/quimisol/sebastian/quimisol_web/quimisol_movil/android/**)",
+      "PowerShell(flutter analyze lib/features/features_admin/pedidos/views/detalle_pedido.dart)",
+      "PowerShell($f = 'lib/features/features_admin/pedidos/views/detalle_pedido.dart'; $l = [System.IO.File]::ReadAllLines\\(\\(Resolve-Path $f\\)\\); $keep = $l[0..1124] + $l[1331..\\($l.Length-1\\)]; $keep = $keep | Where-Object { $_ -ne \"import 'dart:async';\" }; [System.IO.File]::WriteAllLines\\(\\(Resolve-Path $f\\), $keep, \\(New-Object System.Text.UTF8Encoding $false\\)\\); flutter analyze $f)",
+      "PowerShell(flutter analyze lib/features/features_admin/pedidos/views/)",
+      "PowerShell(flutter analyze lib/features/features_admin/pedidos/)",
+      "PowerShell(flutter analyze lib/features/features_admin/home/views/dashboard_page.dart lib/features/features_admin/home/views/widgets/kilometraje_dashboard_section.dart)"
     ]
   }
 }

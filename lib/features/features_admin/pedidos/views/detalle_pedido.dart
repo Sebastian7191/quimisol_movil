@@ -1,3 +1,4 @@
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -158,38 +159,93 @@ class _PedidoDetalleFormState extends State<_PedidoDetalleForm> {
     setState(() => _costoEnvioEdit = v < 0 ? 0 : v);
   }
 
-  Future<void> _pickFechaEnvio() async {
-    final now = DateTime.now();
-    final initial = _fechaEnvioEdit ?? now;
+  static const _minAnticipacionEnvio = Duration(minutes: 20);
 
-    final today = DateTime(now.year, now.month, now.day);
+  DateTime _minFechaEnvio() => DateTime.now().add(_minAnticipacionEnvio);
+
+  String _hhmm(DateTime d) =>
+      '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
+
+  void _avisoFechaMinima(DateTime min) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          'La fecha de envío debe ser al menos 20 minutos después de la hora '
+          'actual (desde las ${_hhmm(min)}).',
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickFechaEnvio() async {
+    final min = _minFechaEnvio();
+    final current = _fechaEnvioEdit;
+    final initial = (current == null || current.isBefore(min)) ? min : current;
+
+    final firstDay = DateTime(min.year, min.month, min.day);
     final date = await showDatePicker(
       context: context,
-      initialDate: initial.isBefore(today) ? today : initial,
-      firstDate: today,
-      lastDate: DateTime(now.year + 3),
+      initialDate: initial,
+      firstDate: firstDay,
+      lastDate: DateTime(min.year + 3),
     );
     if (date == null || !mounted) return;
 
-    final time = await showTimePicker(
-      context: context,
-      initialTime: TimeOfDay.fromDateTime(initial),
-    );
-    if (!mounted) return;
+    DateTime conHora(TimeOfDay t) =>
+        DateTime(date.year, date.month, date.day, t.hour, t.minute);
 
-    setState(() {
-      _fechaEnvioEdit = DateTime(
-        date.year,
-        date.month,
-        date.day,
-        time?.hour ?? initial.hour,
-        time?.minute ?? initial.minute,
+    // showTimePicker no permite deshabilitar "Aceptar", así que el mínimo se
+    // muestra en el encabezado y, si eligen una hora inválida, se reabre.
+    var initialTime = TimeOfDay.fromDateTime(initial);
+    var error = false;
+    while (true) {
+      final minNow = _minFechaEnvio();
+      final esMismoDia = DateUtils.isSameDay(date, minNow);
+
+      final time = await showTimePicker(
+        context: context,
+        initialTime: initialTime,
+        helpText: !esMismoDia
+            ? 'Hora de envío'
+            : error
+                ? 'Hora inválida · elige desde las ${_hhmm(minNow)}'
+                : 'Hora de envío · desde las ${_hhmm(minNow)}',
+        builder: (ctx, child) {
+          if (!error || !esMismoDia) return child!;
+          final theme = Theme.of(ctx);
+          return Theme(
+            data: theme.copyWith(
+              timePickerTheme: theme.timePickerTheme.copyWith(
+                helpTextStyle: theme.textTheme.labelLarge?.copyWith(
+                  color: Palette.statsDanger,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            child: child!,
+          );
+        },
       );
-    });
+      if (time == null || !mounted) return;
+
+      final picked = conHora(time);
+      final minCheck = _minFechaEnvio();
+      if (!picked.isBefore(minCheck)) {
+        setState(() => _fechaEnvioEdit = picked);
+        return;
+      }
+      error = true;
+      initialTime = TimeOfDay.fromDateTime(minCheck);
+    }
   }
 
+  // Cancelar un pedido no requiere repartidor.
+  bool get _faltaRepartidor =>
+      _estadoEdit != kEstadoCancelado &&
+      (_repartidorUidEdit == null || _repartidorUidEdit!.isEmpty);
+
   Future<void> _saveChanges() async {
-    if (_yaEntregado) return;
+    if (_yaEntregado || _faltaRepartidor) return;
     _applyCostoFromText();
 
     if (!_esEfectivo &&
@@ -203,7 +259,55 @@ class _PedidoDetalleFormState extends State<_PedidoDetalleForm> {
       return;
     }
 
+    // Solo se valida si la fecha fue cambiada; una fecha ya guardada que
+    // quedó en el pasado no debe bloquear otros cambios (p. ej. cancelar).
+    final fecha = _fechaEnvioEdit;
+    final min = _minFechaEnvio();
+    if (fecha != null &&
+        fecha != widget.pedido.fechaEnvio &&
+        fecha.isBefore(min)) {
+      _avisoFechaMinima(min);
+      return;
+    }
+
     setState(() => _saving = true);
+
+    // Revalida al guardar: otro pedido pudo asignarse mientras tanto, o la
+    // fecha cambió después de elegir al repartidor.
+    final uid = _repartidorUidEdit;
+    if (fecha != null &&
+        uid != null &&
+        uid.isNotEmpty &&
+        _estadoEdit != kEstadoCancelado) {
+      try {
+        final ocupados = await widget.controller.fetchRepartidoresOcupados(
+          fechaEnvio: fecha,
+          excludePedidoId: widget.pedido.id,
+        );
+        final ocupadoEn = ocupados[uid];
+        if (ocupadoEn != null) {
+          if (!mounted) return;
+          setState(() => _saving = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              backgroundColor: Palette.statsDanger,
+              content: Text(
+                'El repartidor ya tiene otro pedido a las ${_hhmm(ocupadoEn)}. '
+                'Elige otro repartidor o cambia la fecha.',
+              ),
+            ),
+          );
+          return;
+        }
+      } catch (e) {
+        if (!mounted) return;
+        setState(() => _saving = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('No se pudo verificar al repartidor: $e')),
+        );
+        return;
+      }
+    }
 
     try {
       await widget.controller.guardarCambios(
@@ -409,8 +513,9 @@ class _PedidoDetalleFormState extends State<_PedidoDetalleForm> {
         Footer(
           isSaving: _saving,
           readOnly: _yaEntregado,
+          faltaRepartidor: _faltaRepartidor,
           onClose: _saving ? null : () => Navigator.pop(context),
-          onSave: _locked ? null : _saveChanges,
+          onSave: (_locked || _faltaRepartidor) ? null : _saveChanges,
         ),
       ],
     );
@@ -563,8 +668,10 @@ class _GestionSection extends StatelessWidget {
               _GestionFieldBlock(
                 label: 'Repartidor',
                 child: RepartidorPickerWidget(
+                  pedidoId: pedido.id,
                   departamento: pedido.departamento,
                   almacenId: pedido.almacenId,
+                  fechaEnvio: fechaEnvioEdit,
                   valueUid: repartidorUidEdit,
                   valueNombre: repartidorNombreEdit,
                   onChanged: onRepartidorChanged,
@@ -604,8 +711,10 @@ class _GestionSection extends StatelessWidget {
             EditRow(
               label: 'Repartidor',
               child: RepartidorPickerWidget(
+                pedidoId: pedido.id,
                 departamento: pedido.departamento,
                 almacenId: pedido.almacenId,
+                fechaEnvio: fechaEnvioEdit,
                 valueUid: repartidorUidEdit,
                 valueNombre: repartidorNombreEdit,
                 onChanged: onRepartidorChanged,
@@ -1018,11 +1127,12 @@ class _EstadoDropdown extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // "En camino" y "Entregado" los asigna el repartidor; solo se muestran
+    // si el pedido ya está en ese estado, para no sobrescribirlo al guardar.
     final options = [
       kEstadoPendiente,
       kEstadoAceptado,
-      kEstadoEnCamino,
-      kEstadoEntregado,
+      if (value == kEstadoEnCamino || value == kEstadoEntregado) value,
       kEstadoCancelado,
     ];
 

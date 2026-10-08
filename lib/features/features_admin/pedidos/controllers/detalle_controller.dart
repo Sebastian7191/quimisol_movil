@@ -119,6 +119,48 @@ class PedidoDetalleController {
     return out;
   }
 
+  /// Margen alrededor de la fecha de envío dentro del cual un repartidor
+  /// con otro pedido se considera ocupado.
+  static const ventanaOcupado = Duration(hours: 1);
+
+  /// Repartidores con otro pedido activo cerca de [fechaEnvio]
+  /// (uid -> fecha de envío de ese otro pedido).
+  Future<Map<String, DateTime>> fetchRepartidoresOcupados({
+    required DateTime fechaEnvio,
+    required String excludePedidoId,
+  }) async {
+    // Rango sobre un solo campo: no requiere índice compuesto.
+    final snap = await _fire
+        .collection('pedidos')
+        .where(
+          'fecha_envio',
+          isGreaterThan: Timestamp.fromDate(fechaEnvio.subtract(ventanaOcupado)),
+        )
+        .where(
+          'fecha_envio',
+          isLessThan: Timestamp.fromDate(fechaEnvio.add(ventanaOcupado)),
+        )
+        .get();
+
+    final out = <String, DateTime>{};
+    for (final d in snap.docs) {
+      if (d.id == excludePedidoId) continue;
+      final data = d.data();
+
+      final estado = (data['estado'] ?? '').toString().trim().toLowerCase();
+      if (estado.contains('cancel') || estado.contains('entreg')) continue;
+
+      final uid = (data['repartidorUid'] ?? data['repartidor_uid'] ?? '')
+          .toString()
+          .trim();
+      final fecha = data['fecha_envio'];
+      if (uid.isEmpty || fecha is! Timestamp) continue;
+
+      out[uid] = fecha.toDate();
+    }
+    return out;
+  }
+
   Future<void> guardarCambios({
     required String pedidoId,
     required String nuevoEstado,
