@@ -1,0 +1,40 @@
+{
+  "project_info": {
+    "project_number": "1011820326368",
+    "firebase_url": "https://quimisol-4f159-default-rtdb.firebaseio.com",
+    "project_id": "quimisol-4f159",
+    "storage_bucket": "quimisol-4f159.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1011820326368:android:da555f12ed3e7cbe798f85",
+        "android_client_info": {
+          "package_name": "com.quimisol.quimisol_movil"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1011820326368-tj3knbspjjaugfasuenhb3uo6pho47bq.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBPhA_MJbwQYqjNhcrcQWbJvJ4gPTplBgQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1011820326368-tj3knbspjjaugfasuenhb3uo6pho47bq.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

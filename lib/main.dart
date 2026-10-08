@@ -1,122 +1,210 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter_modular/flutter_modular.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter/services.dart';
 
-void main() {
-  runApp(const MyApp());
-}
+// ✅ Locales (para DateFormat con 'es_BO' y DatePicker/TimePicker en español)
+import 'package:intl/date_symbol_data_local.dart';
+import 'package:intl/intl.dart';
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+import 'app_module.dart';
+import 'app_widget.dart';
+import 'firebase_options.dart';
+import 'core/config/mapbox_config.dart';
 
-  // This widget is the root of your application.
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Flutter Demo',
-      theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // TRY THIS: Try running your application with "flutter run". You'll see
-        // the application has a purple toolbar. Then, without quitting the app,
-        // try changing the seedColor in the colorScheme below to Colors.green
-        // and then invoke "hot reload" (save your changes or press the "hot
-        // reload" button in a Flutter-supported IDE, or press "r" if you used
-        // the command line to start the app).
-        //
-        // Notice that the counter didn't reset back to zero; the application
-        // state is not lost during the reload. To reset the state, use hot
-        // restart instead.
-        //
-        // This works for code too, not just values: Most code changes can be
-        // tested with just a hot reload.
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-      ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
-    );
+// ⚠️ Mapbox: IMPORTA SOLO si vas a usarlo (móvil). En web está causando crash.
+// Si lo dejas importado no pasa nada siempre, pero la llamada sí rompe.
+import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
+
+// ─────────────────────────────────────────────────────────────
+// Canal de notificaciones Android (debe coincidir con el que
+// declaramos en AndroidManifest.xml y en el que envían las
+// Cloud Functions con androidChannelId).
+// ─────────────────────────────────────────────────────────────
+const AndroidNotificationChannel _channel = AndroidNotificationChannel(
+  'quimisol_general',
+  'Notificaciones Quimisol',
+  description: 'Pedidos, pagos y actualizaciones de Quimisol',
+  importance: Importance.high,
+  playSound: true,
+);
+
+// ✅ Debe coincidir con `androidChannelId: "support_chat_channel"` que usa
+// la Cloud Function `notificarMensajeSoporte`. Si este canal no existe en
+// el dispositivo, Android descarta la notificación en silencio cuando la
+// app está en segundo plano o cerrada.
+const AndroidNotificationChannel _supportChatChannel = AndroidNotificationChannel(
+  'support_chat_channel',
+  'Chat de soporte',
+  description: 'Mensajes nuevos del chat de soporte',
+  importance: Importance.high,
+  playSound: true,
+);
+
+// ✅ Debe coincidir con `androidChannelId: "orders_channel"` que usan
+// notificarNuevoPedido, notificarPedidoEntregado, notificarCambioEstadoPago
+// y notificarConductorAsignado. Igual que arriba: si no se crea aquí,
+// Android descarta esas notificaciones en segundo plano (faltaba este canal).
+const AndroidNotificationChannel _ordersChannel = AndroidNotificationChannel(
+  'orders_channel',
+  'Pedidos',
+  description: 'Pedidos nuevos, entregas, pagos y asignaciones',
+  importance: Importance.high,
+  playSound: true,
+);
+
+// ✅ Debe coincidir con `androidChannelId: "reminders_channel"` que usan
+// recordatorioPedidosPendientes y recordatorioStockBajo (Cloud Functions
+// programadas con onSchedule).
+const AndroidNotificationChannel _remindersChannel = AndroidNotificationChannel(
+  'reminders_channel',
+  'Recordatorios',
+  description: 'Recordatorios automáticos de gestión (pedidos, inventario)',
+  importance: Importance.high,
+  playSound: true,
+);
+
+// ✅ Elige el canal según el `type` que mandan las Cloud Functions, para
+// que cada notificación caiga en el canal correcto tanto en primer plano
+// (aquí) como en segundo plano (lo decide el `androidChannelId` del push).
+AndroidNotificationChannel _channelForType(String type) {
+  if (type == 'support_chat') return _supportChatChannel;
+  if (type.startsWith('recordatorio_') || type.startsWith('alerta_')) {
+    return _remindersChannel;
   }
-}
-
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
-
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
-
-  final String title;
-
-  @override
-  State<MyHomePage> createState() => _MyHomePageState();
-}
-
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
-
-  void _incrementCounter() {
-    setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
-    });
+  if (type == 'nuevo_pedido_pendiente' || type.startsWith('pedido_')) {
+    return _ordersChannel;
   }
+  return _channel;
+}
 
-  @override
-  Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
-    return Scaffold(
-      appBar: AppBar(
-        // TRY THIS: Try changing the color here to a specific color (to
-        // Colors.amber, perhaps?) and trigger a hot reload to see the AppBar
-        // change color while the other colors stay the same.
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
-      ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
-        child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          //
-          // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
-          // action in the IDE, or press "p" in the console), to see the
-          // wireframe for each widget.
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            const Text('You have pushed the button this many times:'),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
-          ],
+final FlutterLocalNotificationsPlugin _localNotifs =
+    FlutterLocalNotificationsPlugin();
+
+// ─────────────────────────────────────────────────────────────
+// Handler de fondo: se ejecuta cuando la app está cerrada o en
+// segundo plano. DEBE ser una función top-level (no un método).
+// ─────────────────────────────────────────────────────────────
+@pragma('vm:entry-point')
+Future<void> _backgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  // El sistema Android/iOS muestra la notificación automáticamente.
+  // Aquí puedes guardar datos o actualizar Firestore si necesitas.
+}
+
+// ─────────────────────────────────────────────────────────────
+// Configuración de notificaciones locales + foreground handler
+// ─────────────────────────────────────────────────────────────
+Future<void> _setupNotifications() async {
+  // iOS: mostrar notificaciones cuando la app está en primer plano
+  await FirebaseMessaging.instance
+      .setForegroundNotificationPresentationOptions(
+    alert: true,
+    badge: true,
+    sound: true,
+  );
+
+  // Android: crear canales de notificaciones (requerido Android 8+)
+  final androidNotifs = _localNotifs
+      .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>();
+  await androidNotifs?.createNotificationChannel(_channel);
+  await androidNotifs?.createNotificationChannel(_supportChatChannel);
+  await androidNotifs?.createNotificationChannel(_ordersChannel);
+  await androidNotifs?.createNotificationChannel(_remindersChannel);
+
+  // Inicializar flutter_local_notifications
+  await _localNotifs.initialize(
+    const InitializationSettings(
+      android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+      iOS: DarwinInitializationSettings(),
+    ),
+  );
+
+  // Mostrar notificación local cuando la app está en PRIMER PLANO
+  FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+    final notification = message.notification;
+    if (notification == null) return;
+
+    // ✅ Elegir canal según el tipo (mismo criterio que `androidChannelId`
+    // en las Cloud Functions), para que coincida con lo que se ve en
+    // segundo plano.
+    final channel = _channelForType((message.data['type'] ?? '').toString());
+
+    _localNotifs.show(
+      notification.hashCode,
+      notification.title,
+      notification.body,
+      NotificationDetails(
+        android: AndroidNotificationDetails(
+          channel.id,
+          channel.name,
+          channelDescription: channel.description,
+          importance: Importance.high,
+          priority: Priority.high,
+          icon: '@mipmap/ic_launcher',
+        ),
+        iOS: const DarwinNotificationDetails(
+          presentAlert: true,
+          presentBadge: true,
+          presentSound: true,
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
     );
+  });
+}
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // ✅ Registrar handler de fondo ANTES de initializeApp
+  FirebaseMessaging.onBackgroundMessage(_backgroundHandler);
+
+  // ✅ Inicializa Firebase (con opciones por plataforma)
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+
+  // ✅ Configurar notificaciones locales + foreground
+  await _setupNotifications();
+
+  // ✅ Inicializa datos de locale para Intl (evita LocaleDataException)
+  await initializeDateFormatting('es_BO', null);
+  Intl.defaultLocale = 'es_BO';
+
+  // ✅ Mapbox token (SOLO móvil/desktop nativo, NO web)
+  // El token se define en core/config/mapbox_config.dart.
+  if (!kIsWeb) {
+    if (!MapboxConfig.estaConfigurado) {
+      debugPrint(
+        'MAPBOX_TOKEN no definido: los mapas no van a cargar. '
+        'Compila con --dart-define=MAPBOX_TOKEN=pk.xxxxx',
+      );
+    }
+    MapboxOptions.setAccessToken(MapboxConfig.accessToken);
   }
+
+  // ✅ Fullscreen (mejor solo en móvil; en web no aplica)
+  if (!kIsWeb) {
+    await SystemChrome.setEnabledSystemUIMode(
+      SystemUiMode.immersiveSticky,
+    );
+
+    // ✅ Bloqueamos la app en vertical (evita desbordes de layout en
+    // horizontal). Solo móvil/desktop nativo, en web no aplica.
+    await SystemChrome.setPreferredOrientations(const [
+      DeviceOrientation.portraitUp,
+      DeviceOrientation.portraitDown,
+    ]);
+  }
+
+  runApp(
+    ModularApp(
+      module: AppModule(),
+      child: const AppWidget(),
+    ),
+  );
 }
