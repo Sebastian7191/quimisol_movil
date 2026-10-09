@@ -201,7 +201,9 @@ class _PedidoEnCursoPageState extends State<PedidoEnCursoPage> {
   Future<void> _updateRepartidorMarker() async {
     if (!_styleLoaded ||
         _pointManager == null ||
-        _repartidorPoint == null) return;
+        _repartidorPoint == null) {
+      return;
+    }
 
     if (_repartidorAnn == null) {
       _repartidorAnn = await _pointManager!.create(
@@ -248,7 +250,9 @@ class _PedidoEnCursoPageState extends State<PedidoEnCursoPage> {
         _map == null ||
         _polylineManager == null ||
         _pedidoPoint == null ||
-        _repartidorPoint == null) return;
+        _repartidorPoint == null) {
+      return;
+    }
 
     // throttle: no pegarle a directions cada ratito
     final now = DateTime.now();
@@ -312,7 +316,7 @@ class _PedidoEnCursoPageState extends State<PedidoEnCursoPage> {
       _routeAnn = await _polylineManager!.create(
         mb.PolylineAnnotationOptions(
           geometry: mb.LineString(coordinates: positions),
-          lineColor: Palette.button.value,
+          lineColor: Palette.button.toARGB32(),
           lineWidth: 7,
           lineOpacity: 0.95,
         ),
@@ -467,7 +471,7 @@ class _PedidoEnCursoPageState extends State<PedidoEnCursoPage> {
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.12),
+                      color: Colors.black.withValues(alpha: 0.12),
                       blurRadius: 24,
                       offset: const Offset(0, -10),
                     ),
@@ -482,7 +486,7 @@ class _PedidoEnCursoPageState extends State<PedidoEnCursoPage> {
                       height: 5,
                       margin: const EdgeInsets.only(bottom: 14),
                       decoration: BoxDecoration(
-                        color: Palette.ink.withOpacity(0.25),
+                        color: Palette.ink.withValues(alpha: 0.25),
                         borderRadius: BorderRadius.circular(99),
                       ),
                     ),
@@ -498,7 +502,7 @@ class _PedidoEnCursoPageState extends State<PedidoEnCursoPage> {
                       '$_etaMin min · ${_distanciaKm.toStringAsFixed(2)} km',
                       style: TextStyle(
                         fontSize: 13,
-                        color: Palette.ink.withOpacity(0.6),
+                        color: Palette.ink.withValues(alpha: 0.6),
                       ),
                     ),
                     const SizedBox(height: 14),

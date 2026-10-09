@@ -37,7 +37,16 @@
       "PowerShell(flutter build apk --debug 2>&1)",
       "PowerShell(dart format lib/shared/widgets/zoomable_image.dart lib/features/pasajeros_features/pedidos/pages/detalle_producto.dart lib/features/pasajeros_features/homepage/pages/detalle_producto.dart lib/features/pasajeros_features/carrito/pages/carrito.dart lib/features/pasajeros_features/wishlist/pages/wishlist.dart lib/features/pasajeros_features/homepage/pages/home_page_clientes.dart)",
       "Bash(git rm *)",
-      "PowerShell(firebase login:list 2>&1 | Select-Object -First 5; Test-Path \"$env:APPDATA\\\\gcloud\\\\application_default_credentials.json\"; Test-Path \"$env:USERPROFILE\\\\.config\\\\configstore\\\\firebase-tools.json\")"
+      "PowerShell(firebase login:list 2>&1 | Select-Object -First 5; Test-Path \"$env:APPDATA\\\\gcloud\\\\application_default_credentials.json\"; Test-Path \"$env:USERPROFILE\\\\.config\\\\configstore\\\\firebase-tools.json\")",
+      "PowerShell($base = git merge-base HEAD origin/pruebas_sebas; Write-Output \"base: $base\"; Write-Output \"--- remoto \\(dd4954d\\) ---\"; git diff --stat $base origin/pruebas_sebas; Write-Output \"--- local \\(009553f\\) ---\"; git diff --stat $base HEAD)",
+      "PowerShell($base = git merge-base HEAD origin/pruebas_sebas; $r = git diff --name-only $base origin/pruebas_sebas; $l = git diff --name-only $base HEAD; Write-Output \"remoto: $\\($r.Count\\) archivos, local: $\\($l.Count\\) archivos\"; $common = $r | Where-Object { $l -contains $_ }; Write-Output \"en comun: $\\($common.Count\\)\"; Write-Output \"--- diferencias entre las dos puntas ---\"; git diff --stat HEAD origin/pruebas_sebas | Select-Object -Last 40)",
+      "PowerShell(flutter analyze 2>$null)",
+      "PowerShell(dart fix --dry-run 2>$null)",
+      "PowerShell(git checkout -- lib/features/features_admin/laboratorios)",
+      "PowerShell(dart fix --apply --code=deprecated_member_use --code=duplicate_import --code=prefer_is_empty 2>$null)",
+      "PowerShell($f='lib/features/conductores_features/home_screen/services/repartidor_servicio_localizacion.dart'; $t=[IO.File]::ReadAllText\\($f\\); $t=[regex]::Replace\\($t,'\\(?m\\)^\\(\\\\s+\\)print\\\\\\(','${1}debugPrint\\('\\); $t=$t.Replace\\(\"import 'package:firebase_database/firebase_database.dart';\",\"import 'package:firebase_database/firebase_database.dart';`nimport 'package:flutter/foundation.dart';\"\\); [IO.File]::WriteAllText\\($f,$t,\\(New-Object Text.UTF8Encoding $false\\)\\); Select-String -Path $f -Pattern 'print\\\\\\(|foundation' | ForEach-Object { \"$\\($_.LineNumber\\): $\\($_.Line.Trim\\(\\)\\)\" })",
+      "PowerShell(git rm -q --cached lib/shared/widgets/MainLayout.dart 2>$null)",
+      "PowerShell(Remove-Item lib/shared/widgets/MainLayout.dart -Confirm:$false)"
     ],
     "additionalDirectories": [
       "C:\\Users\\SEBASTIAN-BUENO\\Downloads\\quimisol\\export_quimisol_2026-09-28"

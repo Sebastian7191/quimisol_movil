@@ -60,7 +60,7 @@ class FormParte1CabeceraCliente extends StatelessWidget {
               SizedBox(
                 width: isMobile ? double.infinity : 360,
                 child: DropdownButtonFormField<String>(
-                  value: clientesMayoristas.any(
+                  initialValue: clientesMayoristas.any(
                     (e) => e.id == clienteSeleccionadoId,
                   )
                       ? clienteSeleccionadoId

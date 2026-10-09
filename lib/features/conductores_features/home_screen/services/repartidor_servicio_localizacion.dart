@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:firebase_database/firebase_database.dart';
+import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
 
 class RepartidorLocationService {
@@ -24,36 +25,36 @@ class RepartidorLocationService {
 
   Future<void> start({required String uid}) async {
     stop();
-    print('🚀 START tracking repartidor: $uid');
+    debugPrint('🚀 START tracking repartidor: $uid');
 
     // reset de estado interno
     _lastSentPos = null;
     _lastSentAtMs = 0;
 
     final enabled = await Geolocator.isLocationServiceEnabled();
-    print('GPS enabled: $enabled');
+    debugPrint('GPS enabled: $enabled');
     if (!enabled) return;
 
     var perm = await Geolocator.checkPermission();
-    print('Permission: $perm');
+    debugPrint('Permission: $perm');
 
     if (perm == LocationPermission.denied) {
       perm = await Geolocator.requestPermission();
-      print('Permission after request: $perm');
+      debugPrint('Permission after request: $perm');
     }
 
     if (perm == LocationPermission.denied ||
         perm == LocationPermission.deniedForever) {
-      print('❌ Permiso GPS denegado');
+      debugPrint('❌ Permiso GPS denegado');
       return;
     }
 
-    print('📡 Permisos OK, iniciando timer');
+    debugPrint('📡 Permisos OK, iniciando timer');
 
     _timer = Timer.periodic(_tick, (_) async {
       try {
         final pos = await Geolocator.getCurrentPosition(
-          desiredAccuracy: LocationAccuracy.best,
+          locationSettings: const LocationSettings(accuracy: LocationAccuracy.best),
         );
 
         final nowMs = DateTime.now().millisecondsSinceEpoch;
@@ -82,7 +83,7 @@ class RepartidorLocationService {
           return;
         }
 
-        print(
+        debugPrint(
           '📤 Enviando por ${byTime ? "TIEMPO" : ""}${(byTime && byDistance) ? " + " : ""}${byDistance ? "DISTANCIA" : ""}'
           ' | 📍 ${pos.latitude}, ${pos.longitude}',
         );
@@ -97,15 +98,15 @@ class RepartidorLocationService {
         _lastSentPos = pos;
         _lastSentAtMs = nowMs;
 
-        print('✅ Ubicación enviada a RTDB');
+        debugPrint('✅ Ubicación enviada a RTDB');
       } catch (e) {
-        print('❌ Error GPS/RTDB: $e');
+        debugPrint('❌ Error GPS/RTDB: $e');
       }
     });
   }
 
   void stop() {
-    print('⏹️ STOP tracking');
+    debugPrint('⏹️ STOP tracking');
     _timer?.cancel();
     _timer = null;
   }

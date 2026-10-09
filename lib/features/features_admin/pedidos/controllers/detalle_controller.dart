@@ -32,7 +32,7 @@ class PedidoDetalleController {
       throw Exception('No existe el pedido.');
     }
     return PedidoDetalleData.fromDoc(
-      doc as DocumentSnapshot<Map<String, dynamic>>,
+      doc,
     );
   }
 

@@ -66,7 +66,7 @@ class _CarritoPageState extends State<CarritoPage> {
 
   // selección de ubicación
   UbicacionSeleccionada? _selectedUbic;
-  bool _paying = false;
+  final bool _paying = false;
 
   // ✅ departamentos permitidos (según almacenes del carrito)
   Set<String> _allowedDeptos = {};
@@ -266,38 +266,6 @@ class _CarritoPageState extends State<CarritoPage> {
     return true;
   }
 
-  Future<void> _payNow() async {
-    if (_uid.isEmpty) return;
-    if (_items.isEmpty) return;
-
-    if (!_validarAntesDePagar()) return;
-
-    setState(() => _paying = true);
-
-    try {
-      final pedidoId = await _store.checkoutToPedidos(
-        ubicacion: _selectedUbic!,
-      );
-
-      if (!mounted) return;
-
-      if (pedidoId == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No se pudo crear el pedido.')),
-        );
-        return;
-      }
-
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Pedido creado ✅')));
-
-      Navigator.pop(context);
-    } finally {
-      if (mounted) setState(() => _paying = false);
-    }
-  }
-
   Future<void> _goToPaymentPage() async {
     if (_uid.isEmpty) return;
     if (_items.isEmpty) return;
@@ -392,13 +360,13 @@ class _CarritoPageState extends State<CarritoPage> {
                             Icon(
                               Icons.shopping_cart_outlined,
                               size: 52,
-                              color: ink.withOpacity(0.35),
+                              color: ink.withValues(alpha: 0.35),
                             ),
                             const SizedBox(height: 10),
                             Text(
                               'Tu carrito está vacío',
                               style: TextStyle(
-                                color: ink.withOpacity(0.65),
+                                color: ink.withValues(alpha: 0.65),
                                 fontWeight: FontWeight.w800,
                               ),
                             ),
@@ -426,7 +394,7 @@ class _CarritoPageState extends State<CarritoPage> {
                                 child: Text(
                                   'Verificando departamento del almacén...',
                                   style: TextStyle(
-                                    color: ink.withOpacity(0.65),
+                                    color: ink.withValues(alpha: 0.65),
                                     fontWeight: FontWeight.w800,
                                   ),
                                 ),
@@ -443,7 +411,7 @@ class _CarritoPageState extends State<CarritoPage> {
                               color: const Color(0xFFFFF4E5),
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
-                                color: const Color(0xFFE39A2B).withOpacity(0.5),
+                                color: const Color(0xFFE39A2B).withValues(alpha: 0.5),
                               ),
                             ),
                             child: Row(
@@ -480,7 +448,7 @@ class _CarritoPageState extends State<CarritoPage> {
                             child: Text(
                               'Ubicaciones disponibles en: ${_allowedDeptos.join(", ")}',
                               style: TextStyle(
-                                color: ink.withOpacity(0.55),
+                                color: ink.withValues(alpha: 0.55),
                                 fontWeight: FontWeight.w800,
                               ),
                             ),
@@ -524,7 +492,7 @@ class _CarritoPageState extends State<CarritoPage> {
                         child: Text(
                           'Total a pagar',
                           style: TextStyle(
-                            color: ink.withOpacity(0.55),
+                            color: ink.withValues(alpha: 0.55),
                             fontWeight: FontWeight.w800,
                           ),
                         ),
@@ -690,14 +658,14 @@ class _UbicacionDropdown extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    Icon(Icons.place_outlined, color: ink.withOpacity(0.45)),
+                    Icon(Icons.place_outlined, color: ink.withValues(alpha: 0.45)),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
                         'Aún no tienes una ubicación de entrega en este '
                         'departamento.',
                         style: TextStyle(
-                          color: ink.withOpacity(0.70),
+                          color: ink.withValues(alpha: 0.70),
                           fontWeight: FontWeight.w800,
                         ),
                       ),
@@ -789,7 +757,7 @@ class _UbicacionDropdown extends StatelessWidget {
                 child: Text(
                   dept,
                   style: TextStyle(
-                    color: ink.withOpacity(0.55),
+                    color: ink.withValues(alpha: 0.55),
                     fontWeight: FontWeight.w900,
                     fontSize: 12.4,
                   ),
@@ -857,7 +825,7 @@ class _UbicacionDropdown extends StatelessWidget {
                     isExpanded: true,
                     icon: Icon(
                       Icons.keyboard_arrow_down_rounded,
-                      color: ink.withOpacity(0.60),
+                      color: ink.withValues(alpha: 0.60),
                     ),
                     items: items,
                     selectedItemBuilder: (_) => selectedWidgets,
@@ -881,7 +849,7 @@ class _UbicacionDropdown extends StatelessWidget {
       decoration: BoxDecoration(
         color: Palette.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: ink.withOpacity(0.06)),
+        border: Border.all(color: ink.withValues(alpha: 0.06)),
       ),
       child: child,
     );
@@ -987,7 +955,7 @@ class _CartCard extends StatelessWidget {
               decoration: BoxDecoration(
                 color: Palette.white,
                 borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: ink.withOpacity(0.05)),
+                border: Border.all(color: ink.withValues(alpha: 0.05)),
               ),
               child: Row(
                 children: [
@@ -1007,11 +975,11 @@ class _CartCard extends StatelessWidget {
                             errorBuilder: (_, __, ___) => Container(
                               height: 62,
                               width: 62,
-                              color: ink.withOpacity(0.06),
+                              color: ink.withValues(alpha: 0.06),
                               alignment: Alignment.center,
                               child: Icon(
                                 Icons.image_not_supported_outlined,
-                                color: ink.withOpacity(0.45),
+                                color: ink.withValues(alpha: 0.45),
                               ),
                             ),
                           ),
@@ -1031,7 +999,7 @@ class _CartCard extends StatelessWidget {
                               borderRadius: BorderRadius.circular(10),
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black.withOpacity(0.14),
+                                  color: Colors.black.withValues(alpha: 0.14),
                                   blurRadius: 10,
                                   offset: const Offset(0, 6),
                                 ),
@@ -1079,7 +1047,7 @@ class _CartCard extends StatelessWidget {
                                 child: Icon(
                                   Icons.delete_outline_rounded,
                                   size: 22,
-                                  color: ink.withOpacity(0.45),
+                                  color: ink.withValues(alpha: 0.45),
                                 ),
                               ),
                             ),
@@ -1135,7 +1103,7 @@ class _CartCard extends StatelessWidget {
                                     Text(
                                       'Bs. ${base.toStringAsFixed(2)}',
                                       style: TextStyle(
-                                        color: ink.withOpacity(0.45),
+                                        color: ink.withValues(alpha: 0.45),
                                         fontWeight: FontWeight.w800,
                                         fontSize: 12.2,
                                         decoration: TextDecoration.lineThrough,
@@ -1147,7 +1115,7 @@ class _CartCard extends StatelessWidget {
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                       style: TextStyle(
-                                        color: Colors.red.withOpacity(0.95),
+                                        color: Colors.red.withValues(alpha: 0.95),
                                         fontWeight: FontWeight.w900,
                                         fontSize: 12.0,
                                       ),
@@ -1300,7 +1268,7 @@ class _SummaryRow extends StatelessWidget {
         Text(
           left,
           style: TextStyle(
-            color: ink.withOpacity(0.55),
+            color: ink.withValues(alpha: 0.55),
             fontWeight: FontWeight.w800,
           ),
         ),

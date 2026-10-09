@@ -1,6 +1,5 @@
 import 'package:flutter/services.dart';
 
-import 'package:flutter/services.dart';
 
 class DateTextInputFormatter extends TextInputFormatter {
   bool _esBisiesto(int anio) {
@@ -41,7 +40,7 @@ class DateTextInputFormatter extends TextInputFormatter {
     String dd = '';
     String yyyy = '';
 
-    if (digits.length >= 1) {
+    if (digits.isNotEmpty) {
       mm = digits.substring(0, digits.length >= 2 ? 2 : 1);
     }
     if (digits.length >= 3) {
@@ -124,7 +123,7 @@ class TimeTextInputFormatter extends TextInputFormatter {
     String hh = '';
     String mm = '';
 
-    if (digits.length >= 1) {
+    if (digits.isNotEmpty) {
       hh = digits.substring(0, digits.length >= 2 ? 2 : 1);
     }
     if (digits.length >= 3) {

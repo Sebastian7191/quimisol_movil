@@ -46,8 +46,8 @@ class _HomeScreenConductorState extends State<HomeScreenConductor> {
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [
-                Palette.gradientStart.withOpacity(0.45),
-                Palette.gradientEnd.withOpacity(0.65),
+                Palette.gradientStart.withValues(alpha: 0.45),
+                Palette.gradientEnd.withValues(alpha: 0.65),
               ],
             ),
           ),

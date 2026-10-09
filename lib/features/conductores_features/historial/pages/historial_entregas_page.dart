@@ -135,11 +135,11 @@ class _HistorialEntregasPageState extends State<HistorialEntregasPage> {
                         color: Palette.white,
                         borderRadius: BorderRadius.circular(18),
                         border: Border.all(
-                          color: Colors.black.withOpacity(0.06),
+                          color: Colors.black.withValues(alpha: 0.06),
                         ),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.05),
+                            color: Colors.black.withValues(alpha: 0.05),
                             blurRadius: 12,
                             offset: const Offset(0, 6),
                           ),
@@ -151,12 +151,12 @@ class _HistorialEntregasPageState extends State<HistorialEntregasPage> {
                             width: 44,
                             height: 44,
                             decoration: BoxDecoration(
-                              color: Palette.button.withOpacity(0.16),
+                              color: Palette.button.withValues(alpha: 0.16),
                               shape: BoxShape.circle,
                             ),
                             child: Icon(
                               Icons.star_rounded,
-                              color: Palette.primary.withOpacity(0.9),
+                              color: Palette.primary.withValues(alpha: 0.9),
                             ),
                           ),
                           const SizedBox(width: 12),
@@ -168,7 +168,7 @@ class _HistorialEntregasPageState extends State<HistorialEntregasPage> {
                                   'Resumen',
                                   style: TextStyle(
                                     fontWeight: FontWeight.w900,
-                                    color: Palette.ink.withOpacity(0.9),
+                                    color: Palette.ink.withValues(alpha: 0.9),
                                   ),
                                 ),
                                 const SizedBox(height: 4),
@@ -177,7 +177,7 @@ class _HistorialEntregasPageState extends State<HistorialEntregasPage> {
                                       ? 'Promedio: ${avg.toStringAsFixed(1)} ⭐ • Calificados: $ratedCount'
                                       : 'Aún no tienes calificaciones',
                                   style: TextStyle(
-                                    color: Palette.ink.withOpacity(0.65),
+                                    color: Palette.ink.withValues(alpha: 0.65),
                                     fontWeight: FontWeight.w700,
                                   ),
                                 ),
@@ -185,7 +185,7 @@ class _HistorialEntregasPageState extends State<HistorialEntregasPage> {
                                 Text(
                                   'Entregas: ${items.length}',
                                   style: TextStyle(
-                                    color: Palette.ink.withOpacity(0.55),
+                                    color: Palette.ink.withValues(alpha: 0.55),
                                   ),
                                 ),
                               ],

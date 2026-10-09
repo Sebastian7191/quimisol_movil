@@ -220,10 +220,10 @@ class _ConductorPerfilFormPageState extends State<ConductorPerfilFormPage> {
                               decoration: BoxDecoration(
                                 color: Palette.white,
                                 borderRadius: BorderRadius.circular(24),
-                                border: Border.all(color: ink.withOpacity(0.06)),
+                                border: Border.all(color: ink.withValues(alpha: 0.06)),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: Colors.black.withOpacity(0.04),
+                                    color: Colors.black.withValues(alpha: 0.04),
                                     blurRadius: 20,
                                     offset: const Offset(0, 12),
                                   ),
@@ -246,8 +246,8 @@ class _ConductorPerfilFormPageState extends State<ConductorPerfilFormPage> {
                                             shape: BoxShape.circle,
                                             color: Palette.card,
                                             border: Border.all(
-                                              color: Palette.primary.withOpacity(
-                                                0.22,
+                                              color: Palette.primary.withValues(
+                                                alpha: 0.22,
                                               ),
                                               width: 2.2,
                                             ),
@@ -262,7 +262,7 @@ class _ConductorPerfilFormPageState extends State<ConductorPerfilFormPage> {
                                           child: _buildPhotoProvider() == null
                                               ? Icon(
                                                   Icons.person_rounded,
-                                                  color: ink.withOpacity(0.35),
+                                                  color: ink.withValues(alpha: 0.35),
                                                   size: 48,
                                                 )
                                               : null,
@@ -272,8 +272,8 @@ class _ConductorPerfilFormPageState extends State<ConductorPerfilFormPage> {
                                             height: 104,
                                             width: 104,
                                             decoration: BoxDecoration(
-                                              color: Colors.black.withOpacity(
-                                                0.25,
+                                              color: Colors.black.withValues(
+                                                alpha: 0.25,
                                               ),
                                               shape: BoxShape.circle,
                                             ),
@@ -299,7 +299,7 @@ class _ConductorPerfilFormPageState extends State<ConductorPerfilFormPage> {
                                               boxShadow: [
                                                 BoxShadow(
                                                   color: Colors.black
-                                                      .withOpacity(0.14),
+                                                      .withValues(alpha: 0.14),
                                                   blurRadius: 10,
                                                   offset: const Offset(0, 4),
                                                 ),
@@ -334,10 +334,10 @@ class _ConductorPerfilFormPageState extends State<ConductorPerfilFormPage> {
                                       vertical: 7,
                                     ),
                                     decoration: BoxDecoration(
-                                      color: Palette.button.withOpacity(0.10),
+                                      color: Palette.button.withValues(alpha: 0.10),
                                       borderRadius: BorderRadius.circular(999),
                                       border: Border.all(
-                                        color: Palette.button.withOpacity(0.22),
+                                        color: Palette.button.withValues(alpha: 0.22),
                                       ),
                                     ),
                                     child: Text(
@@ -354,7 +354,7 @@ class _ConductorPerfilFormPageState extends State<ConductorPerfilFormPage> {
                                     'Toca la foto para cambiarla',
                                     textAlign: TextAlign.center,
                                     style: TextStyle(
-                                      color: ink.withOpacity(0.55),
+                                      color: ink.withValues(alpha: 0.55),
                                       fontWeight: FontWeight.w700,
                                       fontSize: 12.8,
                                     ),
@@ -367,7 +367,7 @@ class _ConductorPerfilFormPageState extends State<ConductorPerfilFormPage> {
                                     style: OutlinedButton.styleFrom(
                                       foregroundColor: Palette.primary,
                                       side: BorderSide(
-                                        color: Palette.primary.withOpacity(0.25),
+                                        color: Palette.primary.withValues(alpha: 0.25),
                                       ),
                                       shape: RoundedRectangleBorder(
                                         borderRadius: BorderRadius.circular(14),
@@ -395,10 +395,10 @@ class _ConductorPerfilFormPageState extends State<ConductorPerfilFormPage> {
                               decoration: BoxDecoration(
                                 color: Palette.white,
                                 borderRadius: BorderRadius.circular(24),
-                                border: Border.all(color: ink.withOpacity(0.06)),
+                                border: Border.all(color: ink.withValues(alpha: 0.06)),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: Colors.black.withOpacity(0.04),
+                                    color: Colors.black.withValues(alpha: 0.04),
                                     blurRadius: 20,
                                     offset: const Offset(0, 12),
                                   ),
@@ -419,7 +419,7 @@ class _ConductorPerfilFormPageState extends State<ConductorPerfilFormPage> {
                                   Text(
                                     'Puedes actualizar tu información personal.',
                                     style: TextStyle(
-                                      color: ink.withOpacity(0.55),
+                                      color: ink.withValues(alpha: 0.55),
                                       fontWeight: FontWeight.w700,
                                       fontSize: 13,
                                     ),
@@ -534,10 +534,10 @@ class _TopBackButton extends StatelessWidget {
         decoration: BoxDecoration(
           color: Palette.white,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Palette.ink.withOpacity(0.06)),
+          border: Border.all(color: Palette.ink.withValues(alpha: 0.06)),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.04),
+              color: Colors.black.withValues(alpha: 0.04),
               blurRadius: 18,
               offset: const Offset(0, 10),
             ),
@@ -545,7 +545,7 @@ class _TopBackButton extends StatelessWidget {
         ),
         child: Icon(
           Icons.arrow_back_ios_new_rounded,
-          color: Palette.ink.withOpacity(0.72),
+          color: Palette.ink.withValues(alpha: 0.72),
           size: 18,
         ),
       ),
@@ -562,7 +562,7 @@ class _LabelText extends StatelessWidget {
     return Text(
       label,
       style: TextStyle(
-        color: Palette.ink.withOpacity(0.78),
+        color: Palette.ink.withValues(alpha: 0.78),
         fontWeight: FontWeight.w800,
         fontSize: 13.5,
       ),
@@ -584,27 +584,27 @@ class _ReadOnlyField extends StatelessWidget {
         color: Palette.fieldBg,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: Palette.ink.withOpacity(0.06),
+          color: Palette.ink.withValues(alpha: 0.06),
         ),
       ),
       child: Row(
         children: [
           if (prefixIcon != null) ...[
-            Icon(prefixIcon, size: 20, color: Palette.ink.withOpacity(0.45)),
+            Icon(prefixIcon, size: 20, color: Palette.ink.withValues(alpha: 0.45)),
             const SizedBox(width: 10),
           ],
           Expanded(
             child: Text(
               value,
               style: TextStyle(
-                color: Palette.ink.withOpacity(0.7),
+                color: Palette.ink.withValues(alpha: 0.7),
                 fontWeight: FontWeight.w800,
                 fontSize: 14.5,
               ),
             ),
           ),
           Icon(Icons.lock_outline_rounded,
-              size: 16, color: Palette.ink.withOpacity(0.3)),
+              size: 16, color: Palette.ink.withValues(alpha: 0.3)),
         ],
       ),
     );
@@ -620,9 +620,8 @@ class _InputField extends StatelessWidget {
     this.textInputAction,
     this.onChanged,
     this.prefixIcon,
-    this.readOnly = false,
     this.inputFormatters,
-  });
+  }) : readOnly = false;
 
   final TextEditingController controller;
   final String hint;
@@ -653,14 +652,14 @@ class _InputField extends StatelessWidget {
       decoration: InputDecoration(
         hintText: hint,
         hintStyle: TextStyle(
-          color: Palette.ink.withOpacity(0.35),
+          color: Palette.ink.withValues(alpha: 0.35),
           fontWeight: FontWeight.w700,
         ),
         prefixIcon: prefixIcon == null
             ? null
             : Icon(
                 prefixIcon,
-                color: Palette.primary.withOpacity(0.72),
+                color: Palette.primary.withValues(alpha: 0.72),
                 size: 20,
               ),
         filled: true,
@@ -672,7 +671,7 @@ class _InputField extends StatelessWidget {
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
           borderSide: BorderSide(
-            color: Palette.ink.withOpacity(0.05),
+            color: Palette.ink.withValues(alpha: 0.05),
           ),
         ),
         focusedBorder: OutlineInputBorder(
@@ -685,7 +684,7 @@ class _InputField extends StatelessWidget {
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
           borderSide: BorderSide(
-            color: Palette.ink.withOpacity(0.05),
+            color: Palette.ink.withValues(alpha: 0.05),
           ),
         ),
         errorBorder: OutlineInputBorder(

@@ -89,7 +89,7 @@ class _AdminChatFooterPanelState extends State<AdminChatFooterPanel>
                         borderRadius: BorderRadius.circular(radius.value),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(shadowOpacity.value),
+                            color: Colors.black.withValues(alpha: shadowOpacity.value),
                             blurRadius: 24,
                             offset: const Offset(0, 10),
                           ),
@@ -166,7 +166,7 @@ class _AdminChatFooterPanelState extends State<AdminChatFooterPanel>
       stream: _supportChatsStream(),
       builder: (context, snapshot) {
         final chats = snapshot.data ?? const <_AdminChatPreview>[];
-        final totalUnread = chats.fold<int>(0, (sum, e) => sum + e.unread);
+        final totalUnread = chats.fold<int>(0, (acc, e) => acc + e.unread);
 
         return SizedBox(
           width: panelWidth,
@@ -215,11 +215,11 @@ class _AdminChatFooterPanelState extends State<AdminChatFooterPanel>
                               color: Palette.white,
                               borderRadius: BorderRadius.circular(18),
                               border: Border.all(
-                                color: Palette.button.withOpacity(0.20),
+                                color: Palette.button.withValues(alpha: 0.20),
                               ),
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black.withOpacity(0.12),
+                                  color: Colors.black.withValues(alpha: 0.12),
                                   blurRadius: 22,
                                   offset: const Offset(0, 10),
                                 ),
@@ -294,12 +294,12 @@ class _AdminChatFooterPanelState extends State<AdminChatFooterPanel>
                         color: Palette.primary,
                         borderRadius: BorderRadius.circular(999),
                         border: Border.all(
-                          color: Palette.button.withOpacity(0.85),
+                          color: Palette.button.withValues(alpha: 0.85),
                           width: 1.5,
                         ),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(_open ? 0.22 : 0.16),
+                            color: Colors.black.withValues(alpha: _open ? 0.22 : 0.16),
                             blurRadius: _open ? 20 : 16,
                             offset: Offset(0, _open ? 10 : 8),
                           ),
@@ -403,7 +403,7 @@ class _Header extends StatelessWidget {
         children: [
           CircleAvatar(
             radius: 16,
-            backgroundColor: Palette.button.withOpacity(0.15),
+            backgroundColor: Palette.button.withValues(alpha: 0.15),
             child: const Icon(
               Icons.chat_bubble_outline_rounded,
               size: 16,
@@ -426,7 +426,7 @@ class _Header extends StatelessWidget {
               margin: const EdgeInsets.only(right: 4),
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
               decoration: BoxDecoration(
-                color: Palette.button.withOpacity(0.14),
+                color: Palette.button.withValues(alpha: 0.14),
                 borderRadius: BorderRadius.circular(999),
               ),
               child: Text(
@@ -446,7 +446,7 @@ class _Header extends StatelessWidget {
               width: 28,
               height: 28,
               decoration: BoxDecoration(
-                color: Palette.button.withOpacity(0.14),
+                color: Palette.button.withValues(alpha: 0.14),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: const Icon(
@@ -513,7 +513,7 @@ class _ChatListTile extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
-              color: Palette.button.withOpacity(0.10),
+              color: Palette.button.withValues(alpha: 0.10),
             ),
             color: Palette.white,
           ),
@@ -571,7 +571,7 @@ class _ChatListTile extends StatelessWidget {
                       maxLines: compact ? 1 : 2,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        color: Palette.ink.withOpacity(0.65),
+                        color: Palette.ink.withValues(alpha: 0.65),
                         fontSize: msgSize,
                         height: 1.15,
                         fontWeight:
@@ -592,7 +592,7 @@ class _ChatListTile extends StatelessWidget {
                   Text(
                     chat.time,
                     style: TextStyle(
-                      color: Palette.ink.withOpacity(0.55),
+                      color: Palette.ink.withValues(alpha: 0.55),
                       fontSize: timeSize,
                       fontWeight: FontWeight.w600,
                     ),
@@ -655,9 +655,9 @@ class _StatusChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.10),
+        color: color.withValues(alpha: 0.10),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: color.withOpacity(0.25)),
+        border: Border.all(color: color.withValues(alpha: 0.25)),
       ),
       child: Text(
         label,
@@ -687,7 +687,7 @@ class _ChatsLoadingState extends StatelessWidget {
             Text(
               'Cargando chats...',
               style: TextStyle(
-                color: Palette.primary.withOpacity(0.9),
+                color: Palette.primary.withValues(alpha: 0.9),
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -712,7 +712,7 @@ class _ChatsEmptyState extends StatelessWidget {
             Icon(
               Icons.chat_bubble_outline_rounded,
               size: 34,
-              color: Palette.primary.withOpacity(0.5),
+              color: Palette.primary.withValues(alpha: 0.5),
             ),
             const SizedBox(height: 8),
             Text(
@@ -727,7 +727,7 @@ class _ChatsEmptyState extends StatelessWidget {
               'Cuando un cliente abra un ticket aparecerá aquí.',
               textAlign: TextAlign.center,
               style: TextStyle(
-                color: Palette.ink.withOpacity(0.65),
+                color: Palette.ink.withValues(alpha: 0.65),
                 fontSize: 12,
               ),
             ),
@@ -875,7 +875,7 @@ class _AdminSoporteFullPageInline extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final totalUnread = chats.fold<int>(0, (sum, e) => sum + e.unread);
+    final totalUnread = chats.fold<int>(0, (acc, e) => acc + e.unread);
 
     return Scaffold(
       backgroundColor: Palette.fieldBg,
@@ -889,11 +889,11 @@ class _AdminSoporteFullPageInline extends StatelessWidget {
                 color: Palette.white,
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
-                  color: Palette.button.withOpacity(0.20),
+                  color: Palette.button.withValues(alpha: 0.20),
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.06),
+                    color: Colors.black.withValues(alpha: 0.06),
                     blurRadius: 16,
                     offset: const Offset(0, 6),
                   ),
@@ -903,7 +903,7 @@ class _AdminSoporteFullPageInline extends StatelessWidget {
                 children: [
                   CircleAvatar(
                     radius: 20,
-                    backgroundColor: Palette.button.withOpacity(0.14),
+                    backgroundColor: Palette.button.withValues(alpha: 0.14),
                     child: const Icon(
                       Icons.support_agent_rounded,
                       color: Palette.primary,
@@ -943,7 +943,7 @@ class _AdminSoporteFullPageInline extends StatelessWidget {
                         vertical: 5,
                       ),
                       decoration: BoxDecoration(
-                        color: Palette.button.withOpacity(0.14),
+                        color: Palette.button.withValues(alpha: 0.14),
                         borderRadius: BorderRadius.circular(999),
                       ),
                       child: Text(
@@ -983,20 +983,20 @@ class _AdminSoporteFullPageInline extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: Palette.white,
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: Palette.button.withOpacity(0.14)),
+                  border: Border.all(color: Palette.button.withValues(alpha: 0.14)),
                 ),
                 child: Row(
                   children: [
                     Icon(
                       Icons.search_rounded,
-                      color: Palette.ink.withOpacity(0.65),
+                      color: Palette.ink.withValues(alpha: 0.65),
                       size: 22,
                     ),
                     const SizedBox(width: 8),
                     Text(
                       'Buscar chats (UI)',
                       style: TextStyle(
-                        color: Palette.ink.withOpacity(0.65),
+                        color: Palette.ink.withValues(alpha: 0.65),
                         fontSize: 14,
                         fontWeight: FontWeight.w500,
                       ),
@@ -1013,7 +1013,7 @@ class _AdminSoporteFullPageInline extends StatelessWidget {
                   color: Palette.white,
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
-                    color: Palette.button.withOpacity(0.14),
+                    color: Palette.button.withValues(alpha: 0.14),
                   ),
                 ),
                 child: chats.isEmpty

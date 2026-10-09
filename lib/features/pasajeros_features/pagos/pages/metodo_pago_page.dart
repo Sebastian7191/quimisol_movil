@@ -243,9 +243,12 @@ class _MetodoPagoPageState extends State<MetodoPagoPage> {
 
       await file.writeAsBytes(bytes, flush: true);
 
-      await Share.shareXFiles([
-        XFile(file.path),
-      ], text: 'Te comparto el código QR para realizar el pago.');
+      await SharePlus.instance.share(
+        ShareParams(
+          files: [XFile(file.path)],
+          text: 'Te comparto el código QR para realizar el pago.',
+        ),
+      );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -558,7 +561,7 @@ class _MetodoPagoPageState extends State<MetodoPagoPage> {
                                   Text(
                                     'Escanea este código para realizar el pago.',
                                     style: TextStyle(
-                                      color: ink.withOpacity(0.65),
+                                      color: ink.withValues(alpha: 0.65),
                                       fontWeight: FontWeight.w700,
                                     ),
                                   ),
@@ -570,7 +573,7 @@ class _MetodoPagoPageState extends State<MetodoPagoPage> {
                                       color: Palette.fieldBg,
                                       borderRadius: BorderRadius.circular(20),
                                       border: Border.all(
-                                        color: ink.withOpacity(0.06),
+                                        color: ink.withValues(alpha: 0.06),
                                       ),
                                     ),
                                     child: Center(
@@ -601,14 +604,14 @@ class _MetodoPagoPageState extends State<MetodoPagoPage> {
                                                 Icon(
                                                   Icons.qr_code_2_rounded,
                                                   size: 70,
-                                                  color: ink.withOpacity(0.28),
+                                                  color: ink.withValues(alpha: 0.28),
                                                 ),
                                                 const SizedBox(height: 10),
                                                 Text(
                                                   'No hay QR disponible',
                                                   style: TextStyle(
-                                                    color: ink.withOpacity(
-                                                      0.60,
+                                                    color: ink.withValues(
+                                                      alpha: 0.60,
                                                     ),
                                                     fontWeight: FontWeight.w800,
                                                   ),
@@ -707,7 +710,7 @@ class _MetodoPagoPageState extends State<MetodoPagoPage> {
                                   Text(
                                     'Sube una imagen de tu comprobante. Tamaño máximo: 5 MB.',
                                     style: TextStyle(
-                                      color: ink.withOpacity(0.65),
+                                      color: ink.withValues(alpha: 0.65),
                                       fontWeight: FontWeight.w700,
                                     ),
                                   ),
@@ -718,10 +721,10 @@ class _MetodoPagoPageState extends State<MetodoPagoPage> {
                                       padding: const EdgeInsets.all(12),
                                       margin: const EdgeInsets.only(bottom: 12),
                                       decoration: BoxDecoration(
-                                        color: Colors.green.withOpacity(0.08),
+                                        color: Colors.green.withValues(alpha: 0.08),
                                         borderRadius: BorderRadius.circular(14),
                                         border: Border.all(
-                                          color: Colors.green.withOpacity(0.18),
+                                          color: Colors.green.withValues(alpha: 0.18),
                                         ),
                                       ),
                                       child: Row(
@@ -752,7 +755,7 @@ class _MetodoPagoPageState extends State<MetodoPagoPage> {
                                         color: Palette.fieldBg,
                                         borderRadius: BorderRadius.circular(18),
                                         border: Border.all(
-                                          color: ink.withOpacity(0.06),
+                                          color: ink.withValues(alpha: 0.06),
                                         ),
                                       ),
                                       child: ClipRRect(
@@ -826,7 +829,7 @@ class _MetodoPagoPageState extends State<MetodoPagoPage> {
                                   Text(
                                     'Tu pedido será cobrado posteriormente por el repartidor que se te vaya a asignar.',
                                     style: TextStyle(
-                                      color: ink.withOpacity(0.65),
+                                      color: ink.withValues(alpha: 0.65),
                                       fontWeight: FontWeight.w700,
                                       height: 1.4,
                                     ),
@@ -919,7 +922,7 @@ class _SectionCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Palette.white,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Palette.ink.withOpacity(0.05)),
+        border: Border.all(color: Palette.ink.withValues(alpha: 0.05)),
       ),
       child: child,
     );
@@ -952,10 +955,10 @@ class _MetodoTile extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: selected ? primary.withOpacity(0.10) : Palette.fieldBg,
+          color: selected ? primary.withValues(alpha: 0.10) : Palette.fieldBg,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: selected ? primary.withOpacity(0.35) : ink.withOpacity(0.06),
+            color: selected ? primary.withValues(alpha: 0.35) : ink.withValues(alpha: 0.06),
           ),
         ),
         child: Row(
@@ -978,7 +981,7 @@ class _MetodoTile extends StatelessWidget {
                   Text(
                     subtitle,
                     style: TextStyle(
-                      color: ink.withOpacity(0.62),
+                      color: ink.withValues(alpha: 0.62),
                       fontWeight: FontWeight.w700,
                       fontSize: 12.8,
                     ),
@@ -991,7 +994,7 @@ class _MetodoTile extends StatelessWidget {
               selected
                   ? Icons.radio_button_checked_rounded
                   : Icons.radio_button_off_rounded,
-              color: selected ? primary : ink.withOpacity(0.35),
+              color: selected ? primary : ink.withValues(alpha: 0.35),
             ),
           ],
         ),
@@ -1018,7 +1021,7 @@ class _SummaryLine extends StatelessWidget {
           child: Text(
             label,
             style: TextStyle(
-              color: ink.withOpacity(0.55),
+              color: ink.withValues(alpha: 0.55),
               fontWeight: FontWeight.w800,
             ),
           ),

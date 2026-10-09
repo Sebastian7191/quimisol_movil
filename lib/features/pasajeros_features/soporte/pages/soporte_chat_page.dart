@@ -38,8 +38,6 @@ class _SoporteChatPageState extends State<SoporteChatPage>
 
   // Flujo soporte cliente
   bool _awaitingOpenTicketAnswer = false;
-  bool _chatCreated = false;
-  bool _chatRejected = false;
   bool _creatingChat = false;
   bool _loadingChat = true;
 
@@ -162,7 +160,6 @@ class _SoporteChatPageState extends State<SoporteChatPage>
       if (user == null) {
         setState(() {
           _loadingChat = false;
-          _chatRejected = true;
           _messages
             ..clear()
             ..add(
@@ -183,10 +180,7 @@ class _SoporteChatPageState extends State<SoporteChatPage>
       if (chatSnap.exists) {
         final data = chatSnap.data() ?? {};
         _chatStatus = (data['status'] ?? '').toString();
-
-        _chatCreated = true;
         _awaitingOpenTicketAnswer = false;
-        _chatRejected = false;
 
         _listenToMessages();
         await _setClientChatPresence(true);
@@ -204,9 +198,7 @@ class _SoporteChatPageState extends State<SoporteChatPage>
       await _setClientChatPresence(true);
 
       setState(() {
-        _chatCreated = true;
         _awaitingOpenTicketAnswer = true;
-        _chatRejected = false;
         _chatStatus = 'draft';
         _loadingChat = false;
       });
@@ -341,8 +333,6 @@ class _SoporteChatPageState extends State<SoporteChatPage>
             _awaitingOpenTicketAnswer =
                 (status == 'draft' || status == 'completed') &&
                     (hasOpenQuestion || shouldInjectReopenPrompt);
-            _chatRejected = status == 'cancelled_by_client';
-            _chatCreated = true;
           });
 
           _scrollToBottom();
@@ -611,7 +601,6 @@ class _SoporteChatPageState extends State<SoporteChatPage>
         );
 
         setState(() {
-          _chatRejected = true;
           _creatingChat = false;
         });
 
@@ -652,10 +641,8 @@ class _SoporteChatPageState extends State<SoporteChatPage>
 
       if (!mounted) return;
       setState(() {
-        _chatCreated = true;
         _creatingChat = false;
         _chatStatus = 'pending';
-        _chatRejected = false;
       });
 
       _scrollToBottom();
@@ -670,9 +657,9 @@ class _SoporteChatPageState extends State<SoporteChatPage>
         );
       } catch (_) {}
 
+      if (!mounted) return;
       setState(() {
         _creatingChat = false;
-        _chatRejected = true;
       });
 
       _scrollToBottom();
@@ -918,7 +905,7 @@ class _SoporteChatPageState extends State<SoporteChatPage>
             children: [
               CircleAvatar(
                 radius: 20,
-                backgroundColor: Palette.button.withOpacity(0.15),
+                backgroundColor: Palette.button.withValues(alpha: 0.15),
                 child: const Icon(
                   Icons.support_agent_rounded,
                   color: Palette.primary,
@@ -994,7 +981,7 @@ class _SoporteChatPageState extends State<SoporteChatPage>
                       color: Palette.white,
                       borderRadius: BorderRadius.circular(14),
                       border: Border.all(
-                        color: Palette.button.withOpacity(0.20),
+                        color: Palette.button.withValues(alpha: 0.20),
                       ),
                     ),
                     child: Row(
@@ -1002,7 +989,7 @@ class _SoporteChatPageState extends State<SoporteChatPage>
                         Icon(
                           Icons.info_outline_rounded,
                           size: 18,
-                          color: Palette.primary.withOpacity(0.9),
+                          color: Palette.primary.withValues(alpha: 0.9),
                         ),
                         const SizedBox(width: 8),
                         Expanded(
@@ -1105,7 +1092,7 @@ class _SoporteChatPageState extends State<SoporteChatPage>
                           Text(
                             'Creando ticket...',
                             style: TextStyle(
-                              color: Palette.primary.withOpacity(0.9),
+                              color: Palette.primary.withValues(alpha: 0.9),
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -1123,12 +1110,12 @@ class _SoporteChatPageState extends State<SoporteChatPage>
                             color: Palette.white,
                             border: Border(
                               top: BorderSide(
-                                color: Palette.button.withOpacity(0.18),
+                                color: Palette.button.withValues(alpha: 0.18),
                               ),
                             ),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withOpacity(0.04),
+                                color: Colors.black.withValues(alpha: 0.04),
                                 blurRadius: 10,
                                 offset: const Offset(0, -2),
                               ),
@@ -1145,7 +1132,7 @@ class _SoporteChatPageState extends State<SoporteChatPage>
                                         : Colors.grey.shade100,
                                     borderRadius: BorderRadius.circular(24),
                                     border: Border.all(
-                                      color: Palette.button.withOpacity(0.18),
+                                      color: Palette.button.withValues(alpha: 0.18),
                                     ),
                                   ),
                                   child: Row(
@@ -1159,7 +1146,7 @@ class _SoporteChatPageState extends State<SoporteChatPage>
                                               ? Icons.keyboard_rounded
                                               : Icons.sentiment_satisfied_alt_rounded,
                                           color: _inputEnabled
-                                              ? Palette.primary.withOpacity(0.8)
+                                              ? Palette.primary.withValues(alpha: 0.8)
                                               : Colors.grey,
                                         ),
                                       ),
@@ -1199,7 +1186,7 @@ class _SoporteChatPageState extends State<SoporteChatPage>
                                         icon: Icon(
                                           Icons.attach_file_rounded,
                                           color: _inputEnabled
-                                              ? Palette.primary.withOpacity(0.8)
+                                              ? Palette.primary.withValues(alpha: 0.8)
                                               : Colors.grey,
                                         ),
                                       ),
@@ -1216,15 +1203,15 @@ class _SoporteChatPageState extends State<SoporteChatPage>
                                 decoration: BoxDecoration(
                                   color: (_isTyping && _inputEnabled)
                                       ? Palette.button
-                                      : Palette.button.withOpacity(0.55),
+                                      : Palette.button.withValues(alpha: 0.55),
                                   shape: BoxShape.circle,
                                   border: Border.all(
-                                    color: Palette.button.withOpacity(0.85),
+                                    color: Palette.button.withValues(alpha: 0.85),
                                     width: 1.4,
                                   ),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: Colors.black.withOpacity(0.12),
+                                      color: Colors.black.withValues(alpha: 0.12),
                                       blurRadius: 10,
                                       offset: const Offset(0, 5),
                                     ),
@@ -1281,9 +1268,9 @@ class _QuickReplyButton extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.10),
+          color: color.withValues(alpha: 0.10),
           borderRadius: BorderRadius.circular(22),
-          border: Border.all(color: color.withOpacity(0.30)),
+          border: Border.all(color: color.withValues(alpha: 0.30)),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -1328,8 +1315,8 @@ class _SimpleEmojiPanel extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 10),
             decoration: BoxDecoration(
               border: Border(
-                top: BorderSide(color: Palette.button.withOpacity(0.12)),
-                bottom: BorderSide(color: Palette.button.withOpacity(0.12)),
+                top: BorderSide(color: Palette.button.withValues(alpha: 0.12)),
+                bottom: BorderSide(color: Palette.button.withValues(alpha: 0.12)),
               ),
             ),
             child: Row(
@@ -1346,7 +1333,7 @@ class _SimpleEmojiPanel extends StatelessWidget {
                   onPressed: onBackspace,
                   icon: Icon(
                     Icons.backspace_outlined,
-                    color: Palette.primary.withOpacity(0.8),
+                    color: Palette.primary.withValues(alpha: 0.8),
                     size: 20,
                   ),
                 ),
@@ -1392,7 +1379,7 @@ class _MessageBubble extends StatelessWidget {
         (message.isBotQuestion || (!isMine && !message.isRemoteImage));
 
     final bubbleColor = isMine
-        ? Palette.button.withOpacity(0.92)
+        ? Palette.button.withValues(alpha: 0.92)
         : (isSystem ? Colors.white : Palette.white);
 
     final textColor = isMine ? Palette.white : Palette.ink;
@@ -1422,10 +1409,10 @@ class _MessageBubble extends StatelessWidget {
               ),
               border: isMine
                   ? null
-                  : Border.all(color: Palette.button.withOpacity(0.18)),
+                  : Border.all(color: Palette.button.withValues(alpha: 0.18)),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.04),
+                  color: Colors.black.withValues(alpha: 0.04),
                   blurRadius: 8,
                   offset: const Offset(0, 3),
                 ),
@@ -1459,8 +1446,8 @@ class _MessageBubble extends StatelessWidget {
                       message.time,
                       style: TextStyle(
                         color: isMine
-                            ? Palette.white.withOpacity(0.9)
-                            : Palette.ink.withOpacity(0.55),
+                            ? Palette.white.withValues(alpha: 0.9)
+                            : Palette.ink.withValues(alpha: 0.55),
                         fontSize: 10.5,
                         fontWeight: FontWeight.w600,
                       ),
@@ -1470,7 +1457,7 @@ class _MessageBubble extends StatelessWidget {
                       Icon(
                         Icons.done_all_rounded,
                         size: 14,
-                        color: Palette.white.withOpacity(0.92),
+                        color: Palette.white.withValues(alpha: 0.92),
                       ),
                     ],
                   ],
@@ -1520,7 +1507,7 @@ class _ChatImageView extends StatelessWidget {
           minHeight: 120,
           maxHeight: 260,
         ),
-        color: Colors.black.withOpacity(0.05),
+        color: Colors.black.withValues(alpha: 0.05),
         child: imageWidget,
       ),
     );
@@ -1551,23 +1538,21 @@ class _ChatMessage {
   final bool isRemoteImage;
 
   _ChatMessage.text({
-    required String text,
+    required String this.text,
     required this.isMine,
     required this.time,
     this.isBotQuestion = false,
     this.isBotAnswer = false,
-  }) : text = text,
-       imagePath = null,
+  }) : imagePath = null,
        type = _MessageType.text,
        isRemoteImage = false;
 
   _ChatMessage.image({
-    required String imagePath,
+    required String this.imagePath,
     required this.isMine,
     required this.time,
     this.isRemoteImage = false,
   }) : text = null,
-       imagePath = imagePath,
        type = _MessageType.image,
        isBotQuestion = false,
        isBotAnswer = false;

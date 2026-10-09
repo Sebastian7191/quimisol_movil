@@ -581,7 +581,7 @@ class _AdminSupportChatPageState extends State<AdminSupportChatPage>
               children: [
                 CircleAvatar(
                   radius: 20,
-                  backgroundColor: Palette.button.withOpacity(0.14),
+                  backgroundColor: Palette.button.withValues(alpha: 0.14),
                   child: Text(
                     _initials(_clientName),
                     style: const TextStyle(
@@ -638,14 +638,14 @@ class _AdminSupportChatPageState extends State<AdminSupportChatPage>
                 decoration: BoxDecoration(
                   color: Palette.white,
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: Palette.button.withOpacity(0.20)),
+                  border: Border.all(color: Palette.button.withValues(alpha: 0.20)),
                 ),
                 child: Row(
                   children: [
                     Icon(
                       Icons.info_outline_rounded,
                       size: 18,
-                      color: Palette.primary.withOpacity(0.9),
+                      color: Palette.primary.withValues(alpha: 0.9),
                     ),
                     const SizedBox(width: 8),
                     Expanded(
@@ -707,7 +707,7 @@ class _AdminSupportChatPageState extends State<AdminSupportChatPage>
                         child: Text(
                           'Sin mensajes todavía',
                           style: TextStyle(
-                            color: Palette.ink.withOpacity(0.65),
+                            color: Palette.ink.withValues(alpha: 0.65),
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -753,12 +753,12 @@ class _AdminSupportChatPageState extends State<AdminSupportChatPage>
                     color: Palette.white,
                     border: Border(
                       top: BorderSide(
-                        color: Palette.button.withOpacity(0.18),
+                        color: Palette.button.withValues(alpha: 0.18),
                       ),
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.04),
+                        color: Colors.black.withValues(alpha: 0.04),
                         blurRadius: 10,
                         offset: const Offset(0, -2),
                       ),
@@ -773,7 +773,7 @@ class _AdminSupportChatPageState extends State<AdminSupportChatPage>
                             color: canReply ? Palette.fieldBg : Colors.grey.shade100,
                             borderRadius: BorderRadius.circular(24),
                             border: Border.all(
-                              color: Palette.button.withOpacity(0.18),
+                              color: Palette.button.withValues(alpha: 0.18),
                             ),
                           ),
                           child: Row(
@@ -811,7 +811,7 @@ class _AdminSupportChatPageState extends State<AdminSupportChatPage>
                                 icon: Icon(
                                   Icons.attach_file_rounded,
                                   color: canReply
-                                      ? Palette.primary.withOpacity(0.8)
+                                      ? Palette.primary.withValues(alpha: 0.8)
                                       : Colors.grey,
                                 ),
                               ),
@@ -827,10 +827,10 @@ class _AdminSupportChatPageState extends State<AdminSupportChatPage>
                         decoration: BoxDecoration(
                           color: (_isTyping && canReply && !_sending)
                               ? Palette.button
-                              : Palette.button.withOpacity(0.55),
+                              : Palette.button.withValues(alpha: 0.55),
                           shape: BoxShape.circle,
                           border: Border.all(
-                            color: Palette.button.withOpacity(0.85),
+                            color: Palette.button.withValues(alpha: 0.85),
                             width: 1.4,
                           ),
                         ),
@@ -922,7 +922,7 @@ class _AdminMessageBubble extends StatelessWidget {
   Widget build(BuildContext context) {
     final bubbleColor = isSystem
         ? Palette.fieldBg
-        : (isMine ? Palette.button.withOpacity(0.92) : Palette.white);
+        : (isMine ? Palette.button.withValues(alpha: 0.92) : Palette.white);
 
     final textColor = isMine ? Palette.white : Palette.ink;
 
@@ -954,10 +954,10 @@ class _AdminMessageBubble extends StatelessWidget {
                 bottomRight: Radius.circular(isMine ? 4 : 16),
               ),
               border: isSystem
-                  ? Border.all(color: Palette.button.withOpacity(0.12))
+                  ? Border.all(color: Palette.button.withValues(alpha: 0.12))
                   : (isMine
                       ? null
-                      : Border.all(color: Palette.button.withOpacity(0.18))),
+                      : Border.all(color: Palette.button.withValues(alpha: 0.18))),
             ),
             child: Column(
               crossAxisAlignment:
@@ -980,8 +980,8 @@ class _AdminMessageBubble extends StatelessWidget {
                   time,
                   style: TextStyle(
                     color: isMine
-                        ? Palette.white.withOpacity(0.9)
-                        : Palette.ink.withOpacity(0.55),
+                        ? Palette.white.withValues(alpha: 0.9)
+                        : Palette.ink.withValues(alpha: 0.55),
                     fontSize: 10.5,
                     fontWeight: FontWeight.w600,
                   ),
@@ -1011,7 +1011,7 @@ class _RemoteImageView extends StatelessWidget {
           minHeight: 120,
           maxHeight: 260,
         ),
-        color: Colors.black.withOpacity(0.05),
+        color: Colors.black.withValues(alpha: 0.05),
         child: Image.network(
           imageUrl,
           fit: BoxFit.cover,

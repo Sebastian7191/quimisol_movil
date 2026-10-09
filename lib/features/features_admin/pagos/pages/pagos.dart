@@ -27,7 +27,6 @@ class _PagosPageState extends State<PagosPage> {
 
   String? _savedQrUrl;
   String? _savedQrStoragePath;
-  String? _savedQrFileName;
 
   bool _qrActive = true;
   bool _cashActive = true;
@@ -74,9 +73,6 @@ class _PagosPageState extends State<PagosPage> {
               : null;
           _savedQrStoragePath = qrData != null
               ? _readNullableString(qrData['qrStoragePath'])
-              : null;
-          _savedQrFileName = qrData != null
-              ? _readNullableString(qrData['qrFileName'])
               : null;
 
           _qrActive = (qrData?['activo'] as bool?) ??
@@ -182,7 +178,7 @@ class _PagosPageState extends State<PagosPage> {
 
       final now = DateTime.now().millisecondsSinceEpoch;
       final safeName = (_selectedQrName ?? 'qr_pago.png').replaceAll(' ', '_');
-      final storagePath = 'pagos/qr/qr_$now\_$safeName';
+      final storagePath = 'pagos/qr/qr_${now}_$safeName';
 
       final ref = _storage.ref().child(storagePath);
 
@@ -222,7 +218,6 @@ class _PagosPageState extends State<PagosPage> {
       setState(() {
         _savedQrUrl = downloadUrl;
         _savedQrStoragePath = storagePath;
-        _savedQrFileName = _selectedQrName ?? safeName;
         _selectedQrBytes = null;
         _selectedQrName = null;
       });

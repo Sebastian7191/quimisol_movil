@@ -154,7 +154,7 @@ class _ClienteDropdownField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DropdownButtonFormField<String>(
-      value: clientesMayoristas.any((e) => e.id == clienteSeleccionadoId)
+      initialValue: clientesMayoristas.any((e) => e.id == clienteSeleccionadoId)
           ? clienteSeleccionadoId
           : null,
       onChanged: cargandoClientesMayoristas ? null : onClienteChanged,
@@ -251,25 +251,19 @@ class _SectionCard extends StatelessWidget {
 class _FormField extends StatelessWidget {
   final String label;
   final TextEditingController controller;
-  final String? Function(String?)? validator;
   final int maxLines;
-  final TextInputType? keyboardType;
 
   const _FormField({
     required this.label,
     required this.controller,
-    this.validator,
     this.maxLines = 1,
-    this.keyboardType,
   });
 
   @override
   Widget build(BuildContext context) {
     return TextFormField(
       controller: controller,
-      validator: validator,
       maxLines: maxLines,
-      keyboardType: keyboardType,
       decoration: InputDecoration(
         labelText: label,
         filled: true,

@@ -27,7 +27,7 @@ class NotificationTile extends StatelessWidget {
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: 16),
         decoration: BoxDecoration(
-          color: Colors.redAccent.withOpacity(0.12),
+          color: Colors.redAccent.withValues(alpha: 0.12),
           borderRadius: BorderRadius.circular(18),
         ),
         child: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent),
@@ -43,13 +43,13 @@ class NotificationTile extends StatelessWidget {
             borderRadius: BorderRadius.circular(18),
             border: Border.all(
               color: isUnread
-                  ? Palette.primary.withOpacity(0.30)
-                  : Colors.black.withOpacity(0.06),
+                  ? Palette.primary.withValues(alpha: 0.30)
+                  : Colors.black.withValues(alpha: 0.06),
               width: 1.4,
             ),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.05),
+                color: Colors.black.withValues(alpha: 0.05),
                 blurRadius: 12,
                 offset: const Offset(0, 6),
               ),
@@ -63,15 +63,15 @@ class NotificationTile extends StatelessWidget {
                 height: 42,
                 decoration: BoxDecoration(
                   color: isUnread
-                      ? Palette.button.withOpacity(0.18)
-                      : Colors.black.withOpacity(0.04),
+                      ? Palette.button.withValues(alpha: 0.18)
+                      : Colors.black.withValues(alpha: 0.04),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
                   isUnread
                       ? Icons.notifications_active_rounded
                       : Icons.notifications_none_rounded,
-                  color: isUnread ? Palette.primary : Palette.ink.withOpacity(0.55),
+                  color: isUnread ? Palette.primary : Palette.ink.withValues(alpha: 0.55),
                 ),
               ),
               const SizedBox(width: 12),
@@ -89,7 +89,7 @@ class NotificationTile extends StatelessWidget {
                             style: TextStyle(
                               fontWeight: isUnread ? FontWeight.w900 : FontWeight.w700,
                               fontSize: 14,
-                              color: Palette.ink.withOpacity(0.9),
+                              color: Palette.ink.withValues(alpha: 0.9),
                             ),
                           ),
                         ),
@@ -98,7 +98,7 @@ class NotificationTile extends StatelessWidget {
                           timeText,
                           style: TextStyle(
                             fontSize: 12,
-                            color: Palette.ink.withOpacity(0.55),
+                            color: Palette.ink.withValues(alpha: 0.55),
                           ),
                         ),
                       ],
@@ -110,7 +110,7 @@ class NotificationTile extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         fontSize: 13,
-                        color: Palette.ink.withOpacity(0.7),
+                        color: Palette.ink.withValues(alpha: 0.7),
                       ),
                     ),
                     if (n.type != null) ...[
@@ -120,14 +120,14 @@ class NotificationTile extends StatelessWidget {
                         decoration: BoxDecoration(
                           color: Palette.fieldBg,
                           borderRadius: BorderRadius.circular(999),
-                          border: Border.all(color: Colors.black.withOpacity(0.06)),
+                          border: Border.all(color: Colors.black.withValues(alpha: 0.06)),
                         ),
                         child: Text(
                           n.type!,
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w700,
-                            color: Palette.primary.withOpacity(0.85),
+                            color: Palette.primary.withValues(alpha: 0.85),
                           ),
                         ),
                       ),

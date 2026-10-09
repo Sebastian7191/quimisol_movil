@@ -153,7 +153,7 @@ class _AddAlmacenDialogState extends State<AddAlmacenDialog> {
                     const SizedBox(height: 12),
 
                     DropdownButtonFormField<String>(
-                      value: _depto,
+                      initialValue: _depto,
                       items: _deptos
                           .map((d) => DropdownMenuItem(value: d, child: Text(d)))
                           .toList(),

@@ -179,7 +179,7 @@ class FormUiHelpers {
     return SizedBox(
       width: width,
       child: DropdownButtonFormField<T>(
-        value: safeValue,
+        initialValue: safeValue,
         onChanged: onChanged,
         decoration: InputDecoration(
           labelText: label,

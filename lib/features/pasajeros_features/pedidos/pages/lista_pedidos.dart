@@ -221,7 +221,7 @@ class _MisPedidosPageState extends State<MisPedidosPage> {
     final primary = Palette.button;
     final purpleText = Palette.primary;
     final bg = Palette.fieldBg;
-    final chipBg = Palette.button.withOpacity(0.10);
+    final chipBg = Palette.button.withValues(alpha: 0.10);
 
     return Scaffold(
       backgroundColor: bg,
@@ -316,7 +316,7 @@ class _MisPedidosPageState extends State<MisPedidosPage> {
                       child: Text(
                         'Inicia sesión para ver tus pedidos.',
                         style: TextStyle(
-                          color: purpleText.withOpacity(0.75),
+                          color: purpleText.withValues(alpha: 0.75),
                           fontWeight: FontWeight.w800,
                         ),
                       ),
@@ -338,7 +338,7 @@ class _MisPedidosPageState extends State<MisPedidosPage> {
                                 'Ocurrió un error al cargar pedidos.\n${snap.error}',
                                 textAlign: TextAlign.center,
                                 style: TextStyle(
-                                  color: purpleText.withOpacity(0.75),
+                                  color: purpleText.withValues(alpha: 0.75),
                                   fontWeight: FontWeight.w800,
                                 ),
                               ),
@@ -404,13 +404,13 @@ class _MisPedidosPageState extends State<MisPedidosPage> {
                                   Icon(
                                     Icons.receipt_long_rounded,
                                     size: 54,
-                                    color: purpleText.withOpacity(0.25),
+                                    color: purpleText.withValues(alpha: 0.25),
                                   ),
                                   const SizedBox(height: 10),
                                   Text(
                                     'No hay pedidos aquí.',
                                     style: TextStyle(
-                                      color: purpleText.withOpacity(0.75),
+                                      color: purpleText.withValues(alpha: 0.75),
                                       fontWeight: FontWeight.w900,
                                     ),
                                   ),
@@ -537,13 +537,13 @@ class _ChipTab extends StatelessWidget {
           color: active ? primary : bg,
           borderRadius: BorderRadius.circular(18),
           border: Border.all(
-            color: active ? primary : textColor.withOpacity(0.12),
+            color: active ? primary : textColor.withValues(alpha: 0.12),
           ),
         ),
         child: Text(
           text,
           style: TextStyle(
-            color: active ? Palette.white : textColor.withOpacity(0.92),
+            color: active ? Palette.white : textColor.withValues(alpha: 0.92),
             fontWeight: FontWeight.w900,
             fontSize: 12.5,
           ),
@@ -581,12 +581,12 @@ class _PedidoCard extends StatelessWidget {
           color: Palette.white,
           borderRadius: BorderRadius.circular(24),
           border: Border.all(
-            color: novedad ? Palette.button : purpleText.withOpacity(0.06),
+            color: novedad ? Palette.button : purpleText.withValues(alpha: 0.06),
             width: novedad ? 2 : 1,
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withValues(alpha: 0.05),
               blurRadius: 22,
               offset: const Offset(0, 12),
             ),
@@ -617,7 +617,7 @@ class _PedidoCard extends StatelessWidget {
                             height: 48,
                             width: 48,
                             decoration: BoxDecoration(
-                              color: status.bg.withOpacity(0.12),
+                              color: status.bg.withValues(alpha: 0.12),
                               borderRadius: BorderRadius.circular(16),
                             ),
                             child: Icon(
@@ -652,7 +652,7 @@ class _PedidoCard extends StatelessWidget {
                                           'Toca para abrir el detalle',
                                           key: const ValueKey('normal'),
                                           style: TextStyle(
-                                            color: purpleText.withOpacity(0.55),
+                                            color: purpleText.withValues(alpha: 0.55),
                                             fontWeight: FontWeight.w700,
                                             fontSize: 11.5,
                                           ),
@@ -743,10 +743,10 @@ class _PedidoCard extends StatelessWidget {
                           vertical: 11,
                         ),
                         decoration: BoxDecoration(
-                          color: status.bg.withOpacity(0.08),
+                          color: status.bg.withValues(alpha: 0.08),
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(
-                            color: status.bg.withOpacity(0.18),
+                            color: status.bg.withValues(alpha: 0.18),
                           ),
                         ),
                         child: Row(
@@ -889,10 +889,10 @@ class _InfoMiniCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
       decoration: BoxDecoration(
-        color: Palette.fieldBg.withOpacity(0.55),
+        color: Palette.fieldBg.withValues(alpha: 0.55),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: valueColor.withOpacity(0.06),
+          color: valueColor.withValues(alpha: 0.06),
         ),
       ),
       child: Row(
@@ -901,7 +901,7 @@ class _InfoMiniCard extends StatelessWidget {
             height: 34,
             width: 34,
             decoration: BoxDecoration(
-              color: Palette.button.withOpacity(0.10),
+              color: Palette.button.withValues(alpha: 0.10),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(
@@ -920,7 +920,7 @@ class _InfoMiniCard extends StatelessWidget {
                   maxLines: maxLines,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    color: valueColor.withOpacity(0.55),
+                    color: valueColor.withValues(alpha: 0.55),
                     fontWeight: FontWeight.w700,
                     fontSize: 10.5,
                   ),
@@ -963,10 +963,10 @@ class _PagoMiniCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
       decoration: BoxDecoration(
-        color: valueColor.withOpacity(0.08),
+        color: valueColor.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: valueColor.withOpacity(0.18),
+          color: valueColor.withValues(alpha: 0.18),
         ),
       ),
       child: Row(
@@ -975,7 +975,7 @@ class _PagoMiniCard extends StatelessWidget {
             height: 34,
             width: 34,
             decoration: BoxDecoration(
-              color: valueColor.withOpacity(0.12),
+              color: valueColor.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(
@@ -994,7 +994,7 @@ class _PagoMiniCard extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    color: valueColor.withOpacity(0.70),
+                    color: valueColor.withValues(alpha: 0.70),
                     fontWeight: FontWeight.w700,
                     fontSize: 10.5,
                   ),

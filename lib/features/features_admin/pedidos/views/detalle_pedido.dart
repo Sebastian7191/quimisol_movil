@@ -825,7 +825,7 @@ class _ComprobanteWidget extends StatelessWidget {
           onTap: () {
             showDialog(
               context: context,
-              barrierColor: Colors.black.withOpacity(0.9),
+              barrierColor: Colors.black.withValues(alpha: 0.9),
               builder: (_) => _ComprobanteZoomDialog(
                 imageUrl: comprobanteUrl,
                 title: comprobanteNombre,
@@ -896,7 +896,7 @@ class _ComprobanteZoomDialog extends StatelessWidget {
           Container(
             width: double.infinity,
             height: double.infinity,
-            color: Colors.black.withOpacity(0.92),
+            color: Colors.black.withValues(alpha: 0.92),
             child: Column(
               children: [
                 const SizedBox(height: 16),

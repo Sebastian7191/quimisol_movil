@@ -437,7 +437,7 @@ class _BottomPillNavbarAnimated extends StatelessWidget {
     final barBg = Palette.white;
     final borderColor = Palette.button;
     final labelColor = Palette.primary;
-    final iconUnselected = Palette.ink.withOpacity(0.45);
+    final iconUnselected = Palette.ink.withValues(alpha: 0.45);
     final iconSelected = Palette.primary;
     final bubbleColor = Palette.button;
     final bubbleIconColor = Palette.white;
@@ -544,7 +544,7 @@ class _BottomPillNavbarAnimated extends StatelessWidget {
                                             : FontWeight.w500,
                                         color: isSelected
                                             ? labelColor
-                                            : labelColor.withOpacity(0.65),
+                                            : labelColor.withValues(alpha: 0.65),
                                       ),
                                       child: Text(
                                         items[i].label,
@@ -577,12 +577,12 @@ class _BottomPillNavbarAnimated extends StatelessWidget {
                           color: bubbleColor,
                           shape: BoxShape.circle,
                           border: Border.all(
-                            color: borderColor.withOpacity(0.9),
+                            color: borderColor.withValues(alpha: 0.9),
                             width: 2,
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.18),
+                              color: Colors.black.withValues(alpha: 0.18),
                               blurRadius: 16,
                               offset: const Offset(0, 8),
                             ),
@@ -687,7 +687,7 @@ class _PillNotchPainterMove extends CustomPainter {
 
     path.close();
 
-    canvas.drawShadow(path, Colors.black.withOpacity(0.08), 10, true);
+    canvas.drawShadow(path, Colors.black.withValues(alpha: 0.08), 10, true);
 
     final fillPaint = Paint()
       ..color = fillColor
@@ -695,7 +695,7 @@ class _PillNotchPainterMove extends CustomPainter {
     canvas.drawPath(path, fillPaint);
 
     final strokePaint = Paint()
-      ..color = borderColor.withOpacity(0.9)
+      ..color = borderColor.withValues(alpha: 0.9)
       ..style = PaintingStyle.stroke
       ..strokeWidth = borderWidth;
     canvas.drawPath(path, strokePaint);

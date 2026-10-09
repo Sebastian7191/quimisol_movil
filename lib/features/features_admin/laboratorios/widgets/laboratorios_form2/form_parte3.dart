@@ -8,7 +8,7 @@ class FormParte3Muestras extends StatelessWidget {
   final List<MuestraFormItem> muestras;
   final List<String> tiposMuestra;
   final List<String> tiposEnvase;
-  final String? Function<String>(String?, List<String>) safeDropdownValue;
+  final T? Function<T>(T?, List<T>) safeDropdownValue;
   final VoidCallback onAgregarMuestra;
   final void Function(int index) onEliminarMuestra;
   final void Function(MuestraFormItem item, String? value) onTipoMuestraChanged;

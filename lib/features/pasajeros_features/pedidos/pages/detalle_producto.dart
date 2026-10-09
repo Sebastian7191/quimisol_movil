@@ -516,9 +516,12 @@ class _DetallePedidoPageState extends State<DetallePedidoPage> {
 
       await file.writeAsBytes(bytes, flush: true);
 
-      await Share.shareXFiles([
-        XFile(file.path),
-      ], text: 'Te comparto el código QR para realizar el pago.');
+      await SharePlus.instance.share(
+        ShareParams(
+          files: [XFile(file.path)],
+          text: 'Te comparto el código QR para realizar el pago.',
+        ),
+      );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -738,7 +741,7 @@ class _DetallePedidoPageState extends State<DetallePedidoPage> {
                       child: Text(
                         'Inicia sesión para ver el pedido.',
                         style: TextStyle(
-                          color: purple.withOpacity(0.75),
+                          color: purple.withValues(alpha: 0.75),
                           fontWeight: FontWeight.w800,
                         ),
                       ),
@@ -759,7 +762,7 @@ class _DetallePedidoPageState extends State<DetallePedidoPage> {
                                 'Error al cargar el pedido.\n${snap.error}',
                                 textAlign: TextAlign.center,
                                 style: TextStyle(
-                                  color: purple.withOpacity(0.75),
+                                  color: purple.withValues(alpha: 0.75),
                                   fontWeight: FontWeight.w800,
                                 ),
                               ),
@@ -773,7 +776,7 @@ class _DetallePedidoPageState extends State<DetallePedidoPage> {
                             child: Text(
                               'Pedido no encontrado.',
                               style: TextStyle(
-                                color: purple.withOpacity(0.75),
+                                color: purple.withValues(alpha: 0.75),
                                 fontWeight: FontWeight.w800,
                               ),
                             ),
@@ -863,7 +866,6 @@ class _DetallePedidoPageState extends State<DetallePedidoPage> {
                         final totalFinal =
                             totalProductos + (costoEnvio > 0 ? costoEnvio : 0);
 
-                        final showSpecial = false;
                         final isCancelled = step == _TrackStep.cancelado;
                         final isDelayed = step == _TrackStep.retrasado;
 
@@ -899,11 +901,11 @@ class _DetallePedidoPageState extends State<DetallePedidoPage> {
                                       color: Palette.card,
                                       borderRadius: BorderRadius.circular(18),
                                       border: Border.all(
-                                        color: Colors.white.withOpacity(0.65),
+                                        color: Colors.white.withValues(alpha: 0.65),
                                       ),
                                       boxShadow: [
                                         BoxShadow(
-                                          color: Colors.black.withOpacity(0.06),
+                                          color: Colors.black.withValues(alpha: 0.06),
                                           blurRadius: 18,
                                           offset: const Offset(0, 10),
                                         ),
@@ -949,7 +951,7 @@ class _DetallePedidoPageState extends State<DetallePedidoPage> {
                                             Text(
                                               'Resumen',
                                               style: TextStyle(
-                                                color: purple.withOpacity(0.80),
+                                                color: purple.withValues(alpha: 0.80),
                                                 fontWeight: FontWeight.w900,
                                               ),
                                             ),
@@ -986,7 +988,7 @@ class _DetallePedidoPageState extends State<DetallePedidoPage> {
                                             Text(
                                               'Estado pago',
                                               style: TextStyle(
-                                                color: purple.withOpacity(0.75),
+                                                color: purple.withValues(alpha: 0.75),
                                                 fontWeight: FontWeight.w800,
                                                 fontSize: 12.5,
                                               ),
@@ -1033,18 +1035,18 @@ class _DetallePedidoPageState extends State<DetallePedidoPage> {
                                             padding: const EdgeInsets.all(12),
                                             decoration: BoxDecoration(
                                               color: Palette.statsWarning
-                                                  .withOpacity(0.10),
+                                                  .withValues(alpha: 0.10),
                                               borderRadius:
                                                   BorderRadius.circular(14),
                                               border: Border.all(
                                                 color: Palette.statsWarning
-                                                    .withOpacity(0.22),
+                                                    .withValues(alpha: 0.22),
                                               ),
                                             ),
                                             child: Text(
                                               'Recuerda pagar al repartidor cuando tu entrega sea completada, por favor 😊',
                                               style: TextStyle(
-                                                color: purple.withOpacity(0.92),
+                                                color: purple.withValues(alpha: 0.92),
                                                 fontWeight: FontWeight.w700,
                                                 height: 1.35,
                                               ),
@@ -1060,7 +1062,7 @@ class _DetallePedidoPageState extends State<DetallePedidoPage> {
                                         ],
                                         const SizedBox(height: 10),
                                         Divider(
-                                          color: purple.withOpacity(0.12),
+                                          color: purple.withValues(alpha: 0.12),
                                           height: 1,
                                         ),
                                         const SizedBox(height: 10),
@@ -1088,7 +1090,7 @@ class _DetallePedidoPageState extends State<DetallePedidoPage> {
                                         ),
                                         const SizedBox(height: 10),
                                         Divider(
-                                          color: purple.withOpacity(0.12),
+                                          color: purple.withValues(alpha: 0.12),
                                           height: 1,
                                         ),
                                         const SizedBox(height: 10),
@@ -1133,12 +1135,12 @@ class _DetallePedidoPageState extends State<DetallePedidoPage> {
                                         color: Palette.card,
                                         borderRadius: BorderRadius.circular(18),
                                         border: Border.all(
-                                          color: Colors.white.withOpacity(0.65),
+                                          color: Colors.white.withValues(alpha: 0.65),
                                         ),
                                         boxShadow: [
                                           BoxShadow(
-                                            color: Colors.black.withOpacity(
-                                              0.06,
+                                            color: Colors.black.withValues(
+                                              alpha: 0.06,
                                             ),
                                             blurRadius: 18,
                                             offset: const Offset(0, 10),
@@ -1172,7 +1174,7 @@ class _DetallePedidoPageState extends State<DetallePedidoPage> {
                                           Text(
                                             'Tu pago fue rechazado. Vuelve a realizar el pago usando el QR y luego sube un nuevo comprobante para enviarlo nuevamente a revisión.',
                                             style: TextStyle(
-                                              color: purple.withOpacity(0.82),
+                                              color: purple.withValues(alpha: 0.82),
                                               fontWeight: FontWeight.w700,
                                               height: 1.35,
                                             ),
@@ -1184,12 +1186,12 @@ class _DetallePedidoPageState extends State<DetallePedidoPage> {
                                               padding: const EdgeInsets.all(12),
                                               decoration: BoxDecoration(
                                                 color: Palette.statsDanger
-                                                    .withOpacity(0.08),
+                                                    .withValues(alpha: 0.08),
                                                 borderRadius:
                                                     BorderRadius.circular(14),
                                                 border: Border.all(
                                                   color: Palette.statsDanger
-                                                      .withOpacity(0.25),
+                                                      .withValues(alpha: 0.25),
                                                 ),
                                               ),
                                               child: Row(
@@ -1227,7 +1229,7 @@ class _DetallePedidoPageState extends State<DetallePedidoPage> {
                                               borderRadius:
                                                   BorderRadius.circular(20),
                                               border: Border.all(
-                                                color: purple.withOpacity(0.06),
+                                                color: purple.withValues(alpha: 0.06),
                                               ),
                                             ),
                                             child: Center(
@@ -1263,8 +1265,8 @@ class _DetallePedidoPageState extends State<DetallePedidoPage> {
                                                               .qr_code_2_rounded,
                                                           size: 70,
                                                           color: purple
-                                                              .withOpacity(
-                                                                0.28,
+                                                              .withValues(
+                                                                alpha: 0.28,
                                                               ),
                                                         ),
                                                         const SizedBox(
@@ -1274,8 +1276,8 @@ class _DetallePedidoPageState extends State<DetallePedidoPage> {
                                                           'No hay QR disponible',
                                                           style: TextStyle(
                                                             color: purple
-                                                                .withOpacity(
-                                                                  0.60,
+                                                                .withValues(
+                                                                  alpha: 0.60,
                                                                 ),
                                                             fontWeight:
                                                                 FontWeight.w800,
@@ -1429,8 +1431,8 @@ class _DetallePedidoPageState extends State<DetallePedidoPage> {
                                                 borderRadius:
                                                     BorderRadius.circular(18),
                                                 border: Border.all(
-                                                  color: purple.withOpacity(
-                                                    0.06,
+                                                  color: purple.withValues(
+                                                    alpha: 0.06,
                                                   ),
                                                 ),
                                               ),
@@ -1498,7 +1500,7 @@ class _DetallePedidoPageState extends State<DetallePedidoPage> {
                                     children: [
                                       Icon(
                                         Icons.shopping_bag_rounded,
-                                        color: purple.withOpacity(0.90),
+                                        color: purple.withValues(alpha: 0.90),
                                         size: 18,
                                       ),
                                       const SizedBox(width: 8),
@@ -1514,7 +1516,7 @@ class _DetallePedidoPageState extends State<DetallePedidoPage> {
                                       Text(
                                         '(${items.length})',
                                         style: TextStyle(
-                                          color: purple.withOpacity(0.75),
+                                          color: purple.withValues(alpha: 0.75),
                                           fontWeight: FontWeight.w800,
                                         ),
                                       ),
@@ -1528,7 +1530,7 @@ class _DetallePedidoPageState extends State<DetallePedidoPage> {
                                         child: Text(
                                           'Este pedido no tiene items.',
                                           style: TextStyle(
-                                            color: purple.withOpacity(0.75),
+                                            color: purple.withValues(alpha: 0.75),
                                             fontWeight: FontWeight.w800,
                                           ),
                                         ),
@@ -1613,12 +1615,12 @@ class _DetallePedidoPageState extends State<DetallePedidoPage> {
                                 color: Palette.white,
                                 border: Border(
                                   top: BorderSide(
-                                    color: purple.withOpacity(0.10),
+                                    color: purple.withValues(alpha: 0.10),
                                   ),
                                 ),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: Colors.black.withOpacity(0.06),
+                                    color: Colors.black.withValues(alpha: 0.06),
                                     blurRadius: 18,
                                     offset: const Offset(0, -10),
                                   ),
@@ -1632,7 +1634,7 @@ class _DetallePedidoPageState extends State<DetallePedidoPage> {
                                       Icon(
                                         Icons.route_rounded,
                                         size: 18,
-                                        color: purple.withOpacity(0.90),
+                                        color: purple.withValues(alpha: 0.90),
                                       ),
                                       const SizedBox(width: 8),
                                       Text(
@@ -1685,7 +1687,7 @@ class _DetallePedidoPageState extends State<DetallePedidoPage> {
                                       Text(
                                         badge.label,
                                         style: TextStyle(
-                                          color: purple.withOpacity(0.85),
+                                          color: purple.withValues(alpha: 0.85),
                                           fontWeight: FontWeight.w800,
                                           fontSize: 12,
                                         ),
@@ -1703,7 +1705,7 @@ class _DetallePedidoPageState extends State<DetallePedidoPage> {
                                       onSoporte: () =>
                                           Navbar.irAPestana(context, 3),
                                     )
-                                  else if (showSpecial && isDelayed)
+                                  else if (_kShowSpecialStates && isDelayed)
                                     _SpecialStateBanner(
                                       type: isCancelled
                                           ? _SpecialType.cancelado
@@ -1758,7 +1760,7 @@ class _ResumenRow extends StatelessWidget {
         Text(
           label,
           style: TextStyle(
-            color: purple.withOpacity(0.75),
+            color: purple.withValues(alpha: 0.75),
             fontWeight: FontWeight.w800,
             fontSize: 12.5,
           ),
@@ -1792,9 +1794,9 @@ class _ReasonBox extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Palette.statsDanger.withOpacity(0.10),
+        color: Palette.statsDanger.withValues(alpha: 0.10),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Palette.statsDanger.withOpacity(0.25)),
+        border: Border.all(color: Palette.statsDanger.withValues(alpha: 0.25)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1811,7 +1813,7 @@ class _ReasonBox extends StatelessWidget {
           Text(
             text,
             style: TextStyle(
-              color: Palette.primary.withOpacity(0.92),
+              color: Palette.primary.withValues(alpha: 0.92),
               fontWeight: FontWeight.w700,
               height: 1.35,
             ),
@@ -1841,10 +1843,10 @@ class _ClientComprobanteCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Palette.card,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.white.withOpacity(0.65)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.65)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.06),
+            color: Colors.black.withValues(alpha: 0.06),
             blurRadius: 18,
             offset: const Offset(0, 10),
           ),
@@ -1873,7 +1875,7 @@ class _ClientComprobanteCard extends StatelessWidget {
             onTap: () {
               showDialog(
                 context: context,
-                barrierColor: Colors.black.withOpacity(0.9),
+                barrierColor: Colors.black.withValues(alpha: 0.9),
                 builder: (_) => _ComprobanteZoomDialog(
                   imageUrl: comprobanteUrl,
                   title: 'Comprobante',
@@ -1885,9 +1887,9 @@ class _ClientComprobanteCard extends StatelessWidget {
               width: double.infinity,
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: Palette.white.withOpacity(0.75),
+                color: Palette.white.withValues(alpha: 0.75),
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: purple.withOpacity(0.10)),
+                border: Border.all(color: purple.withValues(alpha: 0.10)),
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(12),
@@ -1903,7 +1905,7 @@ class _ClientComprobanteCard extends StatelessWidget {
                               child: Text(
                                 'No se pudo cargar el comprobante.',
                                 style: TextStyle(
-                                  color: purple.withOpacity(0.75),
+                                  color: purple.withValues(alpha: 0.75),
                                   fontWeight: FontWeight.w800,
                                 ),
                               ),
@@ -1924,7 +1926,7 @@ class _ClientComprobanteCard extends StatelessWidget {
           Text(
             'Toca la imagen para verla completa.',
             style: TextStyle(
-              color: purple.withOpacity(0.70),
+              color: purple.withValues(alpha: 0.70),
               fontWeight: FontWeight.w700,
               fontSize: 12,
             ),
@@ -1956,7 +1958,7 @@ class _ComprobanteZoomDialog extends StatelessWidget {
           Container(
             width: double.infinity,
             height: double.infinity,
-            color: Colors.black.withOpacity(0.92),
+            color: Colors.black.withValues(alpha: 0.92),
             child: Column(
               children: [
                 const SizedBox(height: 16),
@@ -2060,7 +2062,7 @@ class _PedidoItemRow extends StatelessWidget {
       decoration: BoxDecoration(
         color: Palette.card,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(0.65)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.65)),
       ),
       padding: const EdgeInsets.all(12),
       child: Row(
@@ -2073,23 +2075,23 @@ class _PedidoItemRow extends StatelessWidget {
               height: 54,
               width: 54,
               decoration: BoxDecoration(
-                color: Palette.white.withOpacity(0.75),
+                color: Palette.white.withValues(alpha: 0.75),
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: purple.withOpacity(0.10)),
+                border: Border.all(color: purple.withValues(alpha: 0.10)),
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(14),
                 child: imageUrl.trim().isEmpty
                     ? Icon(
                         Icons.image_outlined,
-                        color: purple.withOpacity(0.55),
+                        color: purple.withValues(alpha: 0.55),
                       )
                     : Image.network(
                         imageUrl,
                         fit: BoxFit.cover,
                         errorBuilder: (_, __, ___) => Icon(
                           Icons.broken_image_outlined,
-                          color: purple.withOpacity(0.55),
+                          color: purple.withValues(alpha: 0.55),
                         ),
                       ),
               ),
@@ -2129,7 +2131,7 @@ class _PedidoItemRow extends StatelessWidget {
               Text(
                 'Subtotal',
                 style: TextStyle(
-                  color: purple.withOpacity(0.70),
+                  color: purple.withValues(alpha: 0.70),
                   fontWeight: FontWeight.w800,
                   fontSize: 11.2,
                 ),
@@ -2161,14 +2163,14 @@ class _Pill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: Palette.white.withOpacity(0.60),
+        color: Palette.white.withValues(alpha: 0.60),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: purple.withOpacity(0.10)),
+        border: Border.all(color: purple.withValues(alpha: 0.10)),
       ),
       child: Text(
         text,
         style: TextStyle(
-          color: purple.withOpacity(0.90),
+          color: purple.withValues(alpha: 0.90),
           fontWeight: FontWeight.w900,
           fontSize: 11.2,
         ),
@@ -2403,7 +2405,7 @@ class _TrackingRowState extends State<_TrackingRow>
                 height: 3,
                 margin: const EdgeInsets.only(top: _dotR - 1.5),
                 decoration: BoxDecoration(
-                  color: purple.withOpacity(0.12),
+                  color: purple.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(999),
                 ),
                 alignment: Alignment.centerLeft,
@@ -2411,7 +2413,7 @@ class _TrackingRowState extends State<_TrackingRow>
                   widthFactor: (p - i).clamp(0.0, 1.0),
                   child: Container(
                     decoration: BoxDecoration(
-                      color: Palette.statsSuccess.withOpacity(0.85),
+                      color: Palette.statsSuccess.withValues(alpha: 0.85),
                       borderRadius: BorderRadius.circular(999),
                     ),
                   ),
@@ -2455,7 +2457,7 @@ class _TrackDot extends StatelessWidget {
       fg = Palette.white;
     } else {
       bg = Palette.white;
-      fg = purple.withOpacity(0.70);
+      fg = purple.withValues(alpha: 0.70);
     }
 
     final circulo = Container(
@@ -2464,12 +2466,12 @@ class _TrackDot extends StatelessWidget {
       decoration: BoxDecoration(
         color: bg,
         shape: BoxShape.circle,
-        border: Border.all(color: purple.withOpacity(0.12)),
+        border: Border.all(color: purple.withValues(alpha: 0.12)),
         boxShadow: [
           BoxShadow(
             color: pop
-                ? Palette.button.withOpacity(0.45)
-                : Colors.black.withOpacity(0.05),
+                ? Palette.button.withValues(alpha: 0.45)
+                : Colors.black.withValues(alpha: 0.05),
             blurRadius: pop ? 16 : 12,
             offset: pop ? Offset.zero : const Offset(0, 8),
           ),
@@ -2496,7 +2498,7 @@ class _TrackDot extends StatelessWidget {
           label,
           textAlign: TextAlign.center,
           style: TextStyle(
-            color: purple.withOpacity(active || done ? 0.95 : 0.70),
+            color: purple.withValues(alpha: active || done ? 0.95 : 0.70),
             fontWeight: FontWeight.w800,
             fontSize: 10.5,
           ),
@@ -2638,7 +2640,7 @@ class _TruckLanePainter extends CustomPainter {
 
   void _paintRoad(Canvas canvas, double w, double y) {
     final paint = Paint()
-      ..color = road.withOpacity(0.16)
+      ..color = road.withValues(alpha: 0.16)
       ..strokeWidth = 1.5
       ..strokeCap = StrokeCap.round;
     const dash = 6.0;
@@ -2654,7 +2656,7 @@ class _TruckLanePainter extends CustomPainter {
   void _paintSpeedLines(Canvas canvas, double truckX, double cargoTop) {
     if (speedLines <= 0) return;
     final paint = Paint()
-      ..color = accent.withOpacity(0.6 * speedLines)
+      ..color = accent.withValues(alpha: 0.6 * speedLines)
       ..strokeWidth = 1.6
       ..strokeCap = StrokeCap.round;
     const lines = [(3.0, 12.0), (8.0, 8.0), (12.0, 15.0)];
@@ -2712,7 +2714,7 @@ class _TruckLanePainter extends CustomPainter {
         Rect.fromLTWH(x + 4, cargo.center.dy - 1, _cargoW - 8, 2),
         const Radius.circular(1),
       ),
-      Paint()..color = Colors.white.withOpacity(0.55),
+      Paint()..color = Colors.white.withValues(alpha: 0.55),
     );
 
     // Cabina
@@ -2740,7 +2742,7 @@ class _TruckLanePainter extends CustomPainter {
       ..lineTo(cabL + _cabW - 2.2, cabT + 5)
       ..lineTo(cabL + 4.5, cabT + 5)
       ..close();
-    canvas.drawPath(window, Paint()..color = Colors.white.withOpacity(0.9));
+    canvas.drawPath(window, Paint()..color = Colors.white.withValues(alpha: 0.9));
 
     canvas.drawCircle(
       Offset(cabL + _cabW - 1, bodyBottom - 3.2),
@@ -2761,7 +2763,7 @@ class _TruckLanePainter extends CustomPainter {
       c - spoke,
       c + spoke,
       Paint()
-        ..color = Colors.white.withOpacity(0.6)
+        ..color = Colors.white.withValues(alpha: 0.6)
         ..strokeWidth = 0.9,
     );
   }
@@ -2775,7 +2777,7 @@ class _TruckLanePainter extends CustomPainter {
       Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = 3 * (1 - rt)
-        ..color = success.withOpacity(1 - rt),
+        ..color = success.withValues(alpha: 1 - rt),
     );
 
     // Confeti
@@ -2792,7 +2794,7 @@ class _TruckLanePainter extends CustomPainter {
       canvas.rotate(spin * t);
       canvas.drawRect(
         Rect.fromCenter(center: Offset.zero, width: s, height: s * 1.6),
-        Paint()..color = colors[ci].withOpacity(1 - t),
+        Paint()..color = colors[ci].withValues(alpha: 1 - t),
       );
       canvas.restore();
     }
@@ -2824,7 +2826,7 @@ class _TruckLanePainter extends CustomPainter {
         Rect.fromCenter(center: Offset.zero, width: pillW, height: pillH),
         const Radius.circular(999),
       ),
-      Paint()..color = success.withOpacity(label.clamp(0.0, 1.0)),
+      Paint()..color = success.withValues(alpha: label.clamp(0.0, 1.0)),
     );
     tp.paint(canvas, Offset(-tp.width / 2, -tp.height / 2));
     canvas.restore();
@@ -2981,6 +2983,8 @@ class _CanceladoBanner extends StatelessWidget {
   }
 }
 
+const bool _kShowSpecialStates = false;
+
 enum _SpecialType { retrasado, cancelado }
 
 class _SpecialStateBanner extends StatelessWidget {
@@ -3000,9 +3004,9 @@ class _SpecialStateBanner extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: bg.withOpacity(0.12),
+        color: bg.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: bg.withOpacity(0.30)),
+        border: Border.all(color: bg.withValues(alpha: 0.30)),
       ),
       child: Row(
         children: [

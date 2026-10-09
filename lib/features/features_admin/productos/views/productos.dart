@@ -127,6 +127,7 @@ class _ProductosPageState extends State<ProductosPage> {
     required List<AlmacenOption> almacenes,
   }) async {
     final estadoEdicion = await controller.obtenerEstadoEdicion(id);
+    if (!mounted) return;
 
     final res = await showDialog<ProductoDialogResult>(
       context: context,

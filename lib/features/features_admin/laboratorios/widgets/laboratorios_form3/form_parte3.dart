@@ -246,14 +246,12 @@ class _Field extends StatelessWidget {
   final String label;
   final String? Function(String?)? validator;
   final int maxLines;
-  final TextInputType? keyboardType;
 
   const _Field({
     required this.controller,
     required this.label,
     this.validator,
     this.maxLines = 1,
-    this.keyboardType,
   });
 
   @override
@@ -262,7 +260,6 @@ class _Field extends StatelessWidget {
       controller: controller,
       validator: validator,
       maxLines: maxLines,
-      keyboardType: keyboardType,
       decoration: InputDecoration(
         labelText: label,
         filled: true,

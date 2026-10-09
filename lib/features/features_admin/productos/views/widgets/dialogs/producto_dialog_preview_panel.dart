@@ -183,8 +183,9 @@ class ProductoDialogPreviewPanel extends StatelessWidget {
     ProductoDialogController controller, {
     required bool hasDiscount,
   }) {
-    if (!controller.descuentoEnabled || !hasDiscount)
+    if (!controller.descuentoEnabled || !hasDiscount) {
       return '¡No te lo pierdas!';
+    }
 
     final val = controller.parseDouble(controller.descuentoCtrl.text);
     if (val <= 0) return '¡No te lo pierdas!';

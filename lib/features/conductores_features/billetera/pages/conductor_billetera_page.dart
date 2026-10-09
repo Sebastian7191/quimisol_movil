@@ -7,7 +7,6 @@ class ConductorBilleteraPage extends StatelessWidget {
   Widget build(BuildContext context) {
     const softBg = Color(0xFFF5F5F5);
     const primaryText = Color(0xFF1F2933);
-    const accentGreen = Color(0xFF2E8B57);
 
     // Mock de movimientos
     final transactions = [
@@ -183,7 +182,7 @@ class ConductorBilleteraPage extends StatelessWidget {
               dateLabel: group['date'] as String,
               items: (group['items'] as List<Map<String, dynamic>>),
             );
-          }).toList(),
+          }),
         ],
       ),
     );
@@ -278,7 +277,7 @@ class _TransactionGroup extends StatelessWidget {
               ],
             ),
           );
-        }).toList(),
+        }),
       ],
     );
   }

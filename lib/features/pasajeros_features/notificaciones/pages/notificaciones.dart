@@ -188,7 +188,7 @@ class _NotificacionesPageState extends State<NotificacionesPage>
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.08),
+                        color: Colors.black.withValues(alpha: 0.08),
                         blurRadius: 18,
                         offset: const Offset(0, 10),
                       ),
@@ -209,10 +209,10 @@ class _NotificacionesPageState extends State<NotificacionesPage>
                                   height: 42,
                                   width: 42,
                                   decoration: BoxDecoration(
-                                    color: Colors.white.withOpacity(0.18),
+                                    color: Colors.white.withValues(alpha: 0.18),
                                     borderRadius: BorderRadius.circular(14),
                                     border: Border.all(
-                                      color: Colors.white.withOpacity(0.20),
+                                      color: Colors.white.withValues(alpha: 0.20),
                                     ),
                                   ),
                                   child: const Icon(
@@ -243,11 +243,11 @@ class _NotificacionesPageState extends State<NotificacionesPage>
                               color: Palette.white,
                               borderRadius: BorderRadius.circular(18),
                               border: Border.all(
-                                color: Palette.ink.withOpacity(0.06),
+                                color: Palette.ink.withValues(alpha: 0.06),
                               ),
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black.withOpacity(0.04),
+                                  color: Colors.black.withValues(alpha: 0.04),
                                   blurRadius: 14,
                                   offset: const Offset(0, 8),
                                 ),
@@ -258,11 +258,11 @@ class _NotificacionesPageState extends State<NotificacionesPage>
                               indicatorSize: TabBarIndicatorSize.tab,
                               dividerColor: Colors.transparent,
                               indicator: BoxDecoration(
-                                color: Palette.button.withOpacity(0.12),
+                                color: Palette.button.withValues(alpha: 0.12),
                                 borderRadius: BorderRadius.circular(14),
                               ),
                               labelColor: Palette.primary,
-                              unselectedLabelColor: ink.withOpacity(0.60),
+                              unselectedLabelColor: ink.withValues(alpha: 0.60),
                               labelStyle: const TextStyle(
                                 fontWeight: FontWeight.w900,
                                 fontSize: 13,
@@ -416,7 +416,7 @@ class _NotificacionesList extends StatelessWidget {
                   Icon(
                     emptyIcon,
                     size: 56,
-                    color: ink.withOpacity(0.25),
+                    color: ink.withValues(alpha: 0.25),
                   ),
                   const SizedBox(height: 12),
                   Text(
@@ -433,7 +433,7 @@ class _NotificacionesList extends StatelessWidget {
                     emptySubtitle,
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      color: ink.withOpacity(0.58),
+                      color: ink.withValues(alpha: 0.58),
                       fontWeight: FontWeight.w700,
                       height: 1.3,
                     ),
@@ -515,14 +515,14 @@ class _NotificacionCard extends StatelessWidget {
       duration: const Duration(milliseconds: 180),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: read ? Palette.white : accent.withOpacity(0.06),
+        color: read ? Palette.white : accent.withValues(alpha: 0.06),
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
-          color: read ? ink.withOpacity(0.06) : accent.withOpacity(0.18),
+          color: read ? ink.withValues(alpha: 0.06) : accent.withValues(alpha: 0.18),
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.03),
+            color: Colors.black.withValues(alpha: 0.03),
             blurRadius: 14,
             offset: const Offset(0, 8),
           ),
@@ -535,7 +535,7 @@ class _NotificacionCard extends StatelessWidget {
             height: 46,
             width: 46,
             decoration: BoxDecoration(
-              color: accent.withOpacity(0.12),
+              color: accent.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(14),
             ),
             child: Icon(icon, color: accent, size: 24),
@@ -574,7 +574,7 @@ class _NotificacionCard extends StatelessWidget {
                 Text(
                   body,
                   style: TextStyle(
-                    color: ink.withOpacity(0.72),
+                    color: ink.withValues(alpha: 0.72),
                     fontWeight: FontWeight.w700,
                     height: 1.28,
                     fontSize: 13.3,
@@ -653,9 +653,9 @@ class _MiniBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.12),
+        color: color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: color.withOpacity(0.18)),
+        border: Border.all(color: color.withValues(alpha: 0.18)),
       ),
       child: Text(
         text,
@@ -683,12 +683,12 @@ class _MiniBadgeMuted extends StatelessWidget {
       decoration: BoxDecoration(
         color: Palette.white,
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: ink.withOpacity(0.06)),
+        border: Border.all(color: ink.withValues(alpha: 0.06)),
       ),
       child: Text(
         text,
         style: TextStyle(
-          color: ink.withOpacity(0.58),
+          color: ink.withValues(alpha: 0.58),
           fontWeight: FontWeight.w800,
           fontSize: 11.5,
         ),

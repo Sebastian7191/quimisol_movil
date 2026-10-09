@@ -8,7 +8,7 @@ class FormParte4InfoMuestras extends StatelessWidget {
   final List<ChecklistFormItem> checklist;
   final List<String> cumpleOptions;
   final TextEditingController totalMuestrasCtrl;
-  final String? Function<String>(String?, List<String>) safeDropdownValue;
+  final T? Function<T>(T?, List<T>) safeDropdownValue;
   final VoidCallback onAgregarChecklist;
   final void Function(int index) onEliminarChecklist;
   final void Function(ChecklistFormItem item, String? value) onCumpleChanged;

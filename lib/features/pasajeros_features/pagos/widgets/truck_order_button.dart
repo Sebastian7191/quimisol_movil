@@ -410,7 +410,7 @@ class _TruckScenePainter extends CustomPainter {
   void _paintRoadDashes(Canvas canvas, Size size, double y) {
     if (roadOpacity <= 0) return;
     final paint = Paint()
-      ..color = Colors.white.withOpacity(0.8 * roadOpacity)
+      ..color = Colors.white.withValues(alpha: 0.8 * roadOpacity)
       ..strokeWidth = 1.4
       ..strokeCap = StrokeCap.round;
     const dash = 8.0;
@@ -425,7 +425,7 @@ class _TruckScenePainter extends CustomPainter {
   void _paintSpeedLines(Canvas canvas, double truckX, double cargoTop) {
     if (speedLines <= 0) return;
     final paint = Paint()
-      ..color = accent.withOpacity(0.6 * speedLines)
+      ..color = accent.withValues(alpha: 0.6 * speedLines)
       ..strokeWidth = 2
       ..strokeCap = StrokeCap.round;
     const lines = [(4.0, 16.0), (10.0, 10.0), (16.0, 20.0)];
@@ -485,7 +485,7 @@ class _TruckScenePainter extends CustomPainter {
         Rect.fromLTWH(x + 5, cargo.center.dy - 1.5, _cargoW - 10, 3),
         const Radius.circular(1.5),
       ),
-      Paint()..color = Colors.white.withOpacity(0.55),
+      Paint()..color = Colors.white.withValues(alpha: 0.55),
     );
 
     // Cabina con frente inclinado
@@ -514,7 +514,7 @@ class _TruckScenePainter extends CustomPainter {
       ..lineTo(cabL + _cabW - 3, cabT + 6.5)
       ..lineTo(cabL + 7, cabT + 6.5)
       ..close();
-    canvas.drawPath(window, Paint()..color = Colors.white.withOpacity(0.9));
+    canvas.drawPath(window, Paint()..color = Colors.white.withValues(alpha: 0.9));
 
     // Faro
     canvas.drawCircle(
@@ -536,7 +536,7 @@ class _TruckScenePainter extends CustomPainter {
       c - spoke,
       c + spoke,
       Paint()
-        ..color = Colors.white.withOpacity(0.6)
+        ..color = Colors.white.withValues(alpha: 0.6)
         ..strokeWidth = 1,
     );
   }

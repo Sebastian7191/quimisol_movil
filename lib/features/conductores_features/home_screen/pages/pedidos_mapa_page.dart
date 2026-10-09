@@ -20,6 +20,7 @@ class PedidosMapaPage extends StatefulWidget {
 class _PedidosMapaPageState extends State<PedidosMapaPage> {
   mb.MapboxMap? _map;
   mb.PointAnnotationManager? _pointManager;
+  mb.Cancelable? _tapEvents;
   bool _mapReady = false;
 
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _sub;
@@ -53,6 +54,7 @@ class _PedidosMapaPageState extends State<PedidosMapaPage> {
   void dispose() {
     _sub?.cancel();
     _debounce?.cancel();
+    _tapEvents?.cancel();
     super.dispose();
   }
 
@@ -137,7 +139,7 @@ class _PedidosMapaPageState extends State<PedidosMapaPage> {
           await FirebaseFirestore.instance.collection('usuarios').doc(uid).get();
 
       if (usuariosDoc.exists) {
-        final data = usuariosDoc.data() as Map<String, dynamic>?;
+        final data = usuariosDoc.data();
         _userPhotoCache[uid] = _pickPhotoUrl(data);
         return;
       }
@@ -147,7 +149,7 @@ class _PedidosMapaPageState extends State<PedidosMapaPage> {
           await FirebaseFirestore.instance.collection('users').doc(uid).get();
 
       if (usersDoc.exists) {
-        final data = usersDoc.data() as Map<String, dynamic>?;
+        final data = usersDoc.data();
         _userPhotoCache[uid] = _pickPhotoUrl(data);
         return;
       }
@@ -220,25 +222,24 @@ class _PedidosMapaPageState extends State<PedidosMapaPage> {
     }
 
     // listener tap
-    _pointManager!.addOnPointAnnotationClickListener(
-      _PointTapListener(
-        onTap: (annotation) {
-          final pedidoId = _annToPedido[annotation.id];
-          if (pedidoId == null) return;
-          final it = _items[pedidoId];
-          if (it == null) return;
+    _tapEvents?.cancel();
+    _tapEvents = _pointManager!.tapEvents(
+      onTap: (annotation) {
+      final pedidoId = _annToPedido[annotation.id];
+      if (pedidoId == null) return;
+      final it = _items[pedidoId];
+      if (it == null) return;
 
-          setState(() => _selected = it);
+      setState(() => _selected = it);
 
-          _map?.easeTo(
-            mb.CameraOptions(
-              center: mb.Point(coordinates: mb.Position(it.lng, it.lat)),
-              zoom: 15.5,
-            ),
-            mb.MapAnimationOptions(duration: 500),
-          );
-        },
-      ),
+      _map?.easeTo(
+        mb.CameraOptions(
+          center: mb.Point(coordinates: mb.Position(it.lng, it.lat)),
+          zoom: 15.5,
+        ),
+        mb.MapAnimationOptions(duration: 500),
+      );
+      },
     );
   }
 
@@ -330,7 +331,7 @@ class _PedidosMapaPageState extends State<PedidosMapaPage> {
     canvas.drawCircle(
       const Offset(cx, cy + 6),
       circleR + 6,
-      Paint()..color = Colors.black.withOpacity(0.18),
+      Paint()..color = Colors.black.withValues(alpha: 0.18),
     );
 
     // borde blanco
@@ -359,7 +360,7 @@ class _PedidosMapaPageState extends State<PedidosMapaPage> {
     } else {
       canvas.drawRect(
         Rect.fromCircle(center: const Offset(cx, cy), radius: circleR),
-        Paint()..color = Palette.primary.withOpacity(0.95),
+        Paint()..color = Palette.primary.withValues(alpha: 0.95),
       );
 
       final initial =
@@ -395,7 +396,7 @@ class _PedidosMapaPageState extends State<PedidosMapaPage> {
     // sombra badge
     canvas.drawRRect(
       rrect.shift(const Offset(0, 5)),
-      Paint()..color = Colors.black.withOpacity(0.16),
+      Paint()..color = Colors.black.withValues(alpha: 0.16),
     );
 
     canvas.drawRRect(
@@ -455,8 +456,8 @@ class _PedidosMapaPageState extends State<PedidosMapaPage> {
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [
-                Palette.gradientStart.withOpacity(0.45),
-                Palette.gradientEnd.withOpacity(0.65),
+                Palette.gradientStart.withValues(alpha: 0.45),
+                Palette.gradientEnd.withValues(alpha: 0.65),
               ],
             ),
           ),
@@ -522,7 +523,7 @@ class _PedidosMapaPageState extends State<PedidosMapaPage> {
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.10),
+            color: Colors.black.withValues(alpha: 0.10),
             blurRadius: 24,
             offset: const Offset(0, -10),
           ),
@@ -533,7 +534,7 @@ class _PedidosMapaPageState extends State<PedidosMapaPage> {
             ? 'No hay pedidos con ubicación.'
             : 'Toca un pedido en el mapa para ver detalle.',
         style: TextStyle(
-          color: Palette.ink.withOpacity(0.75),
+          color: Palette.ink.withValues(alpha: 0.75),
           fontWeight: FontWeight.w700,
         ),
       ),
@@ -550,7 +551,7 @@ class _PedidosMapaPageState extends State<PedidosMapaPage> {
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.12),
+            color: Colors.black.withValues(alpha: 0.12),
             blurRadius: 24,
             offset: const Offset(0, -10),
           ),
@@ -566,7 +567,7 @@ class _PedidosMapaPageState extends State<PedidosMapaPage> {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 decoration: BoxDecoration(
-                  color: Palette.button.withOpacity(0.12),
+                  color: Palette.button.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(999),
                 ),
                 child: Text(
@@ -584,7 +585,7 @@ class _PedidosMapaPageState extends State<PedidosMapaPage> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    color: Palette.ink.withOpacity(0.7),
+                    color: Palette.ink.withValues(alpha: 0.7),
                     fontWeight: FontWeight.w800,
                   ),
                 ),
@@ -600,7 +601,7 @@ class _PedidosMapaPageState extends State<PedidosMapaPage> {
           Text(
             'UID: ${it.usuarioUid.isEmpty ? "N/A" : it.usuarioUid}',
             style: TextStyle(
-              color: Palette.ink.withOpacity(0.6),
+              color: Palette.ink.withValues(alpha: 0.6),
               fontWeight: FontWeight.w700,
               fontSize: 12,
             ),
@@ -613,7 +614,7 @@ class _PedidosMapaPageState extends State<PedidosMapaPage> {
                   onPressed: () => setState(() => _selected = null),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: Palette.ink,
-                    side: BorderSide(color: Palette.ink.withOpacity(0.18)),
+                    side: BorderSide(color: Palette.ink.withValues(alpha: 0.18)),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(14),
                     ),
@@ -688,19 +689,5 @@ class _PedidoMapaItem {
       usuarioUid: usuarioUid,
       fotoUrl: fotoUrl ?? this.fotoUrl,
     );
-  }
-}
-
-// ─────────────────────────────────────────────
-// TAP LISTENER
-// ─────────────────────────────────────────────
-class _PointTapListener extends mb.OnPointAnnotationClickListener {
-  final void Function(mb.PointAnnotation annotation) onTap;
-  _PointTapListener({required this.onTap});
-
-  @override
-  bool onPointAnnotationClick(mb.PointAnnotation annotation) {
-    onTap(annotation);
-    return true;
   }
 }

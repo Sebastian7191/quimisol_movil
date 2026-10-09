@@ -1,7 +1,7 @@
 // lib/features/conductores_features/home_screen/pages/pedido_ruta_map_page.dart
 import 'dart:async';
 import 'dart:convert';
-import 'dart:math' as Math;
+import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
@@ -203,7 +203,7 @@ class _PedidoRutaMapPageState extends State<PedidoRutaMapPage> {
       }
 
       final pos = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
+        locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
       );
 
       _aLat = pos.latitude;
@@ -286,7 +286,7 @@ class _PedidoRutaMapPageState extends State<PedidoRutaMapPage> {
 
     final shadowPath = ui.Path()
       ..addOval(Rect.fromCircle(center: center, radius: _bubbleRadius));
-    canvas.drawShadow(shadowPath, Colors.black.withOpacity(0.30), 14, true);
+    canvas.drawShadow(shadowPath, Colors.black.withValues(alpha: 0.30), 14, true);
 
     final fillPaint = ui.Paint()
       ..color = Palette.white
@@ -335,7 +335,7 @@ class _PedidoRutaMapPageState extends State<PedidoRutaMapPage> {
         final v = event.snapshot.value;
 
         if (v is Map) {
-          final map = Map<String, dynamic>.from(v as Map);
+          final map = Map<String, dynamic>.from(v);
 
           final lat = _toDouble(map['lat'] ?? map['latitude']);
           final lng = _toDouble(map['lng'] ?? map['longitude']);
@@ -403,7 +403,7 @@ class _PedidoRutaMapPageState extends State<PedidoRutaMapPage> {
       }
 
       final ubicacion = (data['ubicacion'] as Map?) ?? {};
-      final u = Map<String, dynamic>.from(ubicacion as Map);
+      final u = Map<String, dynamic>.from(ubicacion);
 
       _pedidoDireccion = (u['direccion'] ?? data['direccion'] ?? '')
           .toString()
@@ -515,7 +515,7 @@ class _PedidoRutaMapPageState extends State<PedidoRutaMapPage> {
           lineJoin: mb.LineJoin.ROUND,
           lineCap: mb.LineCap.ROUND,
           lineWidth: _routeWidth,
-          lineColor: Palette.button.value,
+          lineColor: Palette.button.toARGB32(),
         ),
       );
     }
@@ -657,7 +657,7 @@ class _PedidoRutaMapPageState extends State<PedidoRutaMapPage> {
     return (lat1 - lat2).abs() > 1e-6 || (lng1 - lng2).abs() > 1e-6;
   }
 
-  double _deg2rad(double deg) => deg * (Math.pi / 180.0);
+  double _deg2rad(double deg) => deg * (math.pi / 180.0);
 
   double _haversineMeters(double lat1, double lon1, double lat2, double lon2) {
     const R = 6371000.0;
@@ -665,12 +665,12 @@ class _PedidoRutaMapPageState extends State<PedidoRutaMapPage> {
     final dLon = _deg2rad(lon2 - lon1);
 
     final a =
-        (Math.sin(dLat / 2) * Math.sin(dLat / 2)) +
-        Math.cos(_deg2rad(lat1)) *
-            Math.cos(_deg2rad(lat2)) *
-            (Math.sin(dLon / 2) * Math.sin(dLon / 2));
+        (math.sin(dLat / 2) * math.sin(dLat / 2)) +
+        math.cos(_deg2rad(lat1)) *
+            math.cos(_deg2rad(lat2)) *
+            (math.sin(dLon / 2) * math.sin(dLon / 2));
 
-    final c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    final c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
     return R * c;
   }
 
@@ -858,7 +858,7 @@ class _PedidoRutaMapPageState extends State<PedidoRutaMapPage> {
       context: context,
       isScrollControlled: false,
       backgroundColor: Colors.transparent,
-      barrierColor: Colors.black.withOpacity(0.35),
+      barrierColor: Colors.black.withValues(alpha: 0.35),
       builder: (ctx) {
         return SafeArea(
           top: false,
@@ -875,7 +875,7 @@ class _PedidoRutaMapPageState extends State<PedidoRutaMapPage> {
                   width: 42,
                   height: 5,
                   decoration: BoxDecoration(
-                    color: Palette.ink.withOpacity(0.15),
+                    color: Palette.ink.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(999),
                   ),
                 ),
@@ -884,7 +884,7 @@ class _PedidoRutaMapPageState extends State<PedidoRutaMapPage> {
                   width: 54,
                   height: 54,
                   decoration: BoxDecoration(
-                    color: Palette.button.withOpacity(0.12),
+                    color: Palette.button.withValues(alpha: 0.12),
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(
@@ -908,7 +908,7 @@ class _PedidoRutaMapPageState extends State<PedidoRutaMapPage> {
                   'Se marcará como En camino y comenzará el seguimiento activo del pedido.',
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    color: Palette.ink.withOpacity(0.68),
+                    color: Palette.ink.withValues(alpha: 0.68),
                     fontWeight: FontWeight.w700,
                     height: 1.35,
                   ),
@@ -920,7 +920,7 @@ class _PedidoRutaMapPageState extends State<PedidoRutaMapPage> {
                       child: OutlinedButton(
                         onPressed: () async {
                           await _setSkipStartConfirm(true);
-                          if (!mounted) return;
+                          if (!ctx.mounted) return;
                           Navigator.pop(ctx, true);
                         },
                         style: OutlinedButton.styleFrom(
@@ -1065,6 +1065,7 @@ class _PedidoRutaMapPageState extends State<PedidoRutaMapPage> {
         await _stopRealtime();
       }
 
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -1336,16 +1337,16 @@ class _BottomInfoPanelState extends State<_BottomInfoPanel> {
 
     return Container(
       decoration: BoxDecoration(
-        color: Palette.white.withOpacity(0.97),
+        color: Palette.white.withValues(alpha: 0.97),
         borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.14),
+            color: Colors.black.withValues(alpha: 0.14),
             blurRadius: 22,
             offset: const Offset(0, -6),
           ),
         ],
-        border: Border.all(color: Palette.primary.withOpacity(0.08)),
+        border: Border.all(color: Palette.primary.withValues(alpha: 0.08)),
       ),
       child: SafeArea(
         top: false,
@@ -1359,7 +1360,7 @@ class _BottomInfoPanelState extends State<_BottomInfoPanel> {
                 width: 42,
                 height: 5,
                 decoration: BoxDecoration(
-                  color: Palette.ink.withOpacity(0.15),
+                  color: Palette.ink.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(999),
                 ),
               ),
@@ -1375,7 +1376,7 @@ class _BottomInfoPanelState extends State<_BottomInfoPanel> {
                           (widget.error != null
                                   ? Palette.statsDanger
                                   : Palette.primary)
-                              .withOpacity(0.12),
+                              .withValues(alpha: 0.12),
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
@@ -1400,7 +1401,7 @@ class _BottomInfoPanelState extends State<_BottomInfoPanel> {
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             fontWeight: FontWeight.w900,
-                            color: Palette.ink.withOpacity(0.88),
+                            color: Palette.ink.withValues(alpha: 0.88),
                             fontSize: 14,
                           ),
                         ),
@@ -1412,7 +1413,7 @@ class _BottomInfoPanelState extends State<_BottomInfoPanel> {
                           style: TextStyle(
                             fontWeight: FontWeight.w700,
                             fontSize: 12.2,
-                            color: Palette.ink.withOpacity(0.65),
+                            color: Palette.ink.withValues(alpha: 0.65),
                           ),
                         ),
                       ],
@@ -1473,7 +1474,7 @@ class _BottomInfoPanelState extends State<_BottomInfoPanel> {
                             border: Border.all(
                               color: faltaCobrar
                                   ? Colors.orange.withValues(alpha: 0.55)
-                                  : Palette.primary.withOpacity(0.07),
+                                  : Palette.primary.withValues(alpha: 0.07),
                               width: faltaCobrar ? 1.4 : 1,
                             ),
                           ),
@@ -1500,7 +1501,7 @@ class _BottomInfoPanelState extends State<_BottomInfoPanel> {
                                     Text(
                                       'Pago',
                                       style: TextStyle(
-                                        color: Palette.ink.withOpacity(0.58),
+                                        color: Palette.ink.withValues(alpha: 0.58),
                                         fontSize: 11.5,
                                         fontWeight: FontWeight.w800,
                                       ),
@@ -1548,7 +1549,7 @@ class _BottomInfoPanelState extends State<_BottomInfoPanel> {
                       color: Palette.fieldBg,
                       borderRadius: BorderRadius.circular(14),
                       border: Border.all(
-                        color: Palette.primary.withOpacity(0.08),
+                        color: Palette.primary.withValues(alpha: 0.08),
                       ),
                     ),
                     child: Row(
@@ -1612,7 +1613,7 @@ class _BottomInfoPanelState extends State<_BottomInfoPanel> {
                       child: Text(
                         'Toca "Pago" para marcarlo como pagado y poder entregar.',
                         style: TextStyle(
-                          color: Palette.ink.withOpacity(0.75),
+                          color: Palette.ink.withValues(alpha: 0.75),
                           fontWeight: FontWeight.w700,
                           fontSize: 13,
                         ),
@@ -1633,7 +1634,7 @@ class _BottomInfoPanelState extends State<_BottomInfoPanel> {
                       : widget.onToggleEstado,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Palette.button,
-                    disabledBackgroundColor: Palette.ink.withOpacity(0.15),
+                    disabledBackgroundColor: Palette.ink.withValues(alpha: 0.15),
                     foregroundColor: Colors.white,
                     elevation: 0,
                     shape: RoundedRectangleBorder(
@@ -1887,7 +1888,7 @@ class _MiniInfoChip extends StatelessWidget {
       decoration: BoxDecoration(
         color: Palette.fieldBg,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Palette.primary.withOpacity(0.07)),
+        border: Border.all(color: Palette.primary.withValues(alpha: 0.07)),
       ),
       child: Row(
         children: [
@@ -1900,7 +1901,7 @@ class _MiniInfoChip extends StatelessWidget {
                 Text(
                   label,
                   style: TextStyle(
-                    color: Palette.ink.withOpacity(0.58),
+                    color: Palette.ink.withValues(alpha: 0.58),
                     fontSize: 11.5,
                     fontWeight: FontWeight.w800,
                   ),
@@ -1947,7 +1948,7 @@ class _PedidoMiniItemCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Palette.fieldBg,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Palette.primary.withOpacity(0.07)),
+        border: Border.all(color: Palette.primary.withValues(alpha: 0.07)),
       ),
       child: Row(
         children: [
@@ -1976,7 +1977,7 @@ class _PedidoMiniItemCard extends StatelessWidget {
                 Text(
                   'Cant: $qty • Bs ${price.toStringAsFixed(2)}',
                   style: TextStyle(
-                    color: Palette.ink.withOpacity(0.66),
+                    color: Palette.ink.withValues(alpha: 0.66),
                     fontWeight: FontWeight.w700,
                     fontSize: 11.8,
                   ),

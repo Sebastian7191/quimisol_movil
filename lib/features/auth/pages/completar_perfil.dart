@@ -342,7 +342,7 @@ class _UbicacionesMiniSection extends StatelessWidget {
                       text: '  (opcional)',
                       style: TextStyle(
                         fontWeight: FontWeight.w700,
-                        color: ink.withOpacity(0.5),
+                        color: ink.withValues(alpha: 0.5),
                         fontSize: 13,
                       ),
                     ),
@@ -361,7 +361,7 @@ class _UbicacionesMiniSection extends StatelessWidget {
           Text(
             'Puedes agregarla ahora o más adelante, cuando hagas tu primer pedido.',
             style: TextStyle(
-              color: ink.withOpacity(0.6),
+              color: ink.withValues(alpha: 0.6),
               fontWeight: FontWeight.w700,
             ),
           )
@@ -375,7 +375,7 @@ class _UbicacionesMiniSection extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: Palette.white,
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: ink.withOpacity(0.06)),
+                  border: Border.all(color: ink.withValues(alpha: 0.06)),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -390,7 +390,7 @@ class _UbicacionesMiniSection extends StatelessWidget {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        color: ink.withOpacity(0.65),
+                        color: ink.withValues(alpha: 0.65),
                         fontWeight: FontWeight.w700,
                         fontSize: 13,
                       ),

@@ -252,7 +252,7 @@ class _ShinePainter extends CustomPainter {
         end: Alignment.bottomRight,
         colors: [
           Colors.transparent,
-          Colors.white.withOpacity(0.14),
+          Colors.white.withValues(alpha: 0.14),
           Colors.transparent,
         ],
         stops: const [0.0, 0.5, 1.0],
@@ -288,7 +288,7 @@ class _ThreeDotsLoading extends StatelessWidget {
           height: active ? 10 : 7,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: active ? Colors.white : Colors.white.withOpacity(0.35),
+            color: active ? Colors.white : Colors.white.withValues(alpha: 0.35),
           ),
         );
       }),
