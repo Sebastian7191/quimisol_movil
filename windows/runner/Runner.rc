@@ -89,11 +89,11 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "com.example" "\0"
+            VALUE "CompanyName", "com.quimisol" "\0"
             VALUE "FileDescription", "quimisol_movil" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
             VALUE "InternalName", "quimisol_movil" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2025 com.example. All rights reserved." "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2025 com.quimisol. All rights reserved." "\0"
             VALUE "OriginalFilename", "quimisol_movil.exe" "\0"
             VALUE "ProductName", "quimisol_movil" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
