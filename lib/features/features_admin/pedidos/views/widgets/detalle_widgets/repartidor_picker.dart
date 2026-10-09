@@ -88,8 +88,11 @@ class _RepartidorPickerWidgetState extends State<RepartidorPickerWidget> {
 
         final options = snap.data ?? [];
         if (options.isEmpty) {
-          final extra = alm.isNotEmpty ? '(almacenId: "$alm")' : '(depto: "$dep")';
-          return WarnBox(text: 'No hay repartidores disponibles. $extra');
+          return WarnBox(
+            text: dep.isNotEmpty
+                ? 'No hay repartidores en $dep.'
+                : 'No hay repartidores en el departamento de este pedido.',
+          );
         }
 
         final repartidoresMap = <String, String>{

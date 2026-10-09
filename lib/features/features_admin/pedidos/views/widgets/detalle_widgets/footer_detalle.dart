@@ -10,7 +10,15 @@ class Footer extends StatelessWidget {
     required this.onSave,
     this.readOnly = false,
     this.faltaRepartidor = false,
+    this.aviso,
+    this.ayuda,
   });
+
+  /// Motivo (en rojo) por el que no se puede guardar; tiene prioridad.
+  final String? aviso;
+
+  /// Texto de ayuda neutro cuando sí se puede guardar.
+  final String? ayuda;
 
   final bool isSaving;
   final VoidCallback? onClose;
@@ -20,6 +28,7 @@ class Footer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final bloqueado = aviso != null || faltaRepartidor;
     return Container(
       padding: const EdgeInsets.fromLTRB(18, 12, 18, 16),
       decoration: BoxDecoration(
@@ -34,15 +43,17 @@ class Footer extends StatelessWidget {
             child: Text(
               readOnly
                   ? 'Este pedido ya fue entregado y no puede modificarse.'
-                  : faltaRepartidor
-                      ? 'Asigna un repartidor para poder guardar.'
-                      : 'Asigna repartidor y fecha antes de guardar.',
+                  : aviso ??
+                      (faltaRepartidor
+                          ? 'Asigna un repartidor para poder guardar.'
+                          : ayuda ??
+                              'Asigna repartidor y fecha antes de guardar.'),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 color: readOnly
                     ? Palette.statsWarning
-                    : faltaRepartidor
+                    : bloqueado
                         ? Palette.statsDanger
                         : Palette.ink.withValues(alpha: 0.62),
                 fontWeight: FontWeight.w700,

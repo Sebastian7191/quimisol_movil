@@ -44,7 +44,20 @@ class PedidoDetalleController {
     required String departamento,
     required String almacenId,
   }) async {
-    final dep = departamento.trim().toLowerCase();
+    String norm(dynamic v) =>
+        (v ?? '').toString().toLowerCase().replaceAll(RegExp(r'\s+'), '');
+
+    var dep = norm(departamento);
+
+    // Si el pedido no trae departamento, se toma el de su almacén.
+    if (dep.isEmpty && almacenId.trim().isNotEmpty) {
+      final alm =
+          await _fire.collection('almacenes').doc(almacenId.trim()).get();
+      dep = norm(alm.data()?['departamento']);
+    }
+
+    // Sin departamento no se puede saber quién corresponde: no se muestra a nadie.
+    if (dep.isEmpty) return [];
 
     final snap = await _fire.collection('usuarios').get();
 
@@ -62,8 +75,6 @@ class PedidoDetalleController {
       if (!isRepartidor) continue;
       candidatos.add(d);
     }
-
-    if (dep.isEmpty) return candidatos;
 
     // Paso 2: recopilar almacenIds únicos de los candidatos
     final almacenIds = <String>{};
@@ -85,9 +96,7 @@ class PedidoDetalleController {
     for (final id in almacenIds) {
       final doc = await _fire.collection('almacenes').doc(id).get();
       if (doc.exists) {
-        final depAlmacen =
-            (doc.data()?['departamento'] ?? '').toString().trim().toLowerCase();
-        almacenDepMap[id] = depAlmacen;
+        almacenDepMap[id] = norm(doc.data()?['departamento']);
       }
     }
 
@@ -104,16 +113,13 @@ class PedidoDetalleController {
               .toString()
               .trim();
 
-      if (almId.isEmpty) {
-        // Sin almacén asignado: se incluye para no excluir por error
-        out.add(d);
-        continue;
-      }
+      // Departamento del repartidor: el de su almacén; si no tiene almacén
+      // (o el almacén no tiene departamento), el guardado en su usuario.
+      var depRep = almId.isEmpty ? '' : (almacenDepMap[almId] ?? '');
+      if (depRep.isEmpty) depRep = norm(data['departamento']);
 
-      final depAlmacen = almacenDepMap[almId] ?? '';
-      if (depAlmacen.isEmpty || depAlmacen == dep) {
-        out.add(d);
-      }
+      // Solo los del mismo departamento que el pedido.
+      if (depRep == dep) out.add(d);
     }
 
     return out;

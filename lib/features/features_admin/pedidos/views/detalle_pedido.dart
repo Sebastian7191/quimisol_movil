@@ -133,6 +133,10 @@ class _PedidoDetalleFormState extends State<_PedidoDetalleForm> {
     _motivoRechazoCtrl = TextEditingController(
       text: widget.pedido.motivoRechazoPago,
     );
+    // El botón Guardar depende de si hay motivo de rechazo escrito.
+    _motivoRechazoCtrl.addListener(() {
+      if (mounted) setState(() {});
+    });
 
     if (!_esEfectivo && _estadoPagoEdit == 'rechazado') {
       _estadoEdit = kEstadoPendiente;
@@ -239,25 +243,76 @@ class _PedidoDetalleFormState extends State<_PedidoDetalleForm> {
     }
   }
 
-  // Cancelar un pedido no requiere repartidor.
+  /* ── Reglas de coherencia entre estado, fecha, repartidor y pago ──
+     · Pendiente: nada obligatorio (se puede revisar/confirmar el pago antes).
+     · Aceptado / En camino: fecha de envío + repartidor y, si es QR, pago Pagado.
+     · Cancelado: nada obligatorio.
+     · Pago QR rechazado: requiere motivo (y fuerza el estado a Pendiente). */
+
+  bool get _esQr => widget.pedido.tipoPago.trim().toLowerCase().contains('qr');
+
+  bool get _requiereAsignacion =>
+      _estadoEdit == kEstadoAceptado || _estadoEdit == kEstadoEnCamino;
+
+  bool get _faltaFecha => _requiereAsignacion && _fechaEnvioEdit == null;
+
   bool get _faltaRepartidor =>
-      _estadoEdit != kEstadoCancelado &&
+      _requiereAsignacion &&
       (_repartidorUidEdit == null || _repartidorUidEdit!.isEmpty);
 
-  Future<void> _saveChanges() async {
-    if (_yaEntregado || _faltaRepartidor) return;
-    _applyCostoFromText();
+  bool get _faltaPagoQr =>
+      _esQr && _requiereAsignacion && _estadoPagoEdit != 'pagado';
 
-    if (!_esEfectivo &&
-        _estadoPagoEdit == 'rechazado' &&
-        _motivoRechazoCtrl.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Debes escribir el motivo del rechazo del pago.'),
-        ),
-      );
-      return;
+  bool get _faltaMotivoRechazo =>
+      !_esEfectivo &&
+      _estadoPagoEdit == 'rechazado' &&
+      _motivoRechazoCtrl.text.trim().isEmpty;
+
+  /// Qué falta, en el orden en que conviene resolverlo.
+  List<String> get _faltantes => [
+        if (_faltaPagoQr) 'pago QR en Pagado',
+        if (_faltaFecha) 'fecha de envío',
+        if (_faltaRepartidor) 'repartidor',
+      ];
+
+  bool get _bloqueadoGuardar =>
+      _faltantes.isNotEmpty || _faltaMotivoRechazo;
+
+  String _unir(List<String> xs) => xs.length <= 1
+      ? xs.join()
+      : '${xs.sublist(0, xs.length - 1).join(', ')} y ${xs.last}';
+
+  /// Mensaje en rojo cuando no se puede guardar.
+  String? get _avisoGuardar {
+    if (_faltaMotivoRechazo) {
+      return 'Escribe el motivo del rechazo del pago para poder guardar.';
     }
+    final f = _faltantes;
+    if (f.isEmpty) return null;
+    final accion = _estadoEdit == kEstadoAceptado ? 'aceptar' : 'guardar';
+    return 'Para $accion el pedido falta: ${_unir(f)}.';
+  }
+
+  /// Texto de ayuda cuando sí se puede guardar.
+  String get _ayudaGuardar {
+    if (_estadoEdit == kEstadoCancelado) return 'El pedido se guardará como cancelado.';
+    if (_estadoEdit == kEstadoPendiente) {
+      final pasos = [
+        if (_esQr && _estadoPagoEdit != 'pagado') 'confirmar el pago QR',
+        if (_fechaEnvioEdit == null) 'asignar fecha de envío',
+        if (_repartidorUidEdit == null || _repartidorUidEdit!.isEmpty)
+          'asignar repartidor',
+      ];
+      return pasos.isEmpty
+          ? 'Listo: ya puedes cambiar el estado a Aceptado.'
+          : 'Para aceptarlo: ${_unir(pasos)}.';
+    }
+    return 'Todo en orden para guardar.';
+  }
+
+  Future<void> _saveChanges() async {
+    if (_yaEntregado || _bloqueadoGuardar) return;
+    _applyCostoFromText();
 
     // Solo se valida si la fecha fue cambiada; una fecha ya guardada que
     // quedó en el pasado no debe bloquear otros cambios (p. ej. cancelar).
@@ -513,9 +568,10 @@ class _PedidoDetalleFormState extends State<_PedidoDetalleForm> {
         Footer(
           isSaving: _saving,
           readOnly: _yaEntregado,
-          faltaRepartidor: _faltaRepartidor,
+          aviso: _avisoGuardar,
+          ayuda: _ayudaGuardar,
           onClose: _saving ? null : () => Navigator.pop(context),
-          onSave: (_locked || _faltaRepartidor) ? null : _saveChanges,
+          onSave: (_locked || _bloqueadoGuardar) ? null : _saveChanges,
         ),
       ],
     );
